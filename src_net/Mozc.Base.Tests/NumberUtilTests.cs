@@ -92,4 +92,23 @@ public class NumberUtilTests
         Assert.True(NumberUtil.TryNormalizeNumber("〇〇五", trimLeadingZeros: false, out string a));
         Assert.Equal("005", a);
     }
+
+    [Theory]
+    [InlineData("三個", "3", "個")]
+    [InlineData("百二十円", "120", "円")]
+    [InlineData("五", "5", "")]
+    public void TryNormalizeNumberWithSuffix_SplitsSuffix(string input, string expArabic, string expSuffix)
+    {
+        Assert.True(NumberUtil.TryNormalizeNumberWithSuffix(input, true, out string a, out string s));
+        Assert.Equal(expArabic, a);
+        Assert.Equal(expSuffix, s);
+    }
+
+    [Theory]
+    [InlineData("個三")]      // 先頭が数字でない
+    [InlineData("二千,000")]  // suffix に数字
+    public void TryNormalizeNumberWithSuffix_Invalid(string input)
+    {
+        Assert.False(NumberUtil.TryNormalizeNumberWithSuffix(input, true, out _, out _));
+    }
 }

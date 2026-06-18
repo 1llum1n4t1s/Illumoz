@@ -43,18 +43,45 @@ public static class NumberUtil
     // "百二十万" → "1200000"。数字以外を含む/解釈できない場合は false。
     // trimLeadingZeros=false なら先頭ゼロの個数を保持する。
     public static bool TryNormalizeNumber(string input, bool trimLeadingZeros, out string arabic)
+        => TryNormalizeNumberInternal(input, trimLeadingZeros, allowSuffix: false, out arabic, out _);
+
+    // C++ NumberUtil::NormalizeNumbersWithSuffix 相当。末尾の非数字を suffix として切り出し、
+    // 先頭の数字部分のみをアラビア数字へ正規化する(例 "三個" → arabic="3", suffix="個")。
+    // 先頭が数字でない/suffix に数字を含む場合は false。
+    public static bool TryNormalizeNumberWithSuffix(
+        string input, bool trimLeadingZeros, out string arabic, out string suffix)
+        => TryNormalizeNumberInternal(input, trimLeadingZeros, allowSuffix: true, out arabic, out suffix);
+
+    private static bool TryNormalizeNumberInternal(
+        string input, bool trimLeadingZeros, bool allowSuffix, out string arabic, out string suffix)
     {
         arabic = string.Empty;
+        suffix = string.Empty;
         var numbers = new List<ulong>();
+        int byteOrCharPos = 0;
+        bool suffixFound = false;
         foreach (Rune rune in input.EnumerateRunes())
         {
             string mapped = KanjiNumberToArabicNumber(rune.ToString());
             if (!ulong.TryParse(mapped, out ulong n))
             {
-                return false; // 数字でない文字。
+                if (!allowSuffix)
+                {
+                    return false; // 数字でない文字。
+                }
+                suffix = input.Substring(byteOrCharPos);
+                // "2,000" を "2" + ",000" としないため、suffix に数字があれば失敗。
+                if (ContainsDigit(suffix))
+                {
+                    return false;
+                }
+                suffixFound = true;
+                break;
             }
             numbers.Add(n);
+            byteOrCharPos += rune.Utf16SequenceLength;
         }
+        _ = suffixFound;
         if (numbers.Count == 0)
         {
             return false;
@@ -81,6 +108,19 @@ public static class NumberUtil
         sb.Append(value.ToString(CultureInfo.InvariantCulture));
         arabic = sb.ToString();
         return true;
+    }
+
+    private static bool ContainsDigit(string s)
+    {
+        foreach (Rune r in s.EnumerateRunes())
+        {
+            int c = r.Value;
+            if (c is >= '0' and <= '9' || c is >= 0xFF10 and <= 0xFF19)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool NormalizeNumbersHelper(List<ulong> numbers, out ulong output)
