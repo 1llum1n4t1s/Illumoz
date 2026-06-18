@@ -162,6 +162,14 @@ public sealed class EngineServer
             return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
         }
         Output output = EvalWithConfig(input);
-        return ProtoBridge.EncodeOutput(output);
+        return ProtoBridge.EncodeOutput(output, ShortcutChars(_config.GetConfig().SelectionShortcut));
     }
+
+    // SelectionShortcut → 候補ショートカット文字列。
+    private static string ShortcutChars(Mozc.Config.Config.Types.SelectionShortcut s) => s switch
+    {
+        Mozc.Config.Config.Types.SelectionShortcut.Shortcut123456789 => "123456789",
+        Mozc.Config.Config.Types.SelectionShortcut.ShortcutAsdfghjkl => "asdfghjkl",
+        _ => string.Empty, // NO_SHORTCUT
+    };
 }

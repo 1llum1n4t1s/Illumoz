@@ -48,7 +48,11 @@ public static class ProtoBridge
         };
     }
 
-    public static byte[] EncodeOutput(Output output)
+    public static byte[] EncodeOutput(Output output) => EncodeOutput(output, string.Empty);
+
+    // shortcuts が指定されれば候補 i に annotation.shortcut = shortcuts[i] を付与する
+    // (C++ SelectionShortcut: "123456789" / "asdfghjkl")。
+    public static byte[] EncodeOutput(Output output, string shortcuts)
     {
         var proto = new Pb.Output
         {
@@ -80,11 +84,16 @@ public static class ProtoBridge
             var cw = new Pb.CandidateWindow { Size = (uint)output.Candidates.Count };
             for (int i = 0; i < output.Candidates.Count; i++)
             {
-                cw.Candidate.Add(new Pb.CandidateWindow.Types.Candidate
+                var cand = new Pb.CandidateWindow.Types.Candidate
                 {
                     Index = (uint)i,
                     Value = output.Candidates[i],
-                });
+                };
+                if (i < shortcuts.Length)
+                {
+                    cand.Annotation = new Pb.Annotation { Shortcut = shortcuts[i].ToString() };
+                }
+                cw.Candidate.Add(cand);
             }
             proto.CandidateWindow = cw;
         }

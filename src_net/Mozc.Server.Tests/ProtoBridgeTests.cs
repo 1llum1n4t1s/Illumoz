@@ -73,6 +73,8 @@ public class ProtoBridgeTests
         });
         Assert.NotNull(conv.CandidateWindow);
         Assert.Contains(conv.CandidateWindow.Candidate, c => c.Value == "私");
+        // 既定 SelectionShortcut=123456789 で先頭候補に shortcut "1" が付く。
+        Assert.Equal("1", conv.CandidateWindow.Candidate[0].Annotation.Shortcut);
 
         // Enter で確定 → Result.value に 私。
         Pb.Output commit = Call(server, new Pb.Input

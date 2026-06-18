@@ -22,6 +22,7 @@ public sealed class ConfigManager
         SymbolMethod = Pb.Config.Types.SymbolMethod.CornerBracketMiddleDot,
         SpaceCharacterForm = Pb.Config.Types.FundamentalCharacterForm.FundamentalInputMode,
         HistoryLearningLevel = Pb.Config.Types.HistoryLearningLevel.DefaultHistory,
+        SelectionShortcut = Pb.Config.Types.SelectionShortcut.Shortcut123456789,
         UseKeyboardToChangePreeditMethod = false,
         IncognitoMode = false,
     };
