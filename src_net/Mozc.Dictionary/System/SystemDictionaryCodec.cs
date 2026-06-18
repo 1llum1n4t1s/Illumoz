@@ -18,6 +18,132 @@ public sealed class SystemDictionaryCodec
     private const int MarkCodepointRight0 = 0x40;
     private const int MarkCodepointLeftMask = 0x1f;
 
+    // --- セクション名(codec.cc) ---
+    public string SectionNameForKey => "k";
+    public string SectionNameForValue => "v";
+    public string SectionNameForTokens => "t";
+    public string SectionNameForPos => "p";
+
+    // --- トークン codec フラグ(codec.cc) ---
+    private const byte SmallCostFlag = 0x80;
+    private const byte SmallCostMask = 0x7f;
+    public const byte TokensTerminationFlag = 0xff;
+    private const byte ValueTypeFlagMask = 0x03;
+    private const byte AsIsHiraganaValueFlag = 0x01;
+    private const byte AsIsKatakanaValueFlag = 0x02;
+    private const byte SameAsPrevValueFlag = 0x03;
+    private const byte NormalValueFlag = 0x00;
+    private const byte PosTypeFlagMask = 0x0c;
+    private const byte FullPosFlag = 0x04;
+    private const byte MonoPosFlag = 0x08;
+    private const byte SameAsPrevPosFlag = 0x0c;
+    private const byte FrequentPosFlag = 0x00;
+    private const byte SpellingCorrectionFlag = 0x10;
+    private const byte CrammedIdFlag = 0x40;
+    private const byte UpperFlagsMask = 0xc0;
+    private const byte UpperCrammedIdMask = 0x3f;
+    private const byte LastTokenFlag = 0x80;
+
+    public byte GetTokensTerminationFlag() => TokensTerminationFlag;
+
+    // codec.cc DecodeToken 相当。ptr の先頭からトークン 1 件を読み tokenInfo に格納。
+    // 戻り値 true=次トークンあり / false=最終トークン。readBytes に消費バイト数。
+    public bool DecodeToken(ReadOnlySpan<byte> ptr, TokenInfo tokenInfo, out int readBytes)
+    {
+        byte flags = ReadFlags(ptr[0]);
+        if ((flags & SpellingCorrectionFlag) != 0)
+        {
+            tokenInfo.Token.Attributes = Token.Attribute.SpellingCorrection;
+        }
+
+        int offset = 1;
+        DecodePos(ptr, flags, tokenInfo, ref offset);
+        DecodeCost(ptr, tokenInfo, ref offset);
+        DecodeValueInfo(ptr, flags, tokenInfo, ref offset);
+        readBytes = offset;
+        return (flags & LastTokenFlag) == 0;
+    }
+
+    // crammed のときは下位 6bit が value id の上位ビットなので、フラグは上位 2bit のみ有効。
+    private static byte ReadFlags(byte val)
+        => (val & CrammedIdFlag) != 0 ? (byte)(val & UpperFlagsMask) : val;
+
+    private static void DecodePos(ReadOnlySpan<byte> ptr, byte flags, TokenInfo info, ref int offset)
+    {
+        Token token = info.Token;
+        switch (flags & PosTypeFlagMask)
+        {
+            case FrequentPosFlag:
+                info.Pos = TokenInfo.PosType.FrequentPos;
+                info.IdInFrequentPosMap = ptr[offset];
+                offset += 1;
+                break;
+            case SameAsPrevPosFlag:
+                info.Pos = TokenInfo.PosType.SameAsPrevPos;
+                break;
+            case MonoPosFlag:
+            {
+                int id = (ptr[offset + 1] << 8) | ptr[offset];
+                token.Lid = (ushort)id;
+                token.Rid = (ushort)id;
+                offset += 2;
+                break;
+            }
+            case FullPosFlag:
+                token.Lid = (ushort)(ptr[offset] + ((ptr[offset + 1] & 0x0f) << 8));
+                token.Rid = (ushort)((ptr[offset + 1] >> 4) + (ptr[offset + 2] << 4));
+                offset += 3;
+                break;
+        }
+    }
+
+    private static void DecodeCost(ReadOnlySpan<byte> ptr, TokenInfo info, ref int offset)
+    {
+        if ((ptr[offset] & SmallCostFlag) != 0)
+        {
+            info.Token.Cost = (ptr[offset] & SmallCostMask) << 8;
+            offset += 1;
+        }
+        else
+        {
+            info.Token.Cost = (ptr[offset] << 8) + ptr[offset + 1];
+            offset += 2;
+        }
+    }
+
+    private static void DecodeValueInfo(ReadOnlySpan<byte> ptr, byte flags, TokenInfo info, ref int offset)
+    {
+        switch (flags & ValueTypeFlagMask)
+        {
+            case AsIsHiraganaValueFlag:
+                info.Value = TokenInfo.ValueType.AsIsHiragana;
+                break;
+            case AsIsKatakanaValueFlag:
+                info.Value = TokenInfo.ValueType.AsIsKatakana;
+                break;
+            case SameAsPrevValueFlag:
+                info.Value = TokenInfo.ValueType.SameAsPrevValue;
+                break;
+            case NormalValueFlag:
+            {
+                info.Value = TokenInfo.ValueType.DefaultValue;
+                int id = (ptr[offset + 1] << 8) | ptr[offset];
+                if ((flags & CrammedIdFlag) != 0)
+                {
+                    id |= (ptr[0] & UpperCrammedIdMask) << 16;
+                    offset += 2;
+                }
+                else
+                {
+                    id |= ptr[offset + 2] << 16;
+                    offset += 3;
+                }
+                info.IdInValueTrie = id;
+                break;
+            }
+        }
+    }
+
     // キー codec(codec.cc EncodeDecodeKeyImpl)。エンコード=デコードの対称変換。
     // 頻出ひらがな/カタカナを 1 バイト制御域へ写し trie キーを圧縮する。自己反転。
     public string EncodeKey(string key) => TransformKey(key);
