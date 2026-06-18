@@ -25,6 +25,7 @@ public class UserDictionaryStorageTests
         Assert.True(s.Add(new E("あ", "亜", "名詞", "")));
         Assert.False(s.Add(new E("あ", "亜", "名詞", ""))); // 重複
         Assert.False(s.Add(new E("", "x", "名詞", "")));    // 空 reading
+        Assert.False(s.Add(new E("か\tき", "x", "名詞", ""))); // 読みにタブ(不正文字)
         Assert.Equal(1, s.Count);
     }
 

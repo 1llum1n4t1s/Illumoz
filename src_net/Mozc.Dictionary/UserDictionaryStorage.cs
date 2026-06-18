@@ -17,10 +17,12 @@ public sealed class UserDictionaryStorage
     public int Count => _entries.Count;
     public IReadOnlyList<UserEntry> Entries => _entries;
 
-    // 追加(同一 Reading+Word は重複登録しない)。
+    // 追加(同一 Reading+Word は重複登録しない)。読み/単語/コメントの妥当性も検査する
+    // (空・制御文字含み・長すぎは拒否。UserDictionaryUtil.ValidateEntry 準拠)。
     public bool Add(UserEntry entry)
     {
-        if (string.IsNullOrEmpty(entry.Reading) || string.IsNullOrEmpty(entry.Word))
+        if (UserDictionaryUtil.ValidateEntry(entry.Reading, entry.Word, entry.Comment)
+            != UserDictionaryUtil.ValidationResult.Ok)
         {
             return false;
         }
