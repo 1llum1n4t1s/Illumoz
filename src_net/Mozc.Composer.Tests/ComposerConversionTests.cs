@@ -42,6 +42,26 @@ public class ComposerConversionTests
         return c.GetQueryForConversion();
     }
 
+    [Fact]
+    public void GetRawString_ReturnsTypedRomaji()
+    {
+        Table t = RealRomanTable();
+        var c = new Composer(t);
+        c.InsertCharacters("watashi");
+        Assert.Equal("watashi", c.GetRawString());      // 打鍵そのもの
+        Assert.Equal("わたし", c.GetStringForPreedit()); // 表示はかな
+    }
+
+    [Fact]
+    public void GetQueryForPrediction_TrimsTrailingPending()
+    {
+        Table t = RealRomanTable();
+        var c = new Composer(t);
+        c.InsertCharacters("kan"); // "か" + pending "n"
+        // 予測クエリは末尾 pending をトリム → "か"
+        Assert.Equal("か", c.GetQueryForPrediction());
+    }
+
     [Theory]
     [InlineData("watashi", "わたし")]
     [InlineData("nihongo", "にほんご")]

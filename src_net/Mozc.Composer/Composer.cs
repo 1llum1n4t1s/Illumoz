@@ -33,6 +33,12 @@ public sealed class Composer
     // 変換にかけるクエリ(pending を確定扱いにトリム)。
     public string GetQueryForConversion() => _composition.GetStringWithTrimMode(TrimMode.Fix);
 
+    // 打鍵そのもの(ローマ字等の生入力)。language-aware 判定や生クエリ提案に使う。
+    public string GetRawString() => _composition.GetRawString();
+
+    // 予測用クエリ(末尾の未確定 pending をトリムし半角ASCII化)。
+    public string GetQueryForPrediction() => _composition.GetQueryForPrediction();
+
     // 表記変換候補(F6=ひらがな/F7=全角カナ/F8=半角カナ/F9=全角英数/F10=半角英数)。
     public string GetStringForType(Transliterator t12r)
         => _composition.GetStringWithTransliterator(t12r);

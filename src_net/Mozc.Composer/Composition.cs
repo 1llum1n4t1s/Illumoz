@@ -118,6 +118,22 @@ public sealed class Composition
         return sb.ToString();
     }
 
+    // 各チャンクの生入力(raw)を連結する(C++ Composition::GetRawString 相当)。
+    public string GetRawString()
+    {
+        var sb = new StringBuilder();
+        foreach (CharChunk chunk in _chunks)
+        {
+            sb.Append(chunk.Raw);
+        }
+        return sb.ToString();
+    }
+
+    // 予測用クエリ: 末尾 pending をトリムした文字列を半角ASCII化する
+    // (C++ GetQueryForPrediction の非ASCIIモード相当の中核スライス)。
+    public string GetQueryForPrediction()
+        => Mozc.Base.JapaneseUtil.FullWidthAsciiToHalfWidthAscii(GetStringWithTrimMode(TrimMode.Trim));
+
     public string GetStringWithTrimMode(TrimMode trimMode)
     {
         var sb = new StringBuilder();
