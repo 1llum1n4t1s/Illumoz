@@ -106,6 +106,66 @@ public class CharacterFormManagerTests
     }
 
     [Fact]
+    public void History_SerializeRoundTrip()
+    {
+        var m = new CharacterFormManager();
+        m.AddRule("0", CharacterForm.LastForm);
+        m.AddRule("A", CharacterForm.LastForm);
+        m.SetCharacterForm("0", CharacterForm.HalfWidth);
+        m.SetCharacterForm("A", CharacterForm.FullWidth);
+        byte[] bytes = m.SerializeHistory();
+
+        var m2 = new CharacterFormManager();
+        m2.AddRule("0", CharacterForm.LastForm);
+        m2.AddRule("A", CharacterForm.LastForm);
+        Assert.True(m2.DeserializeHistory(bytes));
+        Assert.Equal(CharacterForm.HalfWidth, m2.GetCharacterForm("9"));
+        Assert.Equal(CharacterForm.FullWidth, m2.GetCharacterForm("z"));
+    }
+
+    [Fact]
+    public void History_DeserializeRejectsBadMagic()
+    {
+        var m = new CharacterFormManager();
+        Assert.False(m.DeserializeHistory(new byte[] { 1, 2, 3, 4, 0, 0, 0, 0 }));
+    }
+
+    [Fact]
+    public void History_SaveLoadFile()
+    {
+        string guid = global::System.Guid.NewGuid().ToString("N");
+        string path = global::System.IO.Path.Combine(
+            global::System.IO.Path.GetTempPath(), $"mzcf_{guid}.bin");
+        try
+        {
+            var m = new CharacterFormManager();
+            m.AddRule("0", CharacterForm.LastForm);
+            m.SetCharacterForm("0", CharacterForm.HalfWidth);
+            m.SaveHistory(path);
+
+            var m2 = new CharacterFormManager();
+            m2.AddRule("0", CharacterForm.LastForm);
+            Assert.True(m2.LoadHistory(path));
+            Assert.Equal(CharacterForm.HalfWidth, m2.GetCharacterForm("3"));
+        }
+        finally
+        {
+            if (global::System.IO.File.Exists(path))
+            {
+                global::System.IO.File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public void History_LoadMissingFile_ReturnsFalse()
+    {
+        var m = new CharacterFormManager();
+        Assert.False(m.LoadHistory(global::System.IO.Path.Combine(
+            global::System.IO.Path.GetTempPath(), "no_such_mzcf_file.bin")));
+    }
+
+    [Fact]
     public void ConvertString_MixedRuns()
     {
         var m = new CharacterFormManager();

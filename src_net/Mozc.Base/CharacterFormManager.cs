@@ -148,6 +148,62 @@ public sealed class CharacterFormManager
     // LAST_FORM 記憶をクリアする(C++ ClearHistory)。
     public void ClearHistory() => _lastFormStorage.Clear();
 
+    // --- LAST_FORM 記憶の永続化(C++ LruStorage 相当の最小実装) ---
+    private static readonly byte[] Magic = { (byte)'M', (byte)'Z', (byte)'C', (byte)'F' };
+
+    // 記憶を決定的バイナリへ。[magic][u32 count]{[u16 char][u8 form]}(char 昇順)。
+    public byte[] SerializeHistory()
+    {
+        using var ms = new global::System.IO.MemoryStream();
+        using var w = new global::System.IO.BinaryWriter(ms);
+        w.Write(Magic);
+        var keys = new List<char>(_lastFormStorage.Keys);
+        keys.Sort();
+        w.Write((uint)keys.Count);
+        foreach (char k in keys)
+        {
+            w.Write((ushort)k);
+            w.Write((byte)_lastFormStorage[k]);
+        }
+        w.Flush();
+        return ms.ToArray();
+    }
+
+    // SerializeHistory のバイト列を読み込む。magic 不一致は false(記憶は変更しない)。
+    public bool DeserializeHistory(byte[] data)
+    {
+        if (data.Length < 8)
+        {
+            return false;
+        }
+        for (int i = 0; i < Magic.Length; i++)
+        {
+            if (data[i] != Magic[i])
+            {
+                return false;
+            }
+        }
+        using var ms = new global::System.IO.MemoryStream(data);
+        using var r = new global::System.IO.BinaryReader(ms);
+        r.ReadBytes(Magic.Length);
+        uint count = r.ReadUInt32();
+        _lastFormStorage.Clear();
+        for (uint i = 0; i < count; i++)
+        {
+            char k = (char)r.ReadUInt16();
+            var form = (CharacterForm)r.ReadByte();
+            _lastFormStorage[k] = form;
+        }
+        return true;
+    }
+
+    public void SaveHistory(string path)
+        => global::System.IO.File.WriteAllBytes(path, SerializeHistory());
+
+    // ファイルが無ければ何もせず false。
+    public bool LoadHistory(string path)
+        => global::System.IO.File.Exists(path) && DeserializeHistory(global::System.IO.File.ReadAllBytes(path));
+
     // str を好みに沿って全角/半角変換する(C++ TryConvertStringWithPreference 相当)。
     // 連続する同 form のランをまとめて変換する。
     public string ConvertString(string str)
