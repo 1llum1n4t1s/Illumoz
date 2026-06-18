@@ -36,9 +36,67 @@ public static class TipRegistration
                 Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(w.KeyPath);
             key.SetValue(w.ValueName ?? string.Empty, w.Value);
         }
-        // TODO(実機): ITfInputProcessorProfiles::Register(Clsid) +
-        //   ITfInputProcessorProfiles::AddLanguageProfile(Clsid, LangIdJaJp, ProfileGuid, "Mozc", ...) +
-        //   ITfCategoryMgr で TIP カテゴリ(ITF_CATEGORY_TIP_KEYBOARD 等)を登録。
+    }
+
+    [DllImport("ole32.dll")]
+    private static extern int CoCreateInstance(
+        in Guid rclsid, nint pUnkOuter, uint dwClsContext, in Guid riid, out nint ppv);
+
+    private const uint CLSCTX_INPROC_SERVER = 0x1;
+
+    // TSF プロファイル/カテゴリ登録(実 TSF を CoCreate して呼ぶ。実機 Windows のみ動作)。
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static int RegisterProfiles(string description = "Mozc")
+    {
+        // ITfInputProcessorProfiles::Register + AddLanguageProfile。
+        Guid iidProfiles = typeof(ITfInputProcessorProfiles).GUID;
+        int hr = CoCreateInstance(in TsfGuids.CLSID_TF_InputProcessorProfiles, 0,
+            CLSCTX_INPROC_SERVER, in iidProfiles, out nint pProfiles);
+        if (hr < 0)
+        {
+            return hr;
+        }
+        try
+        {
+            var profiles = (ITfInputProcessorProfiles)ComInterop.Wrappers
+                .GetOrCreateObjectForComInstance(pProfiles, CreateObjectFlags.None);
+            hr = profiles.Register(in Clsid);
+            if (hr < 0)
+            {
+                return hr;
+            }
+            hr = profiles.AddLanguageProfile(in Clsid, LangIdJaJp, in ProfileGuid,
+                description, (uint)description.Length, string.Empty, 0, 0);
+            if (hr < 0)
+            {
+                return hr;
+            }
+        }
+        finally
+        {
+            Marshal.Release(pProfiles);
+        }
+
+        // ITfCategoryMgr::RegisterCategory(TIP_KEYBOARD / DISPLAYATTRIBUTEPROVIDER)。
+        Guid iidCat = typeof(ITfCategoryMgr).GUID;
+        hr = CoCreateInstance(in TsfGuids.CLSID_TF_CategoryMgr, 0,
+            CLSCTX_INPROC_SERVER, in iidCat, out nint pCat);
+        if (hr < 0)
+        {
+            return hr;
+        }
+        try
+        {
+            var cat = (ITfCategoryMgr)ComInterop.Wrappers
+                .GetOrCreateObjectForComInstance(pCat, CreateObjectFlags.None);
+            cat.RegisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_TIP_KEYBOARD, in Clsid);
+            cat.RegisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, in Clsid);
+        }
+        finally
+        {
+            Marshal.Release(pCat);
+        }
+        return 0;
     }
 
     // regsvr32 がロードした DLL に対し呼ぶ自己登録エクスポート。
@@ -51,6 +109,8 @@ public static class TipRegistration
             {
                 string dll = GetModulePath();
                 ApplyClsidRegistration(dll);
+                // CLSID 登録後に TSF プロファイル/カテゴリ登録(TSF が無い環境では失敗しても続行)。
+                RegisterProfiles();
             }
             return 0; // S_OK
         }
