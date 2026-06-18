@@ -34,4 +34,29 @@ public class NumberUtilTests
     [InlineData("", false)]
     public void IsDecimalInteger_Cases(string s, bool expected)
         => Assert.Equal(expected, NumberUtil.IsDecimalInteger(s));
+
+    [Fact]
+    public void ArabicToVariants_CircledAndRoman()
+    {
+        var values = new List<string>();
+        foreach (NumberUtil.NumberString n in NumberUtil.ArabicToVariants("3"))
+        {
+            values.Add(n.Value);
+        }
+        Assert.Contains("③", values);   // 丸数字
+        Assert.Contains("Ⅲ", values);   // ローマ数字大
+        Assert.Contains("ⅲ", values);   // ローマ数字小
+    }
+
+    [Fact]
+    public void ArabicToVariants_LargeNumber_NoCircled()
+    {
+        var values = new List<string>();
+        foreach (NumberUtil.NumberString n in NumberUtil.ArabicToVariants("100"))
+        {
+            values.Add(n.Value);
+        }
+        Assert.Contains("百", values);
+        Assert.DoesNotContain(values, v => v.Length == 1 && v[0] is >= '①' and <= '⑳'); // 丸数字なし
+    }
 }

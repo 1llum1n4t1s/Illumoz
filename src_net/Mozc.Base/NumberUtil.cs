@@ -114,7 +114,32 @@ public static class NumberUtil
         {
             results.Add(new NumberString(old, "大字"));
         }
+
+        // 小さい数は丸数字・ローマ数字も提示(C++ kArabicNumber 系)。
+        if (int.TryParse(norm, out int v))
+        {
+            if (v >= 1 && v <= 20)
+            {
+                results.Add(new NumberString(char.ConvertFromUtf32(0x2460 + v - 1), "丸数字")); // ①..⑳
+            }
+            string? roman = ToRoman(v);
+            if (roman != null)
+            {
+                results.Add(new NumberString(roman, "ローマ数字大")); // ⅠⅡⅢ..
+                results.Add(new NumberString(roman.ToLowerInvariant(), "ローマ数字小"));
+            }
+        }
         return results;
+    }
+
+    // 1..12 を Unicode ローマ数字(Ⅰ..Ⅻ)へ。範囲外は null。
+    private static string? ToRoman(int v)
+    {
+        if (v is < 1 or > 12)
+        {
+            return null;
+        }
+        return char.ConvertFromUtf32(0x2160 + v - 1); // Ⅰ=U+2160
     }
 
     private static string ToWide(string arabic)
