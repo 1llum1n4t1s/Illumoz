@@ -33,4 +33,20 @@ public sealed class EngineServer
         Output output = _handler.EvalCommand(input);
         return CommandCodec.EncodeOutput(output);
     }
+
+    // C++ ワイヤー互換(protobuf)経路。commands.proto の Input/Output を直接やり取りする。
+    public byte[] HandleProtoRequest(byte[] request)
+    {
+        Input input;
+        try
+        {
+            input = ProtoBridge.DecodeInput(request);
+        }
+        catch (global::System.Exception)
+        {
+            return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
+        }
+        Output output = _handler.EvalCommand(input);
+        return ProtoBridge.EncodeOutput(output);
+    }
 }
