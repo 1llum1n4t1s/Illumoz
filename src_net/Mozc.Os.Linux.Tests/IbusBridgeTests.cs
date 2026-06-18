@@ -47,6 +47,8 @@ public class IbusBridgeTests
             last = IbusBridge.ProcessKeyManaged(c, 0);
         }
         Assert.Equal("わたし", last.Preedit);
+        // 入力中サジェストが候補列(改行区切り)として native へ渡せる。
+        Assert.Contains("私", IbusBridge.CandidatesManaged.Split('\n'));
 
         // Space(keysym 0x20)で変換 → Enter(0xff0d)で確定。
         IbusBridge.ProcessKeyManaged(0x20, 0);

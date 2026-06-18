@@ -13,6 +13,7 @@ public static class IbusBridge
     private static IbusEngineController? _controller;
     private static string _preedit = string.Empty;
     private static string _commit = string.Empty;
+    private static string _candidates = string.Empty; // 改行区切りの候補列。
 
     // テスト/結線用: transport を差し替えて初期化(実機は NamedPipe/Unix client)。
     public static void InitForTest(Func<byte[], byte[]> transport)
@@ -33,17 +34,20 @@ public static class IbusBridge
         ImeStateForBridge st = ProcessInternal(ke);
         _preedit = st.Preedit;
         _commit = st.Commit;
+        _candidates = st.Candidates;
         return st.Consumed ? 1 : 0;
     }
 
-    private readonly record struct ImeStateForBridge(string Preedit, string Commit, bool Consumed);
+    private readonly record struct ImeStateForBridge(
+        string Preedit, string Commit, string Candidates, bool Consumed);
 
     private static ImeStateForBridge ProcessInternal(Pb.KeyEvent ke)
     {
         Client.ImeState s = ke.HasSpecialKey
             ? _controller!.ProcessSpecial(ke.SpecialKey)
             : _controller!.ProcessCharacter((char)ke.KeyCode);
-        return new ImeStateForBridge(s.Preedit, s.Commit, s.Consumed);
+        return new ImeStateForBridge(
+            s.Preedit, s.Commit, string.Join('\n', s.Candidates), s.Consumed);
     }
 
     // native: int mozc_ibus_get_preedit(byte* buf, int cap) -> 書込みバイト数(cap 不足時は必要長)
@@ -53,6 +57,10 @@ public static class IbusBridge
     // native: int mozc_ibus_get_commit(byte* buf, int cap)
     [UnmanagedCallersOnly(EntryPoint = "mozc_ibus_get_commit")]
     public static unsafe int GetCommit(byte* buf, int cap) => WriteUtf8(_commit, buf, cap);
+
+    // native: int mozc_ibus_get_candidates(byte* buf, int cap) -> 改行区切り候補列。
+    [UnmanagedCallersOnly(EntryPoint = "mozc_ibus_get_candidates")]
+    public static unsafe int GetCandidates(byte* buf, int cap) => WriteUtf8(_candidates, buf, cap);
 
     // 呼び出し側バッファに UTF-8 を書く。cap 不足なら書かずに必要長を返す。共通ヘルパ(テスト可能)。
     public static unsafe int WriteUtf8(string s, byte* buf, int cap)
@@ -72,4 +80,7 @@ public static class IbusBridge
         int consumed = ProcessKeyCore(keyval, state);
         return (_preedit, _commit, consumed != 0);
     }
+
+    // テスト用: 直近の候補列(改行区切り)。
+    public static string CandidatesManaged => _candidates;
 }
