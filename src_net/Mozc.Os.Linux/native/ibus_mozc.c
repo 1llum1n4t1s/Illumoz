@@ -9,11 +9,13 @@
  */
 #include <ibus.h>
 #include <stdint.h>
+#include <string.h>
 
 /* C# (NativeAOT) エクスポート。 */
 extern int  mozc_ibus_process_key(uint32_t keyval, uint32_t state);
 extern int  mozc_ibus_get_preedit(char *buf, int cap);
 extern int  mozc_ibus_get_commit(char *buf, int cap);
+extern int  mozc_ibus_get_candidates(char *buf, int cap); /* 改行区切り候補列 */
 
 static gboolean
 mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint state)
@@ -41,6 +43,21 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
         preedit[p] = '\0';
         IBusText *pt = ibus_text_new_from_string(preedit);
         ibus_engine_update_preedit_text(engine, pt, p, p > 0);
+    }
+
+    /* 候補列(改行区切り)を lookup table として表示。 */
+    char cands[4096];
+    int c = mozc_ibus_get_candidates(cands, sizeof(cands));
+    if (c > 0 && c < (int)sizeof(cands)) {
+        cands[c] = '\0';
+        IBusLookupTable *table = ibus_lookup_table_new(9, 0, TRUE, TRUE);
+        char *save = NULL;
+        for (char *tok = strtok_r(cands, "\n", &save); tok; tok = strtok_r(NULL, "\n", &save)) {
+            ibus_lookup_table_append_candidate(table, ibus_text_new_from_string(tok));
+        }
+        ibus_engine_update_lookup_table(engine, table, TRUE);
+    } else {
+        ibus_engine_hide_lookup_table(engine);
     }
 
     return consumed ? TRUE : FALSE;
