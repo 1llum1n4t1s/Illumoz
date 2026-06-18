@@ -29,10 +29,13 @@ public sealed class UserHistoryPredictor
 
     public int Count => _entries.Count;
 
-    // 確定時に学習する(C++ Finish 相当)。空・同一は無視。
+    // 学習の有効/無効(C++ HistoryLearningLevel: NO_HISTORY/READ_ONLY 時は false)。
+    public bool LearningEnabled { get; set; } = true;
+
+    // 確定時に学習する(C++ Finish 相当)。空・同一・学習無効時は無視。
     public void Learn(string key, string value)
     {
-        if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value))
+        if (!LearningEnabled || string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value))
         {
             return;
         }

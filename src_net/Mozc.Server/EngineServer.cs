@@ -10,13 +10,31 @@ namespace Mozc.Server;
 public sealed class EngineServer
 {
     private readonly SessionHandler _handler;
+    private readonly ConfigManager _config = new();
 
     public EngineServer(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null)
     {
         _handler = new SessionHandler(engine, keyMap, rewriter);
+        ApplyConfig();
     }
 
     public SessionHandler Handler => _handler;
+    public ConfigManager Config => _config;
+
+    // Config を session の挙動へ反映する(現状: 履歴学習レベル)。
+    public void ApplyConfig()
+    {
+        Mozc.Config.Config c = _config.GetConfig();
+        bool learn = c.HistoryLearningLevel == Mozc.Config.Config.Types.HistoryLearningLevel.DefaultHistory;
+        _handler.History.LearningEnabled = learn;
+    }
+
+    // 設定を更新して即時反映する(SetConfig 経路)。
+    public void SetConfig(Mozc.Config.Config config)
+    {
+        _config.SetConfig(config);
+        ApplyConfig();
+    }
 
     // IPC リクエスト処理本体(transport から呼ばれる)。
     public byte[] HandleRequest(byte[] request)

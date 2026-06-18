@@ -48,6 +48,22 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void Config_DefaultEnablesLearning_NoHistoryDisables()
+    {
+        EngineServer server = Server();
+        Assert.True(server.Handler.History.LearningEnabled); // 既定で学習有効
+
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.HistoryLearningLevel = Mozc.Config.Config.Types.HistoryLearningLevel.NoHistory;
+        server.SetConfig(c);
+        Assert.False(server.Handler.History.LearningEnabled); // NO_HISTORY で無効
+
+        // 学習が無効なら Learn しても履歴は増えない。
+        server.Handler.History.Learn("わたし", "私");
+        Assert.Equal(0, server.Handler.History.Count);
+    }
+
+    [Fact]
     public void Codec_RoundTrip_Output()
     {
         var output = new Output
