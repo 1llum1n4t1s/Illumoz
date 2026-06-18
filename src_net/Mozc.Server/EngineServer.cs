@@ -104,6 +104,18 @@ public sealed class EngineServer
         }
         PreeditFormManager = Mozc.Base.CharacterFormManager.FromRules(preedit);
         ConversionFormManager = Mozc.Base.CharacterFormManager.FromRules(conversion);
+
+        // pipeline 内の CharacterFormRewriter に conversion 用マネージャを反映。
+        if (_handler.Rewriter is RewriterMerger merger)
+        {
+            foreach (IRewriter r in merger.Rewriters)
+            {
+                if (r is CharacterFormRewriter cfr)
+                {
+                    cfr.SetManager(ConversionFormManager);
+                }
+            }
+        }
     }
 
     // config の CharacterForm → Base の CharacterForm。LAST_FORM は未実装のため
