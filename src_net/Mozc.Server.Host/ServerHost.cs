@@ -32,6 +32,7 @@ public static class ServerHost
         merger.AddRewriter(new VariantsRewriter());
         merger.AddRewriter(new TransliterationRewriter());
         merger.AddRewriter(new EnglishVariantsRewriter());
+        merger.AddRewriter(new CommandRewriter());
         return merger;
     }
 
@@ -60,6 +61,7 @@ public static class ServerHost
         merger.AddRewriter(new VariantsRewriter());
         merger.AddRewriter(new TransliterationRewriter());
         merger.AddRewriter(new EnglishVariantsRewriter());
+        merger.AddRewriter(new CommandRewriter());
         return merger;
     }
 

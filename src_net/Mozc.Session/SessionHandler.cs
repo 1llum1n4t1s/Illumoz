@@ -30,6 +30,7 @@ public sealed class SessionHandler
     public Prediction.UserHistoryPredictor History => _history;
     public Dictionary.UserDictionaryStorage UserDictionary => _userDict;
     public MozcEngine Engine => _engine;
+    public IRewriter? Rewriter => _rewriter;
 
     // keymap を差し替える(以降の新規セッションに反映。設定変更時に EngineServer から呼ぶ)。
     public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;

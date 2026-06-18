@@ -98,4 +98,38 @@ public class ServerHostTests
             }
         }
     }
+
+    [Fact]
+    public void ApplyConfig_PropagatesIncognitoToCommandRewriter()
+    {
+        EngineServer s = Server();
+        // 既定では incognito off。
+        var rw = FindCommandRewriter(s);
+        Assert.NotNull(rw);
+        Assert.False(rw!.IncognitoMode);
+
+        Mozc.Config.Config c = s.Config.GetConfig();
+        c.IncognitoMode = true;
+        c.PresentationMode = true;
+        s.SetConfig(c); // ApplyConfig が走る
+
+        Assert.True(rw.IncognitoMode);
+        Assert.True(rw.PresentationMode);
+    }
+
+    private static Mozc.Rewriter.CommandRewriter? FindCommandRewriter(EngineServer s)
+    {
+        if (s.Handler.Rewriter is not Mozc.Rewriter.RewriterMerger merger)
+        {
+            return null;
+        }
+        foreach (Mozc.Rewriter.IRewriter r in merger.Rewriters)
+        {
+            if (r is Mozc.Rewriter.CommandRewriter cmd)
+            {
+                return cmd;
+            }
+        }
+        return null;
+    }
 }

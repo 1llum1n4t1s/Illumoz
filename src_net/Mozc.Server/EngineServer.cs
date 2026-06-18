@@ -33,6 +33,10 @@ public sealed class EngineServer
         bool learn = c.HistoryLearningLevel == Mozc.Config.Config.Types.HistoryLearningLevel.DefaultHistory;
         _handler.History.LearningEnabled = learn;
 
+        // CommandRewriter があれば config のモードフラグを反映する(C++ command_rewriter は
+        // config.incognito_mode / presentation_mode / use_*_suggest を直接参照する)。
+        ApplyConfigToCommandRewriter(c);
+
         // SessionKeymap に対応するプリセットが src/data にあれば差し替える。
         if (_dataDir != null)
         {
@@ -71,6 +75,25 @@ public sealed class EngineServer
             case Mozc.Config.Config.Types.FundamentalCharacterForm.FundamentalHalfWidth:
                 _engine.AddRomanRule(" ", " ");
                 break;
+        }
+    }
+
+    // CommandRewriter にモード状態を流し込む(pipeline 内を探索)。
+    private void ApplyConfigToCommandRewriter(Mozc.Config.Config c)
+    {
+        if (_handler.Rewriter is not RewriterMerger merger)
+        {
+            return;
+        }
+        foreach (IRewriter r in merger.Rewriters)
+        {
+            if (r is CommandRewriter cmd)
+            {
+                cmd.IncognitoMode = c.IncognitoMode;
+                cmd.PresentationMode = c.PresentationMode;
+                cmd.SuggestionEnabled =
+                    c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion;
+            }
         }
     }
 

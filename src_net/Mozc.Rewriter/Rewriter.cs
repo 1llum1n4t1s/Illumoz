@@ -16,6 +16,9 @@ public sealed class RewriterMerger : IRewriter
 
     public void AddRewriter(IRewriter rewriter) => _rewriters.Add(rewriter);
 
+    // 登録済み rewriter 一覧(config 連携で特定の rewriter を探すのに使う)。
+    public IReadOnlyList<IRewriter> Rewriters => _rewriters;
+
     public bool Rewrite(Segments segments)
     {
         bool result = false;
