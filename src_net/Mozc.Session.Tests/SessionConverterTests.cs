@@ -49,6 +49,33 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void ConvertToTransliteration_FullKatakana()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.Equal("わたし", sc.GetPreedit());
+        sc.ConvertToTransliteration(c => c.GetFullKatakana());
+        Assert.Equal("ワタシ", sc.GetPreedit());
+        Assert.Equal("ワタシ", sc.Commit());
+    }
+
+    [Fact]
+    public void ConvertToTransliteration_ClearedByNewInput()
+    {
+        var sc = new SessionConverter(Engine());
+        sc.InsertCharacter("w");
+        sc.InsertCharacter("a");
+        sc.ConvertToTransliteration(c => c.GetFullKatakana());
+        Assert.Equal("ワ", sc.GetPreedit());
+        sc.InsertCharacter("w"); // 新規入力で T13N 解除(composer は元のかな)
+        sc.InsertCharacter("a");
+        Assert.Equal("わわ", sc.GetPreedit());
+    }
+
+    [Fact]
     public void Type_Convert_Commit_Flow()
     {
         var sc = new SessionConverter(Engine());

@@ -208,6 +208,22 @@ public sealed class Session
                 return Backspace();
             case "Undo":
                 return Undo();
+            case "ConvertToHiragana":
+                _converter.ConvertToTransliteration(c => c.GetHiragana());
+                return Current(true);
+            case "ConvertToFullKatakana":
+                _converter.ConvertToTransliteration(c => c.GetFullKatakana());
+                return Current(true);
+            case "ConvertToHalfKatakana":
+                _converter.ConvertToTransliteration(c => c.GetHalfKatakana());
+                return Current(true);
+            case "ConvertToFullAlphanumeric":
+                _converter.ConvertToTransliteration(c => c.GetFullAscii());
+                return Current(true);
+            case "ConvertToHalfAlphanumeric":
+            case "ConvertToHalfWidth":
+                _converter.ConvertToTransliteration(c => c.GetHalfAscii());
+                return Current(true);
             default:
                 // 未対応 command はキーを消費しない。
                 return new SessionResult { Preedit = GetPreedit(), Consumed = false };

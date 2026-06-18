@@ -35,18 +35,34 @@ public sealed class SessionConverter
     public int FocusedSegment => _focusedSegment;
 
     // 入力(ローマ字 1 打鍵)。変換中なら一旦確定してから新規入力。
+    // F6-F10 等で確定する表記変換(T13N)結果。null 以外なら preedit/commit に優先。
+    private string? _t13n;
+
     public void InsertCharacter(string key)
     {
         if (CurrentState == State.Conversion)
         {
             Commit();
         }
+        _t13n = null;
         _composer.InsertCharacter(key);
+    }
+
+    // composer の表記変換(ひらがな/全角カナ/半角カナ/全角英数/半角英数)を選んで
+    // preedit に反映する(C++ session の ConvertToHiragana 等に相当)。
+    public void ConvertToTransliteration(global::System.Func<Composer.Composer, string> picker)
+    {
+        // 変換中なら一旦かな入力状態に戻す扱い(候補ではなく読みの表記変換)。
+        _t13n = picker(_composer);
     }
 
     // 未確定の preedit(変換中は選択中候補列、未変換時はかな preedit)。
     public string GetPreedit()
     {
+        if (_t13n != null)
+        {
+            return _t13n;
+        }
         if (CurrentState == State.Composition)
         {
             return _composer.GetStringForPreedit();
@@ -312,6 +328,7 @@ public sealed class SessionConverter
         _selected = global::System.Array.Empty<int>();
         _focusedSegment = 0;
         CurrentState = State.Composition;
+        _t13n = null;
     }
 
     // 注目文節の候補一覧(候補ウィンドウ用)。
