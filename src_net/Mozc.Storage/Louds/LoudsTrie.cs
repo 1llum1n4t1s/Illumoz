@@ -120,6 +120,43 @@ public sealed class LoudsTrie
         return results;
     }
 
+    // 予測検索: prefix を前置に持つ全キー(prefix 自身が終端ならそれも含む)を
+    // (key, keyId) で列挙する。C++ の LoudsTrie 予測走査相当(DFS)。
+    public IEnumerable<(byte[] Key, int KeyId)> PredictiveSearch(byte[] prefix)
+    {
+        var start = new LoudsNode();
+        if (!Traverse(prefix, ref start))
+        {
+            yield break;
+        }
+
+        var results = new List<(byte[], int)>();
+        var current = new List<byte>(prefix);
+        CollectDescendants(start, current, results);
+        foreach (var r in results)
+        {
+            yield return r;
+        }
+    }
+
+    private void CollectDescendants(LoudsNode node, List<byte> current, List<(byte[], int)> results)
+    {
+        if (IsTerminalNode(node))
+        {
+            results.Add((current.ToArray(), GetKeyIdOfTerminalNode(node)));
+        }
+        var child = node;
+        _louds.MoveToFirstChild(ref child);
+        while (_louds.IsValidNode(child))
+        {
+            byte label = GetEdgeLabelToParentNode(child);
+            current.Add(label);
+            CollectDescendants(child, current, results);
+            current.RemoveAt(current.Count - 1);
+            Louds.MoveToNextSibling(ref child);
+        }
+    }
+
     // key id から元のキー文字列(UTF-8 バイト)を復元。
     public byte[] RestoreKeyBytes(int keyId)
     {
