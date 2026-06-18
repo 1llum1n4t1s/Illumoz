@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Mozc.Gui;assembly=Mozc.Gui"
+        x:Class="Mozc.Gui.App.CandidateWindow"
+        x:DataType="vm:CandidateWindowViewModel"
+        SystemDecorations="None" Topmost="True" ShowInTaskbar="False"
+        Background="Transparent" SizeToContent="WidthAndHeight"
+        CanResize="False" Title="Mozc Candidates">
+  <Border Background="#FFFFFF" BorderBrush="#888888" BorderThickness="1" Padding="2"
+          IsVisible="{Binding IsVisible}">
+    <ItemsControl ItemsSource="{Binding Items}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:CandidateItemViewModel">
+          <Border Margin="0" Padding="4,1" CornerRadius="2"
+                  Classes.focused="{Binding IsFocused}">
+            <Border.Styles>
+              <Style Selector="Border.focused">
+                <Setter Property="Background" Value="#CCE5FF"/>
+              </Style>
+            </Border.Styles>
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <TextBlock Grid.Column="0" Text="{Binding Shortcut}" Margin="0,0,8,0" Foreground="#888888"/>
+              <TextBlock Grid.Column="1" Text="{Binding Value}"/>
+              <TextBlock Grid.Column="2" Text="{Binding Description}" Margin="12,0,0,0" Foreground="#AAAAAA"/>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </Border>
+</Window>
