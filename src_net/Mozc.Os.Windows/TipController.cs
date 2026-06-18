@@ -19,6 +19,10 @@ public sealed class TipController
     public string Preedit { get; private set; } = string.Empty;
     public string LastCommit { get; private set; } = string.Empty;
     public IReadOnlyList<string> Candidates { get; private set; } = global::System.Array.Empty<string>();
+    // 候補のショートカット文字(SelectionShortcut)。
+    public IReadOnlyList<string> Shortcuts { get; private set; } = global::System.Array.Empty<string>();
+    // 候補窓が入力中サジェスト(C++ category=SUGGESTION)か。
+    public bool IsSuggestion { get; private set; }
 
     private Pb.Output Send(Pb.Input input) => Pb.Output.Parser.ParseFrom(_transport(input.ToByteArray()));
 
@@ -61,6 +65,11 @@ public sealed class TipController
         Candidates = o.CandidateWindow != null
             ? o.CandidateWindow.Candidate.Select(c => c.Value).ToList()
             : global::System.Array.Empty<string>();
+        Shortcuts = o.CandidateWindow != null
+            ? o.CandidateWindow.Candidate.Select(c => c.Annotation?.Shortcut ?? string.Empty).ToList()
+            : global::System.Array.Empty<string>();
+        IsSuggestion = o.CandidateWindow != null
+            && o.CandidateWindow.Category == Pb.Category.Suggestion;
     }
 
     public void Shutdown()

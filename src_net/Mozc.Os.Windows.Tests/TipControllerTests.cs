@@ -100,10 +100,15 @@ public class TipControllerTests
             Assert.True(tip.OnCharacter(c));
         }
         Assert.Equal("わたし", tip.Preedit);
+        // 入力中はサジェスト候補窓 + ショートカット。
+        Assert.True(tip.IsSuggestion);
+        Assert.Contains("私", tip.Candidates);
+        Assert.Equal("1", tip.Shortcuts[0]);
 
         tip.OnSpecialKey(Pb.KeyEvent.Types.SpecialKey.Space);
         Assert.Equal("私", tip.Preedit);
         Assert.Contains("私", tip.Candidates);
+        Assert.False(tip.IsSuggestion); // 変換後は通常候補
 
         tip.OnSpecialKey(Pb.KeyEvent.Types.SpecialKey.Enter);
         Assert.Equal("私", tip.LastCommit);
