@@ -43,6 +43,17 @@ public class TipControllerTests
     }
 
     [Fact]
+    public void TextService_ActivateDeactivate_DrivesController()
+    {
+        EngineServer server = Server();
+        var svc = new MozcTextService { Transport = server.HandleProtoRequest };
+
+        Assert.Equal(0, svc.ActivateEx(threadMgr: 0, clientId: 1, flags: 0));
+        Assert.True(svc.OnTestKeyDown('w')); // セッションが張られキーが消費される
+        Assert.Equal(0, svc.Deactivate());
+    }
+
+    [Fact]
     public void FullFlow_ThroughTipController()
     {
         EngineServer server = Server();
