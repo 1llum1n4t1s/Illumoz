@@ -48,6 +48,16 @@ public class EndToEndTests
         "wa\tわ\nta\tた\nshi\tし\nno\tの\nna\tな\nma\tま\ne\tえ\nn\tん";
 
     [Fact]
+    public void Romaji_To_Prediction()
+    {
+        var engine = new MozcEngine(BuildData(), RomanTable);
+        var composer = engine.CreateComposer();
+        composer.InsertCharacters("wa"); // わ
+        var preds = engine.PredictFromComposer(composer);
+        Assert.Contains("私", preds.ConvertAll(r => r.Value)); // わたし→私 が前方一致予測
+    }
+
+    [Fact]
     public void Romaji_To_Kana_To_Conversion()
     {
         var engine = new MozcEngine(BuildData(), RomanTable);

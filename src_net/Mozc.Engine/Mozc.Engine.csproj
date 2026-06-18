@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Mozc.Dictionary\Mozc.Dictionary.csproj" />
     <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
     <ProjectReference Include="..\Mozc.Composer\Mozc.Composer.csproj" />
+    <ProjectReference Include="..\Mozc.Prediction\Mozc.Prediction.csproj" />
   </ItemGroup>
 
 </Project>

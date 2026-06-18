@@ -1,6 +1,7 @@
 using Mozc.Composer;
 using Mozc.Converter;
 using Mozc.Dictionary;
+using Mozc.Prediction;
 
 namespace Mozc.Engine;
 
@@ -12,6 +13,7 @@ public sealed class MozcEngine
     private readonly DataManager _dataManager;
     private readonly ImmutableConverter _converter;
     private readonly PosMatcher _posMatcher;
+    private readonly DictionaryPredictor _predictor;
     private readonly Table _composerTable;
 
     public MozcEngine(byte[] mozcData, string romanTableTsv)
@@ -24,6 +26,9 @@ public sealed class MozcEngine
             _dataManager.GetSegmenter(),
             _posMatcher,
             new CandidateFilter(_posMatcher));
+
+        _predictor = new DictionaryPredictor(
+            _dataManager.GetSystemDictionary(), _dataManager.GetConnector(), _dataManager.GetSegmenter());
 
         _composerTable = new Table();
         _composerTable.LoadFromString(romanTableTsv);
@@ -41,4 +46,11 @@ public sealed class MozcEngine
     // ローマ字入力済みの Composer から変換用クエリを取り出して変換する。
     public Segments ConvertFromComposer(Composer.Composer composer, int maxCandidates = 30)
         => Convert(composer.GetQueryForConversion(), maxCandidates);
+
+    // 読み前方一致の予測候補(サジェスト)。
+    public List<PredictionResult> Predict(string reading, int maxResults = 10)
+        => _predictor.Predict(reading, maxResults);
+
+    public List<PredictionResult> PredictFromComposer(Composer.Composer composer, int maxResults = 10)
+        => Predict(composer.GetQueryForConversion(), maxResults);
 }
