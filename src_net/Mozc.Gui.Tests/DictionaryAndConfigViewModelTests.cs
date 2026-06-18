@@ -43,6 +43,19 @@ public class DictionaryToolViewModelTests
         Assert.Equal(2, n);
         Assert.Equal("食品", vm.Entries[0].Comment);
     }
+
+    [Fact]
+    public void ExportTsv_RoundTripsViaImport()
+    {
+        var vm = new DictionaryToolViewModel();
+        vm.ImportTsv("もずく\tもずく酢\t名詞\t食品\nわたし\t渡し\t名詞\t");
+        string tsv = vm.ExportTsv();
+
+        var vm2 = new DictionaryToolViewModel();
+        Assert.Equal(2, vm2.ImportTsv(tsv));
+        Assert.Equal("もずく酢", vm2.Entries[0].Value);
+        Assert.Equal("食品", vm2.Entries[0].Comment);
+    }
 }
 
 public class ConfigViewModelTests

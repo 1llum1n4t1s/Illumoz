@@ -71,4 +71,17 @@ public sealed partial class DictionaryToolViewModel : ObservableObject
         }
         return added;
     }
+
+    // 全エントリを TSV へ書き出す(C++ export 相当)。backend(UserDictionaryStorage)とは
+    // この TSV 文字列を介して受け渡すため、型結合せずに往復できる。
+    public string ExportTsv()
+    {
+        var sb = new global::System.Text.StringBuilder();
+        foreach (UserDictionaryEntry e in Entries)
+        {
+            sb.Append(e.Key).Append('\t').Append(e.Value).Append('\t')
+              .Append(e.Pos).Append('\t').Append(e.Comment).Append('\n');
+        }
+        return sb.ToString();
+    }
 }
