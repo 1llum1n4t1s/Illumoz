@@ -167,6 +167,49 @@ public sealed class SessionConverter
         return _history.Predict(_composer.GetQueryForConversion(), maxResults);
     }
 
+    // 履歴予測 + 辞書予測を統合(履歴を上位に、value 重複は低コスト採用、コスト昇順)。
+    // C++ の predictor aggregator 相当の中核スライス。
+    public List<Prediction.PredictionResult> PredictMerged(int maxResults = 10)
+    {
+        string query = _composer.GetQueryForConversion();
+        var best = new Dictionary<string, Prediction.PredictionResult>();
+
+        // 履歴予測は辞書より優先(コストを大きく下げて上位固定)。
+        if (_history != null)
+        {
+            foreach (Prediction.PredictionResult r in _history.Predict(query, maxResults))
+            {
+                var boosted = new Prediction.PredictionResult
+                {
+                    Key = r.Key, Value = r.Value, Lid = r.Lid, Rid = r.Rid,
+                    Wcost = r.Wcost, Cost = r.Cost - 10000,
+                };
+                if (!best.TryGetValue(r.Value, out var cur) || boosted.Cost < cur.Cost)
+                {
+                    best[r.Value] = boosted;
+                }
+            }
+        }
+
+        foreach (Prediction.PredictionResult r in _engine.Predict(query, maxResults))
+        {
+            if (!best.TryGetValue(r.Value, out var cur) || r.Cost < cur.Cost)
+            {
+                best[r.Value] = r;
+            }
+        }
+
+        var ordered = new List<Prediction.PredictionResult>(best.Values);
+        ordered.Sort((a, b) => a.Cost != b.Cost
+            ? a.Cost.CompareTo(b.Cost)
+            : string.CompareOrdinal(a.Value, b.Value));
+        if (ordered.Count > maxResults)
+        {
+            ordered.RemoveRange(maxResults, ordered.Count - maxResults);
+        }
+        return ordered;
+    }
+
     // 変換を取り消して入力状態へ戻る(かなは保持)。
     public void Cancel()
     {

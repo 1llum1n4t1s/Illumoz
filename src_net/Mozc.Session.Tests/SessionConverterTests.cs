@@ -90,6 +90,24 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void PredictMerged_HistoryRanksAboveDictionary()
+    {
+        var history = new Prediction.UserHistoryPredictor();
+        history.Learn("わたし", "渡し"); // 辞書に無い表記を履歴に登録
+        var sc = new SessionConverter(Engine(), rewriter: null, history: history);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+
+        var preds = sc.PredictMerged();
+        var values = preds.ConvertAll(p => p.Value);
+        Assert.Contains("渡し", values); // 履歴由来
+        Assert.Contains("私", values);   // 辞書由来
+        Assert.Equal("渡し", values[0]); // 履歴がブーストで上位
+    }
+
+    [Fact]
     public void SegmentFocus_AndCandidates()
     {
         var sc = new SessionConverter(Engine());
