@@ -30,6 +30,18 @@ public static class ProtoBridge
             Id = output.SessionId,
             Consumed = output.Consumed,
         };
+        if (output.Preedit.Length != 0)
+        {
+            int len = new global::System.Globalization.StringInfo(output.Preedit).LengthInTextElements;
+            var preedit = new Pb.Preedit { Cursor = (uint)len };
+            preedit.Segment.Add(new Pb.Preedit.Types.Segment
+            {
+                Annotation = Pb.Preedit.Types.Segment.Types.Annotation.Underline,
+                Value = output.Preedit,
+                ValueLength = (uint)len,
+            });
+            proto.Preedit = preedit;
+        }
         if (output.Result.Length != 0)
         {
             proto.Result = new Pb.Result

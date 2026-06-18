@@ -86,6 +86,28 @@ public class ProtoBridgeTests
     }
 
     [Fact]
+    public void Preedit_IsCarriedInProtoOutput()
+    {
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+
+        Pb.Output? last = null;
+        foreach (char c in "watashi")
+        {
+            last = Call(server, new Pb.Input
+            {
+                Type = Pb.Input.Types.CommandType.SendKey,
+                Id = id,
+                Key = new Pb.KeyEvent { KeyCode = c },
+            });
+        }
+        Assert.NotNull(last!.Preedit);
+        Assert.Single(last.Preedit.Segment);
+        Assert.Equal("わたし", last.Preedit.Segment[0].Value);
+        Assert.Equal(3u, last.Preedit.Segment[0].ValueLength); // わ/た/し = 3 文字
+    }
+
+    [Fact]
     public void GarbageProtoRequest_ReturnsErrorOutput()
     {
         EngineServer server = Server();
