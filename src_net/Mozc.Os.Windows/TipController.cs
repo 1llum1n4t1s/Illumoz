@@ -21,6 +21,8 @@ public sealed class TipController
     public IReadOnlyList<string> Candidates { get; private set; } = global::System.Array.Empty<string>();
     // 候補のショートカット文字(SelectionShortcut)。
     public IReadOnlyList<string> Shortcuts { get; private set; } = global::System.Array.Empty<string>();
+    // 候補の説明(記号/全角 等)。
+    public IReadOnlyList<string> Descriptions { get; private set; } = global::System.Array.Empty<string>();
     // 候補窓が入力中サジェスト(C++ category=SUGGESTION)か。
     public bool IsSuggestion { get; private set; }
 
@@ -67,6 +69,9 @@ public sealed class TipController
             : global::System.Array.Empty<string>();
         Shortcuts = o.CandidateWindow != null
             ? o.CandidateWindow.Candidate.Select(c => c.Annotation?.Shortcut ?? string.Empty).ToList()
+            : global::System.Array.Empty<string>();
+        Descriptions = o.CandidateWindow != null
+            ? o.CandidateWindow.Candidate.Select(c => c.Annotation?.Description ?? string.Empty).ToList()
             : global::System.Array.Empty<string>();
         IsSuggestion = o.CandidateWindow != null
             && o.CandidateWindow.Category == Pb.Category.Suggestion;

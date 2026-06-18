@@ -1,3 +1,4 @@
+using System.Linq;
 using Mozc.Client;
 using Mozc.Converter;
 using Mozc.Dictionary;
@@ -62,6 +63,22 @@ public class ImeClientTests
 
         s = client.SendSpecialKey(Pb.KeyEvent.Types.SpecialKey.Enter);
         Assert.Equal("私", s.Commit);
+    }
+
+    [Fact]
+    public void Descriptions_FromUserDictionary()
+    {
+        EngineServer server = Server();
+        server.Handler.RegisterWord("わたし", "ワタシ社");
+        var client = new ImeClient(server.HandleProtoRequest);
+        foreach (char c in "watashi")
+        {
+            client.SendCharacter(c);
+        }
+        ImeState s = client.SendSpecialKey(Pb.KeyEvent.Types.SpecialKey.Space);
+        int idx = s.Candidates.ToList().IndexOf("ワタシ社");
+        Assert.True(idx >= 0);
+        Assert.Equal("ユーザー辞書", s.Descriptions[idx]);
     }
 
     [Fact]
