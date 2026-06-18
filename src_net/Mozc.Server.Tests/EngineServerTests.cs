@@ -184,6 +184,22 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void RegisterWord_ThenConversionIncludesIt()
+    {
+        EngineServer server = Server();
+        Assert.True(server.Handler.RegisterWord("わたし", "ワタシ社"));
+
+        Output create = RoundTrip(server, new Input { Type = CommandType.CreateSession });
+        ulong sid = create.SessionId;
+        foreach (char ch in "watashi")
+        {
+            RoundTrip(server, new Input { Type = CommandType.SendKey, SessionId = sid, KeyString = ch.ToString() });
+        }
+        Output conv = RoundTrip(server, new Input { Type = CommandType.SendKey, SessionId = sid, KeyString = "Space" });
+        Assert.Contains("ワタシ社", conv.Candidates);
+    }
+
+    [Fact]
     public void UserDictionary_WordAppearsInSuggestions()
     {
         EngineServer server = Server();

@@ -45,6 +45,10 @@ public sealed class SessionHandler
     public bool LoadUserDictionary(string path) => _userDict.LoadFile(path);
     public void SaveUserDictionary(string path) => _userDict.Save(path);
 
+    // WordRegister GUI 相当: 単語を登録する(以降の変換/予測に即反映)。
+    public bool RegisterWord(string reading, string word, string pos = "名詞", string comment = "")
+        => _userDict.Add(new Dictionary.UserDictionaryStorage.UserEntry(reading, word, pos, comment));
+
     public int SessionCount => _sessions.Count;
 
     public Output EvalCommand(Input input)
