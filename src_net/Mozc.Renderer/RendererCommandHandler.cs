@@ -10,7 +10,8 @@ public static class RendererCommandHandler
         bool Visible,
         IReadOnlyList<CandidateRow> Rows,
         TableLayout? Layout,
-        Point Position);
+        Point Position,
+        FooterInfo Footer);
 
     // command: RendererCommand。measure: 文字列→寸法。screen: モニタ作業領域。
     public static Result Handle(
@@ -21,7 +22,7 @@ public static class RendererCommandHandler
         if (!command.Visible || command.Output?.CandidateWindow == null
             || command.Output.CandidateWindow.Candidate.Count == 0)
         {
-            return new Result(false, global::System.Array.Empty<CandidateRow>(), null, default);
+            return new Result(false, global::System.Array.Empty<CandidateRow>(), null, default, default);
         }
 
         Pb.CandidateWindow cw = command.Output.CandidateWindow;
@@ -37,7 +38,8 @@ public static class RendererCommandHandler
         TableLayout layout = CandidateWindowLayouter.Build(rows, measure);
         Rect caret = ToCaret(command.PreeditRectangle);
         Point pos = CandidateWindowPlacement.PlaceFromLayout(layout, caret, screen);
-        return new Result(true, rows, layout, pos);
+        FooterInfo footer = CandidateWindowFooter.Build(cw);
+        return new Result(true, rows, layout, pos, footer);
     }
 
     private static Rect ToCaret(Pb.RendererCommand.Types.Rectangle? r)
