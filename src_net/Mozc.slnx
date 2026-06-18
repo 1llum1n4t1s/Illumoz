@@ -18,6 +18,7 @@
   <Project Path="Mozc.Gui/Mozc.Gui.csproj" />
   <Project Path="Mozc.Ipc.Tests/Mozc.Ipc.Tests.csproj" />
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />
+  <Project Path="Mozc.Os.Linux.Tests/Mozc.Os.Linux.Tests.csproj" />
   <Project Path="Mozc.Os.Linux/Mozc.Os.Linux.csproj" />
   <Project Path="Mozc.Os.Mac/Mozc.Os.Mac.csproj" />
   <Project Path="Mozc.Os.Windows.Tests/Mozc.Os.Windows.Tests.csproj" />
