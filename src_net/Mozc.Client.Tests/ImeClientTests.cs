@@ -51,8 +51,14 @@ public class ImeClientTests
         }
         Assert.Equal("わたし", s.Preedit);
 
+        // 入力中は SUGGESTION 候補窓 + ショートカット。
+        Assert.True(s.IsSuggestion);
+        Assert.Contains("私", s.Candidates);
+        Assert.Equal("1", s.Shortcuts[0]);
+
         s = client.SendSpecialKey(Pb.KeyEvent.Types.SpecialKey.Space);
         Assert.Contains("私", s.Candidates);
+        Assert.False(s.IsSuggestion); // 変換後は通常候補
 
         s = client.SendSpecialKey(Pb.KeyEvent.Types.SpecialKey.Enter);
         Assert.Equal("私", s.Commit);

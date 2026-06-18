@@ -9,6 +9,10 @@ public sealed class ImeState
     public string Preedit { get; init; } = string.Empty;
     public string Commit { get; init; } = string.Empty;
     public IReadOnlyList<string> Candidates { get; init; } = global::System.Array.Empty<string>();
+    // 候補のショートカット文字(SelectionShortcut。候補と同数か空)。
+    public IReadOnlyList<string> Shortcuts { get; init; } = global::System.Array.Empty<string>();
+    // 候補窓が変換候補ではなく入力中サジェストか(C++ category=SUGGESTION)。
+    public bool IsSuggestion { get; init; }
     public bool Consumed { get; init; }
 }
 
@@ -86,5 +90,10 @@ public sealed class ImeClient
         Candidates = o.CandidateWindow != null
             ? o.CandidateWindow.Candidate.Select(c => c.Value).ToList()
             : global::System.Array.Empty<string>(),
+        Shortcuts = o.CandidateWindow != null
+            ? o.CandidateWindow.Candidate.Select(c => c.Annotation?.Shortcut ?? string.Empty).ToList()
+            : global::System.Array.Empty<string>(),
+        IsSuggestion = o.CandidateWindow != null
+            && o.CandidateWindow.Category == Pb.Category.Suggestion,
     };
 }
