@@ -1,3 +1,4 @@
+using Google.Protobuf;
 using Mozc.Renderer;
 using Xunit;
 using Pb = Mozc.Commands;
@@ -41,6 +42,35 @@ public class RendererCommandHandlerTests
         Assert.NotNull(r.Layout);
         Assert.Equal(100, r.Position.X);   // キャレット左
         Assert.Equal(220, r.Position.Y);   // キャレット直下
+    }
+
+    [Fact]
+    public void BuilderToHandler_RoundTrip()
+    {
+        var cw = new Pb.CandidateWindow();
+        cw.Candidate.Add(new Pb.CandidateWindow.Types.Candidate { Index = 0, Value = "私" });
+        var output = new Pb.Output { CandidateWindow = cw };
+        var caret = new Rect(100, 200, 2, 20);
+
+        Pb.RendererCommand cmd = RendererCommandBuilder.BuildUpdate(output, caret);
+        Assert.True(cmd.Visible);
+        Assert.Equal(Pb.RendererCommand.Types.CommandType.Update, cmd.Type);
+
+        // protobuf を往復してから Handler に通す(ワイヤー経路の模擬)。
+        Pb.RendererCommand parsed = Pb.RendererCommand.Parser.ParseFrom(cmd.ToByteArray());
+        RendererCommandHandler.Result r = RendererCommandHandler.Handle(parsed, Measure, Screen);
+        Assert.True(r.Visible);
+        Assert.Equal("私", r.Rows[0].Value);
+        Assert.Equal(220, r.Position.Y);
+    }
+
+    [Fact]
+    public void BuildHide_NotVisible()
+    {
+        Pb.RendererCommand cmd = RendererCommandBuilder.BuildHide();
+        Assert.False(cmd.Visible);
+        RendererCommandHandler.Result r = RendererCommandHandler.Handle(cmd, Measure, Screen);
+        Assert.False(r.Visible);
     }
 
     [Fact]
