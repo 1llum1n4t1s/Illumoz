@@ -65,4 +65,36 @@ public class DataSetBuilderTests
         Assert.True(pos.IsFunctional(2));
         Assert.False(pos.IsFunctional(1));
     }
+
+    [Fact]
+    public void SymbolSection_EmbeddedAndReadBack()
+    {
+        var sources = new DataSetBuilder.Sources
+        {
+            DictionaryLines = new[] { "わたし\t1\t1\t100\t私" },
+            ConnectionLines = new[] { "2", "0", "0", "0", "0" },
+            IdDefLines = new[] { "0 BOS/EOS,*,*,*,*,*,*", "1 名詞,一般,*,*,*,*,*" },
+            PosMatcherRuleLines = PosRules(),
+            // symbol.tsv 形式(ヘッダ + 列1=記号, 列2=読み)。
+            SymbolTsv = "POS\tCHAR\tReading\n句読点\t→\tやじるし みぎ\n",
+            SingleKanjiTsv = "あ\t亜阿\n",
+            EmojiTsv = "# header\n1F600\t😀\tえがお\n",
+        };
+
+        byte[] mozcData = new DataSetBuilder().Build(sources);
+        var dm = new DataManager(mozcData);
+
+        var symbol = dm.GetStringMap("symbol");
+        Assert.Contains("→", symbol["やじるし"]);
+        var sk = dm.GetStringMap("single_kanji");
+        Assert.Equal(new[] { "亜", "阿" }, sk["あ"]);
+        var emoji = dm.GetStringMap("emoji");
+        Assert.Contains("😀", emoji["えがお"]);
+
+        // セクション未収録時は空辞書。
+        var sources2 = sources;
+        sources2.SymbolTsv = string.Empty;
+        byte[] data2 = new DataSetBuilder().Build(sources2);
+        Assert.Empty(new DataManager(data2).GetStringMap("symbol"));
+    }
 }

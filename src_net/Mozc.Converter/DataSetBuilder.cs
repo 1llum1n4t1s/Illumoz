@@ -21,6 +21,10 @@ public sealed class DataSetBuilder
         public IEnumerable<string> PosMatcherRuleLines = global::System.Array.Empty<string>();
         public IEnumerable<string> SegmenterRuleLines = global::System.Array.Empty<string>();
         public IEnumerable<string> BoundaryDefLines = global::System.Array.Empty<string>();
+        // 記号/単漢字/絵文字の原 tsv テキスト(空なら該当セクションを省略)。
+        public string SymbolTsv = string.Empty;
+        public string SingleKanjiTsv = string.Empty;
+        public string EmojiTsv = string.Empty;
     }
 
     private const int Align = 32;
@@ -66,7 +70,24 @@ public sealed class DataSetBuilder
         writer.Add("segmenter_rtable", Align, ToBytes(seg.RTable));
         writer.Add("segmenter_bitarray", Align, seg.Bitarray);
         writer.Add("bdry", Align, bdry);
+
+        // 記号/単漢字/絵文字(任意セクション)。原 tsv を (読み->値列) へ整形して直列化。
+        AddStringMap(writer, "symbol", s.SymbolTsv, Base.SymbolDataParser.ParseSymbol);
+        AddStringMap(writer, "single_kanji", s.SingleKanjiTsv, Base.SymbolDataParser.ParseSingleKanji);
+        AddStringMap(writer, "emoji", s.EmojiTsv, Base.SymbolDataParser.ParseEmoji);
+
         return writer.Finish();
+    }
+
+    private static void AddStringMap(DataSetWriter writer, string name, string tsv,
+        Func<string, IReadOnlyDictionary<string, string[]>> parse)
+    {
+        if (tsv.Length == 0)
+        {
+            return;
+        }
+        byte[] bytes = Base.StringMapCodec.Serialize(parse(tsv));
+        writer.Add(name, Align, bytes);
     }
 
     private static byte[] ToBytes(ushort[] values)

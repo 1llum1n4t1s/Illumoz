@@ -16,6 +16,10 @@ public static class DataGenerator
         public string PosMatcherRuleFile { get; init; } = string.Empty;
         public string SegmenterRuleFile { get; init; } = string.Empty;
         public string BoundaryDefFile { get; init; } = string.Empty;
+        // 記号/単漢字/絵文字の tsv(任意)。指定されれば mozc.data にセクション梱包する。
+        public string SymbolFile { get; init; } = string.Empty;
+        public string SingleKanjiFile { get; init; } = string.Empty;
+        public string EmojiFile { get; init; } = string.Empty;
     }
 
     public static byte[] Generate(FileSources sources)
@@ -36,6 +40,9 @@ public static class DataGenerator
             PosMatcherRuleLines = ReadLines(sources.PosMatcherRuleFile),
             SegmenterRuleLines = ReadLinesOrEmpty(sources.SegmenterRuleFile),
             BoundaryDefLines = ReadLinesOrEmpty(sources.BoundaryDefFile),
+            SymbolTsv = ReadTextOrEmpty(sources.SymbolFile),
+            SingleKanjiTsv = ReadTextOrEmpty(sources.SingleKanjiFile),
+            EmojiTsv = ReadTextOrEmpty(sources.EmojiFile),
         };
         return new DataSetBuilder().Build(builderSources);
     }
@@ -47,4 +54,9 @@ public static class DataGenerator
         => path.Length == 0 || !global::System.IO.File.Exists(path)
             ? global::System.Array.Empty<string>()
             : global::System.IO.File.ReadAllLines(path);
+
+    private static string ReadTextOrEmpty(string path)
+        => path.Length == 0 || !global::System.IO.File.Exists(path)
+            ? string.Empty
+            : global::System.IO.File.ReadAllText(path);
 }

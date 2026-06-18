@@ -32,6 +32,31 @@ public static class ServerHost
         return merger;
     }
 
+    // mozc.data に記号/単漢字/絵文字が埋め込まれていればそれを使う rewriter 群。
+    // (DataGen が SymbolTsv 等を梱包したデータ向け。ファイル直読みより優先したい場合に使用)
+    public static IRewriter BuildDefaultRewriter(MozcEngine engine, IClock? clock = null)
+    {
+        var merger = new RewriterMerger();
+        merger.AddRewriter(new DateRewriter(clock ?? new SystemClock()));
+        merger.AddRewriter(new NumberRewriter());
+        var symbol = engine.GetSymbolTable();
+        merger.AddRewriter(symbol.Count > 0 ? new SymbolRewriter(symbol) : new SymbolRewriter());
+        var sk = engine.GetSingleKanjiTable();
+        if (sk.Count > 0)
+        {
+            merger.AddRewriter(new SingleKanjiRewriter(sk));
+        }
+        var emoji = engine.GetEmojiTable();
+        if (emoji.Count > 0)
+        {
+            merger.AddRewriter(new EmojiRewriter(emoji));
+        }
+        merger.AddRewriter(new CalculatorRewriter());
+        merger.AddRewriter(new VariantsRewriter());
+        merger.AddRewriter(new TransliterationRewriter());
+        return merger;
+    }
+
     private static SymbolRewriter BuildSymbolRewriter(string? dataDir)
     {
         string? p = ResolveData(dataDir, "symbol", "symbol.tsv");
@@ -74,13 +99,18 @@ public static class ServerHost
         var keyMap = new KeyMap();
         keyMap.LoadFromString(global::System.IO.File.ReadAllText(keymapPath));
         var engine = new MozcEngine(data, romanTable);
-        return new EngineServer(engine, keyMap, BuildDefaultRewriter(dataDir: dataDir));
+        // dataDir 指定時はファイル直読み、未指定時は mozc.data 埋め込みテーブルを使う。
+        IRewriter rewriter = dataDir != null
+            ? BuildDefaultRewriter(dataDir: dataDir)
+            : BuildDefaultRewriter(engine);
+        return new EngineServer(engine, keyMap, rewriter);
     }
 
     public static EngineServer CreateFromBytes(byte[] mozcData, string romanTable, string keymapTsv)
     {
         var keyMap = new KeyMap();
         keyMap.LoadFromString(keymapTsv);
-        return new EngineServer(new MozcEngine(mozcData, romanTable), keyMap, BuildDefaultRewriter());
+        var engine = new MozcEngine(mozcData, romanTable);
+        return new EngineServer(engine, keyMap, BuildDefaultRewriter(engine));
     }
 }

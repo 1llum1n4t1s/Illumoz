@@ -11,63 +11,9 @@ public sealed class EmojiRewriter : IRewriter
 
     public EmojiRewriter(IReadOnlyDictionary<string, string[]> table) => _table = table;
 
-    // emoji_data.tsv(# はコメント、列1=絵文字グリフ, 列2=スペース区切り読み)を
-    // (読み->絵文字列) へ。読みはひらがなトークンのみ採用、出現順保持。
+    // emoji_data.tsv を (読み->絵文字列) へ(共通パーサに委譲)。
     public static IReadOnlyDictionary<string, string[]> LoadTable(string tsv)
-    {
-        var acc = new Dictionary<string, List<string>>();
-        foreach (string line in tsv.Split('\n'))
-        {
-            string row = line.TrimEnd('\r');
-            if (row.Length == 0 || row[0] == '#')
-            {
-                continue;
-            }
-            string[] cols = row.Split('\t');
-            if (cols.Length < 3)
-            {
-                continue;
-            }
-            string glyph = cols[1];
-            if (glyph.Length == 0)
-            {
-                continue;
-            }
-            foreach (string reading in cols[2].Split(' ', global::System.StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!IsHiragana(reading))
-                {
-                    continue;
-                }
-                if (!acc.TryGetValue(reading, out List<string>? list))
-                {
-                    acc[reading] = list = new List<string>();
-                }
-                if (!list.Contains(glyph))
-                {
-                    list.Add(glyph);
-                }
-            }
-        }
-        var dict = new Dictionary<string, string[]>(acc.Count);
-        foreach (KeyValuePair<string, List<string>> kv in acc)
-        {
-            dict[kv.Key] = kv.Value.ToArray();
-        }
-        return dict;
-    }
-
-    private static bool IsHiragana(string s)
-    {
-        foreach (char c in s)
-        {
-            if (c is < 'ぁ' or > 'ゖ' && c != 'ー' && c != '゛' && c != '゜')
-            {
-                return false;
-            }
-        }
-        return s.Length > 0;
-    }
+        => Base.SymbolDataParser.ParseEmoji(tsv);
 
     public bool Rewrite(Segments segments)
     {

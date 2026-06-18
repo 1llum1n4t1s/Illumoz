@@ -36,6 +36,11 @@ public sealed class MozcEngine
 
     public PosMatcher PosMatcher => _posMatcher;
 
+    // mozc.data に埋め込まれた記号/単漢字/絵文字テーブル(無ければ空)。
+    public IReadOnlyDictionary<string, string[]> GetSymbolTable() => _dataManager.GetStringMap("symbol");
+    public IReadOnlyDictionary<string, string[]> GetSingleKanjiTable() => _dataManager.GetStringMap("single_kanji");
+    public IReadOnlyDictionary<string, string[]> GetEmojiTable() => _dataManager.GetStringMap("emoji");
+
     // 新規 Composer を払い出す(入力セッション 1 つ分)。
     public Composer.Composer CreateComposer() => new(_composerTable);
 

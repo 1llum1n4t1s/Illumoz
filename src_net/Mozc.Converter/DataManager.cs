@@ -30,6 +30,12 @@ public sealed class DataManager
     public PosMatcher GetPosMatcher()
         => PosMatcher.FromBytes(_reader.Get("pos_matcher").Span, PosMatcher.RuleCount);
 
+    // 任意の (読み->値列) セクション(symbol/single_kanji/emoji)。無ければ空。
+    public IReadOnlyDictionary<string, string[]> GetStringMap(string name)
+        => _reader.TryGet(name, out var chunk)
+            ? Base.StringMapCodec.Deserialize(chunk.Span)
+            : new Dictionary<string, string[]>();
+
     public Segmenter GetSegmenter()
     {
         (int lsize, int rsize) = ParseSegmenterSizeInfo(_reader.Get("segmenter_sizeinfo").Span);

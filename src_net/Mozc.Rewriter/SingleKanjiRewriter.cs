@@ -12,38 +12,9 @@ public sealed class SingleKanjiRewriter : IRewriter
     public SingleKanjiRewriter(IReadOnlyDictionary<string, string[]> table)
         => _table = table;
 
-    // single_kanji.tsv(列0=読み, 列1=単漢字を連結した文字列)を読みテーブル化する。
-    // 各文字(サロゲートペア対応)を 1 候補とする。
+    // single_kanji.tsv を (読み->単漢字列) へ(共通パーサに委譲)。
     public static IReadOnlyDictionary<string, string[]> LoadTable(string tsv)
-    {
-        var dict = new Dictionary<string, string[]>();
-        foreach (string line in tsv.Split('\n'))
-        {
-            string row = line.TrimEnd('\r');
-            if (row.Length == 0 || row[0] == '#')
-            {
-                continue;
-            }
-            int tab = row.IndexOf('\t');
-            if (tab <= 0 || tab == row.Length - 1)
-            {
-                continue;
-            }
-            string reading = row.Substring(0, tab);
-            string chars = row.Substring(tab + 1);
-            var list = new List<string>();
-            var en = global::System.Globalization.StringInfo.GetTextElementEnumerator(chars);
-            while (en.MoveNext())
-            {
-                list.Add((string)en.Current);
-            }
-            if (list.Count > 0)
-            {
-                dict[reading] = list.ToArray();
-            }
-        }
-        return dict;
-    }
+        => Base.SymbolDataParser.ParseSingleKanji(tsv);
 
     public bool Rewrite(Segments segments)
     {
