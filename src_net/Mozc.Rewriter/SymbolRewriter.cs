@@ -28,6 +28,70 @@ public sealed class SymbolRewriter : IRewriter
             ["かっこ"] = new[] { "「」", "（）", "『』", "【】", "〈〉" },
         };
 
+    // symbol.tsv(ヘッダ行 + 列1=記号, 列2=スペース区切り読み)を (読み->記号列) へ。
+    // 読みトークンはひらがなのもののみ採用(記号自体や記号読みは除外)。出現順を保つ。
+    public static IReadOnlyDictionary<string, string[]> LoadTable(string tsv)
+    {
+        var acc = new Dictionary<string, List<string>>();
+        bool first = true;
+        foreach (string line in tsv.Split('\n'))
+        {
+            string row = line.TrimEnd('\r');
+            if (first)
+            {
+                first = false; // ヘッダ行を飛ばす。
+                continue;
+            }
+            if (row.Length == 0)
+            {
+                continue;
+            }
+            string[] cols = row.Split('\t');
+            if (cols.Length < 3)
+            {
+                continue;
+            }
+            string symbol = cols[1];
+            if (symbol.Length == 0)
+            {
+                continue;
+            }
+            foreach (string reading in cols[2].Split(' ', global::System.StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!IsHiragana(reading))
+                {
+                    continue;
+                }
+                if (!acc.TryGetValue(reading, out List<string>? list))
+                {
+                    acc[reading] = list = new List<string>();
+                }
+                if (!list.Contains(symbol))
+                {
+                    list.Add(symbol);
+                }
+            }
+        }
+        var dict = new Dictionary<string, string[]>(acc.Count);
+        foreach (KeyValuePair<string, List<string>> kv in acc)
+        {
+            dict[kv.Key] = kv.Value.ToArray();
+        }
+        return dict;
+    }
+
+    private static bool IsHiragana(string s)
+    {
+        foreach (char c in s)
+        {
+            if (c is < 'ぁ' or > 'ゖ' && c != 'ー' && c != '゛' && c != '゜')
+            {
+                return false;
+            }
+        }
+        return s.Length > 0;
+    }
+
     public bool Rewrite(Segments segments)
     {
         bool modified = false;
