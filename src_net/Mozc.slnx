@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Mozc.Base.Tests/Mozc.Base.Tests.csproj" />
   <Project Path="Mozc.Base/Mozc.Base.csproj" />
   <Project Path="Mozc.Converter.Tests/Mozc.Converter.Tests.csproj" />
   <Project Path="Mozc.Converter/Mozc.Converter.csproj" />
