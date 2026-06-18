@@ -275,6 +275,25 @@ public sealed class SessionConverter
         return ordered;
     }
 
+    // 入力中(composition)にサジェスト候補を直接確定する。index 無効なら null。
+    // 確定値を履歴学習しリセットする(C++ の suggestion commit 相当)。
+    public string? CommitSuggestion(int index)
+    {
+        if (CurrentState != State.Composition)
+        {
+            return null;
+        }
+        List<Prediction.PredictionResult> preds = PredictMerged();
+        if (index < 0 || index >= preds.Count)
+        {
+            return null;
+        }
+        Prediction.PredictionResult p = preds[index];
+        _history?.Learn(p.Key.Length > 0 ? p.Key : _composer.GetQueryForConversion(), p.Value);
+        Reset();
+        return p.Value;
+    }
+
     // 変換を取り消して入力状態へ戻る(かなは保持)。
     public void Cancel()
     {

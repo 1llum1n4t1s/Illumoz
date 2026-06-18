@@ -77,6 +77,16 @@ public sealed class Session
                 _converter.SelectCandidate(id);
                 return Current(true);
             case SessionCommandType.SubmitCandidate:
+                // 入力中(サジェスト)はサジェスト候補を直接確定する。
+                if (_converter.CurrentState == SessionConverter.State.Composition)
+                {
+                    string? sug = _converter.CommitSuggestion(id);
+                    if (sug != null)
+                    {
+                        _typed.Clear();
+                        return new SessionResult { Committed = sug, Preedit = "", Consumed = true };
+                    }
+                }
                 _converter.SelectCandidate(id);
                 goto case SessionCommandType.Submit;
             case SessionCommandType.Submit:
