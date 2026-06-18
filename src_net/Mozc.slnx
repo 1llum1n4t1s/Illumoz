@@ -16,6 +16,8 @@
   <Project Path="Mozc.Gui/Mozc.Gui.csproj" />
   <Project Path="Mozc.Ipc.Tests/Mozc.Ipc.Tests.csproj" />
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />
+  <Project Path="Mozc.Os.Windows.Tests/Mozc.Os.Windows.Tests.csproj" />
+  <Project Path="Mozc.Os.Windows/Mozc.Os.Windows.csproj" />
   <Project Path="Mozc.Prediction.Tests/Mozc.Prediction.Tests.csproj" />
   <Project Path="Mozc.Prediction/Mozc.Prediction.csproj" />
   <Project Path="Mozc.Protocol.Tests/Mozc.Protocol.Tests.csproj" />
