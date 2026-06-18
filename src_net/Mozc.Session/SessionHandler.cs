@@ -35,6 +35,8 @@ public sealed class SessionHandler
                 return DeleteSession(input.SessionId);
             case CommandType.SendKey:
                 return SendKey(input);
+            case CommandType.SendCommand:
+                return SendCommand(input);
             case CommandType.NoOperation:
                 return new Output { SessionId = input.SessionId, Consumed = true };
             default:
@@ -59,6 +61,16 @@ public sealed class SessionHandler
         return new Output { SessionId = id, Consumed = removed, ErrorOccured = !removed };
     }
 
+    private Output SendCommand(Input input)
+    {
+        if (!_sessions.TryGetValue(input.SessionId, out Session? session))
+        {
+            return new Output { SessionId = input.SessionId, ErrorOccured = true };
+        }
+        SessionResult r = session.SendCommand(input.SessionCommand, input.CommandId);
+        return ToOutput(input.SessionId, session, r);
+    }
+
     private Output SendKey(Input input)
     {
         if (!_sessions.TryGetValue(input.SessionId, out Session? session))
@@ -68,9 +80,14 @@ public sealed class SessionHandler
         SessionResult r = input.Key != null
             ? session.SendKey(input.Key)
             : session.SendKey(input.KeyString);
+        return ToOutput(input.SessionId, session, r);
+    }
+
+    private static Output ToOutput(ulong sessionId, Session session, SessionResult r)
+    {
         return new Output
         {
-            SessionId = input.SessionId,
+            SessionId = sessionId,
             Consumed = r.Consumed,
             Preedit = r.Preedit,
             Result = r.Committed,

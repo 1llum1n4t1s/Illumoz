@@ -55,6 +55,40 @@ public sealed class Session
         return new SessionResult { Preedit = GetPreedit(), Consumed = false };
     }
 
+    // SEND_COMMAND: 候補の明示選択・確定・取消。
+    public SessionResult SendCommand(SessionCommandType type, int id)
+    {
+        switch (type)
+        {
+            case SessionCommandType.SelectCandidate:
+            case SessionCommandType.HighlightCandidate:
+                _converter.SelectCandidate(id);
+                return Current(true);
+            case SessionCommandType.SubmitCandidate:
+                _converter.SelectCandidate(id);
+                goto case SessionCommandType.Submit;
+            case SessionCommandType.Submit:
+            {
+                string committed = _converter.Commit();
+                _typed.Clear();
+                return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
+            }
+            case SessionCommandType.Revert:
+                if (_converter.CurrentState == SessionConverter.State.Conversion)
+                {
+                    _converter.Cancel();
+                }
+                else
+                {
+                    _converter.Reset();
+                    _typed.Clear();
+                }
+                return Current(true);
+            default:
+                return new SessionResult { Preedit = GetPreedit(), Consumed = false };
+        }
+    }
+
     public SessionResult SendKey(string keyString)
         => KeyParser.TryParse(keyString, out KeyEvent ke)
             ? SendKey(ke)

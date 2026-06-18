@@ -17,10 +17,35 @@ public static class ProtoBridge
             Pb.Input.Types.CommandType.CreateSession => CommandType.CreateSession,
             Pb.Input.Types.CommandType.DeleteSession => CommandType.DeleteSession,
             Pb.Input.Types.CommandType.SendKey => CommandType.SendKey,
+            Pb.Input.Types.CommandType.SendCommand => CommandType.SendCommand,
             _ => CommandType.NoOperation,
         };
         KeyEvent? key = proto.Key != null ? DecodeKey(proto.Key) : null;
-        return new Input { Type = type, SessionId = proto.Id, Key = key };
+
+        var sessionCommand = SessionCommandType.None;
+        int commandId = 0;
+        if (proto.Command != null)
+        {
+            sessionCommand = proto.Command.Type switch
+            {
+                Pb.SessionCommand.Types.CommandType.Revert => SessionCommandType.Revert,
+                Pb.SessionCommand.Types.CommandType.Submit => SessionCommandType.Submit,
+                Pb.SessionCommand.Types.CommandType.SelectCandidate => SessionCommandType.SelectCandidate,
+                Pb.SessionCommand.Types.CommandType.HighlightCandidate => SessionCommandType.HighlightCandidate,
+                Pb.SessionCommand.Types.CommandType.SubmitCandidate => SessionCommandType.SubmitCandidate,
+                _ => SessionCommandType.None,
+            };
+            commandId = proto.Command.Id;
+        }
+
+        return new Input
+        {
+            Type = type,
+            SessionId = proto.Id,
+            Key = key,
+            SessionCommand = sessionCommand,
+            CommandId = commandId,
+        };
     }
 
     public static byte[] EncodeOutput(Output output)

@@ -7,7 +7,19 @@ public enum CommandType
     CreateSession,
     DeleteSession,
     SendKey,
+    SendCommand,
     NoOperation,
+}
+
+// C++ SessionCommand.CommandType の主要部(候補選択/確定/取消)。
+public enum SessionCommandType
+{
+    None,
+    Revert,
+    Submit,
+    SelectCandidate,
+    HighlightCandidate,
+    SubmitCandidate,
 }
 
 public sealed class Input
@@ -16,6 +28,9 @@ public sealed class Input
     public ulong SessionId { get; init; }
     public KeyEvent? Key { get; init; }
     public string KeyString { get; init; } = string.Empty;
+    // SEND_COMMAND 用。
+    public SessionCommandType SessionCommand { get; init; } = SessionCommandType.None;
+    public int CommandId { get; init; }
 }
 
 public sealed class Output

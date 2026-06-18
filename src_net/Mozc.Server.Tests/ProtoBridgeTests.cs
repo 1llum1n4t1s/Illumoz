@@ -108,6 +108,39 @@ public class ProtoBridgeTests
     }
 
     [Fact]
+    public void SendCommand_SubmitCandidate_Commits()
+    {
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        foreach (char c in "watashi")
+        {
+            Call(server, new Pb.Input
+            {
+                Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+                Key = new Pb.KeyEvent { KeyCode = c },
+            });
+        }
+        Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+            Key = new Pb.KeyEvent { SpecialKey = Pb.KeyEvent.Types.SpecialKey.Space },
+        });
+        // SEND_COMMAND: SUBMIT_CANDIDATE で 0 番候補を選択し確定。
+        Pb.Output o = Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendCommand,
+            Id = id,
+            Command = new Pb.SessionCommand
+            {
+                Type = Pb.SessionCommand.Types.CommandType.SubmitCandidate,
+                Id = 0,
+            },
+        });
+        Assert.NotNull(o.Result);
+        Assert.Equal("私", o.Result.Value);
+    }
+
+    [Fact]
     public void GarbageProtoRequest_ReturnsErrorOutput()
     {
         EngineServer server = Server();
