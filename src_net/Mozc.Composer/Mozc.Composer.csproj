@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/composer 相当。ローマ字/かな入力のテーブル + 文字チャンク変換。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Composer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+  </ItemGroup>
+
+</Project>
