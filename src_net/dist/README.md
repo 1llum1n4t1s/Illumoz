@@ -30,3 +30,10 @@ C++/Bazel を使わず .NET 10 / NativeAOT で各 OS に配布するための定
 - `dotnet publish Mozc.Os.Windows -r win-x64 -p:NativeLib=Shared -p:PublishAot=true` で **3.7MB のネイティブ COM DLL 生成成功**。
 - `dumpbin /EXPORTS` で **`DllGetClassObject` / `DllCanUnloadNow` のエクスポートを確認**(COM 登録可能な実 TIP DLL)。
 - 残: 実機 Windows でこの DLL を CLSID 登録 + `ITfInputProcessorProfiles::Register` し、任意アプリで入力動作を目視。
+
+## 実証(2026-06-19): native bridge C ABI エクスポート
+- `dotnet publish Mozc.Os.Linux -p:NativeLib=Shared -p:PublishAot=true` の共有ライブラリで
+  `dumpbin /EXPORTS` により **`mozc_ibus_process_key` / `mozc_ibus_get_preedit` / `mozc_ibus_get_commit`** の
+  エクスポートを確認(native ibus_mozc.c が解決する C ABI が実際に emit される)。
+- 同手順で Linux は `.so`、mac は `Mozc.Os.Mac` を共有ライブラリ化(`mozc_imk_*` export)。
+- → C#[UnmanagedCallersOnly] → 共有ライブラリ export → native 極薄 stub(.c/.m)→ OS、の経路が成立。
