@@ -107,6 +107,17 @@ public sealed class Composition
         return sb.ToString();
     }
 
+    // 指定 transliterator での全文字列(F6-F10 等の表記変換候補に使う)。
+    public string GetStringWithTransliterator(Transliterator t12r)
+    {
+        var sb = new StringBuilder();
+        foreach (CharChunk chunk in _chunks)
+        {
+            chunk.AppendResult(sb, t12r);
+        }
+        return sb.ToString();
+    }
+
     public string GetStringWithTrimMode(TrimMode trimMode)
     {
         var sb = new StringBuilder();

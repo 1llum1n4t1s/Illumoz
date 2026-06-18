@@ -27,22 +27,36 @@ public sealed class CharChunk
 
     public bool IsEmpty => _raw.Length == 0 && _conversion.Length == 0 && _pending.Length == 0;
 
-    // transliterate: 現状 LOCAL=converted をそのまま返す(raw は半角 ASCII 変換等で使う想定)。
-    private static string Transliterate(string raw, string converted) => converted;
+    // CharChunk 自身の表記(LOCAL 要求時に委譲)。ローマ字入力の既定は ConversionString。
+    private Transliterator _transliterator = Transliterator.ConversionString;
+
+    public Transliterator LocalTransliterator => _transliterator;
+
+    public void SetTransliterator(Transliterator t12r)
+    {
+        if (t12r != Transliterator.Local)
+        {
+            _transliterator = t12r;
+        }
+    }
+
+    // LOCAL は CharChunk 自身の transliterator に解決する。
+    private string Transliterate(Transliterator t12r, string raw, string converted)
+        => Transliterators.Apply(t12r == Transliterator.Local ? _transliterator : t12r, raw, converted);
 
     // 特殊キー除去: 現状 romanji-hiragana.tsv は特殊キーを含まないため恒等。
     private static string DeleteSpecialKeys(string s) => s;
 
-    public int GetLength()
-        => ScriptClassifier.CharsLen(Transliterate(DeleteSpecialKeys(_raw),
+    public int GetLength(Transliterator t12r = Transliterator.Local)
+        => ScriptClassifier.CharsLen(Transliterate(t12r, DeleteSpecialKeys(_raw),
             DeleteSpecialKeys(_conversion + _pending)));
 
-    public void AppendResult(StringBuilder result)
-        => result.Append(Transliterate(DeleteSpecialKeys(_raw),
+    public void AppendResult(StringBuilder result, Transliterator t12r = Transliterator.Local)
+        => result.Append(Transliterate(t12r, DeleteSpecialKeys(_raw),
             DeleteSpecialKeys(_conversion + _pending)));
 
     // 確定値のみ(conversion + 確定可能な pending)を追加。
-    public void AppendTrimedResult(StringBuilder result)
+    public void AppendTrimedResult(StringBuilder result, Transliterator t12r = Transliterator.Local)
     {
         string converted = _conversion;
         if (_pending.Length != 0)
@@ -53,16 +67,16 @@ public sealed class CharChunk
                 converted += entry.Result;
             }
         }
-        result.Append(Transliterate(DeleteSpecialKeys(_raw), DeleteSpecialKeys(converted)));
+        result.Append(Transliterate(t12r, DeleteSpecialKeys(_raw), DeleteSpecialKeys(converted)));
     }
 
     // 未確定も含め確定扱いで追加(ambiguous を優先)。
-    public void AppendFixedResult(StringBuilder result)
+    public void AppendFixedResult(StringBuilder result, Transliterator t12r = Transliterator.Local)
     {
         string converted = _ambiguous.Length != 0
             ? _conversion + _ambiguous
             : _conversion + _pending;
-        result.Append(Transliterate(DeleteSpecialKeys(_raw), DeleteSpecialKeys(converted)));
+        result.Append(Transliterate(t12r, DeleteSpecialKeys(_raw), DeleteSpecialKeys(converted)));
     }
 
     public bool IsFixed => _pending.Length == 0;

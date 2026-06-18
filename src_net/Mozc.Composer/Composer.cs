@@ -33,5 +33,15 @@ public sealed class Composer
     // 変換にかけるクエリ(pending を確定扱いにトリム)。
     public string GetQueryForConversion() => _composition.GetStringWithTrimMode(TrimMode.Fix);
 
+    // 表記変換候補(F6=ひらがな/F7=全角カナ/F8=半角カナ/F9=全角英数/F10=半角英数)。
+    public string GetStringForType(Transliterator t12r)
+        => _composition.GetStringWithTransliterator(t12r);
+
+    public string GetHiragana() => GetStringForType(Transliterator.Hiragana);
+    public string GetFullKatakana() => GetStringForType(Transliterator.FullKatakana);
+    public string GetHalfKatakana() => GetStringForType(Transliterator.HalfKatakana);
+    public string GetFullAscii() => GetStringForType(Transliterator.FullAscii);
+    public string GetHalfAscii() => GetStringForType(Transliterator.HalfAscii);
+
     public Composition Composition => _composition;
 }
