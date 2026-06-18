@@ -59,6 +59,16 @@ public class ServerHostTests
     }
 
     [Fact]
+    public void DefaultProfileDir_EndsWithMozc()
+    {
+        string dir = ServerHost.DefaultProfileDir();
+        Assert.True(dir.Length > 0);
+        // 末尾は Mozc(Win/mac)または mozc(Linux)。
+        string leaf = global::System.IO.Path.GetFileName(dir);
+        Assert.True(leaf == "Mozc" || leaf == "mozc", $"unexpected leaf: {leaf}");
+    }
+
+    [Fact]
     public void SaveProfile_LoadProfile_RoundTrip()
     {
         string pid = global::System.Guid.NewGuid().ToString("N");

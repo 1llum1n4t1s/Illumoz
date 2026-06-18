@@ -35,13 +35,12 @@ internal static class Program
         // --datadir 指定時は symbol.tsv/single_kanji.tsv を実データ結線する。
         EngineServer server = ServerHost.Create(data, roman, keymap, dataDir);
 
-        // --profile 指定時は履歴/ユーザー辞書を読み込み、終了時に保存する。
-        if (profileDir != null)
-        {
-            ServerHost.LoadProfile(server, profileDir);
-            global::System.AppDomain.CurrentDomain.ProcessExit +=
-                (_, _) => ServerHost.SaveProfile(server, profileDir);
-        }
+        // プロファイル(設定/履歴/ユーザー辞書)を起動時 load、終了時 save。
+        // --profile 未指定時は OS 標準のユーザープロファイルディレクトリを使う。
+        string resolvedProfile = profileDir ?? ServerHost.DefaultProfileDir();
+        ServerHost.LoadProfile(server, resolvedProfile);
+        global::System.AppDomain.CurrentDomain.ProcessExit +=
+            (_, _) => ServerHost.SaveProfile(server, resolvedProfile);
 
         // .ipc を公開(key/protocol/pid)。クライアントは IpcPathManager.TryLoad で実 pipe 名を得る。
         IpcPathManager pathManager = IpcPathManager.Create(

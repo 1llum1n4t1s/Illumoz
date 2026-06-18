@@ -111,6 +111,32 @@ public static class ServerHost
     public const string UserDictionaryFile = "user_dictionary.db";
     public const string ConfigFile = "config1.db";
 
+    // OS 標準のユーザープロファイルディレクトリ(C++ SystemUtil::GetUserProfileDirectory 相当)。
+    // Windows: %APPDATA%\Mozc / macOS: ~/Library/Application Support/Mozc /
+    // Linux: $XDG_CONFIG_HOME(or ~/.config)/mozc。
+    public static string DefaultProfileDir()
+    {
+        if (global::System.OperatingSystem.IsWindows())
+        {
+            string appData = global::System.Environment.GetFolderPath(
+                global::System.Environment.SpecialFolder.ApplicationData);
+            return global::System.IO.Path.Combine(appData, "Mozc");
+        }
+        if (global::System.OperatingSystem.IsMacOS())
+        {
+            string home = global::System.Environment.GetFolderPath(
+                global::System.Environment.SpecialFolder.UserProfile);
+            return global::System.IO.Path.Combine(home, "Library", "Application Support", "Mozc");
+        }
+        string? xdg = global::System.Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        string baseDir = !string.IsNullOrEmpty(xdg)
+            ? xdg
+            : global::System.IO.Path.Combine(
+                global::System.Environment.GetFolderPath(
+                    global::System.Environment.SpecialFolder.UserProfile), ".config");
+        return global::System.IO.Path.Combine(baseDir, "mozc");
+    }
+
     // プロファイル(設定/履歴/ユーザー辞書)を dir から読み込む(無いファイルはスキップ)。
     public static void LoadProfile(EngineServer server, string dir)
     {
