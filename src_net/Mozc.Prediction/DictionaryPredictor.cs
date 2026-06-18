@@ -25,16 +25,25 @@ public sealed class DictionaryPredictor
     private readonly Segmenter _segmenter;
     private readonly SuggestionFilter _suggestionFilter;
 
+    // 数の読み→数字の予測(任意)。設定時は Predict に数字候補を併合する。
+    private readonly NumberDecoder? _numberDecoder;
+    private readonly ushort _numberId;
+    private readonly ushort _kanjiNumberId;
+
     private const int CostFactor = 500;            // C++ kCostFactor
     private const int DefaultPredictionLimit = 100;
 
     public DictionaryPredictor(DictionaryBase dictionary, Connector connector, Segmenter segmenter,
-        SuggestionFilter? suggestionFilter = null)
+        SuggestionFilter? suggestionFilter = null,
+        NumberDecoder? numberDecoder = null, ushort numberId = 0, ushort kanjiNumberId = 0)
     {
         _dictionary = dictionary;
         _connector = connector;
         _segmenter = segmenter;
         _suggestionFilter = suggestionFilter ?? SuggestionFilter.Empty;
+        _numberDecoder = numberDecoder;
+        _numberId = numberId;
+        _kanjiNumberId = kanjiNumberId;
     }
 
     // C++ GetLMCost(unigram, history_rid=0): cost_with/without_context は等しくなるので
@@ -75,6 +84,12 @@ public sealed class DictionaryPredictor
             },
         };
         _dictionary.LookupPredictive(query, callback);
+
+        // 数の読みなら数字候補(20, 1万 等)を併合する。
+        if (_numberDecoder != null)
+        {
+            raw.AddRange(_numberDecoder.Aggregate(query, _numberId, _kanjiNumberId));
+        }
 
         int queryLen = ScriptClassifier.CharsLen(query);
         foreach (PredictionResult r in raw)

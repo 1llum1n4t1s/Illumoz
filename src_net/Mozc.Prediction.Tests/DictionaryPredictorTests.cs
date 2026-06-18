@@ -46,6 +46,26 @@ public class DictionaryPredictorTests
         => new(dm.GetSystemDictionary(), dm.GetConnector(), dm.GetSegmenter());
 
     [Fact]
+    public void Predict_WithNumberDecoder_MergesNumberCandidate()
+    {
+        DataManager dm = BuildManager();
+        var p = new DictionaryPredictor(
+            dm.GetSystemDictionary(), dm.GetConnector(), dm.GetSegmenter(),
+            numberDecoder: new NumberDecoder(), numberId: 1, kanjiNumberId: 1);
+        List<PredictionResult> results = p.Predict("にじゅう");
+        var values = results.ConvertAll(r => r.Value);
+        Assert.Contains("20", values); // 数の読みが数字候補になる
+    }
+
+    [Fact]
+    public void Predict_WithoutNumberDecoder_NoNumberCandidate()
+    {
+        DictionaryPredictor p = Predictor(BuildManager());
+        List<PredictionResult> results = p.Predict("にじゅう");
+        Assert.DoesNotContain("20", results.ConvertAll(r => r.Value));
+    }
+
+    [Fact]
     public void Predict_RanksByLengthBonusAndCost()
     {
         DictionaryPredictor p = Predictor(BuildManager());
