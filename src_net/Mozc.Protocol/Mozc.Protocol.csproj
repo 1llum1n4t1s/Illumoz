@@ -31,6 +31,11 @@
               ProtoRoot="..\..\src"
               GrpcServices="None"
               CompileOutputs="true" />
+    <!-- mozc.data パックのメタデータ。package mozc (DataSetMetadata) -->
+    <Protobuf Include="..\..\src\data_manager\dataset.proto"
+              ProtoRoot="..\..\src"
+              GrpcServices="None"
+              CompileOutputs="true" />
   </ItemGroup>
 
 </Project>

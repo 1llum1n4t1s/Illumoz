@@ -27,6 +27,13 @@ public static class MozcConstants
     // Linux abstract socket / POSIX のベースプレフィックス (ipc_path_manager: "/tmp/.mozc.")
     public const string PosixIpcPrefix = "/tmp/.mozc.";
 
+    // mozc.data パックの magic number (data_manager.cc: kDataSetMagicNumberOss = "\xEFMOZC\r\n")
+    // 先頭は生バイト 0xEF(U+00EF の UTF-8 ではない)なので byte 配列で定義。
+    private static readonly byte[] DataSetMagicOssBytes =
+        { 0xEF, (byte)'M', (byte)'O', (byte)'Z', (byte)'C', 0x0D, 0x0A };
+
+    public static ReadOnlySpan<byte> DataSetMagicOss => DataSetMagicOssBytes;
+
     // 主要バイナリ名 (const.h)
     public const string MozcServerNameWindows = "mozc_server.exe";
     public const string MozcServerNamePosix = "mozc_server";
