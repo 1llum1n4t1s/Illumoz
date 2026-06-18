@@ -4,4 +4,6 @@
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />
   <Project Path="Mozc.Protocol.Tests/Mozc.Protocol.Tests.csproj" />
   <Project Path="Mozc.Protocol/Mozc.Protocol.csproj" />
+  <Project Path="Mozc.Storage.Tests/Mozc.Storage.Tests.csproj" />
+  <Project Path="Mozc.Storage/Mozc.Storage.csproj" />
 </Solution>

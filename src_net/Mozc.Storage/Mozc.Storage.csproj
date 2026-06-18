@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/base/container, src/storage, src/data_manager 相当のバイナリ構造を C# 化。
+       LOUDS trie / serialized_string_array / DataSetReader などエンジンの土台。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Storage</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+  </ItemGroup>
+
+</Project>
