@@ -11,6 +11,7 @@ namespace Mozc.Storage.Louds;
 public sealed class SuccinctBitVectorIndex
 {
     private byte[] _data = Array.Empty<byte>();
+    private int _offset;        // _data 内のビットベクタ開始バイト位置(共有バッファ対応)
     private int _length;        // バイト数
     private readonly int _chunkSize; // バイト
     private int[] _index = Array.Empty<int>();
@@ -24,18 +25,22 @@ public sealed class SuccinctBitVectorIndex
         _chunkSize = chunkSize;
     }
 
-    public void Init(byte[] data, int length)
+    public void Init(byte[] data, int length) => Init(data, 0, length);
+
+    // 共有バッファ内の [offset, offset+length) をビットベクタとして扱う。
+    public void Init(byte[] data, int offset, int length)
     {
         if (length % 4 != 0)
         {
             throw new ArgumentException("length must be a multiple of 4", nameof(length));
         }
         _data = data;
+        _offset = offset;
         _length = length;
         BuildIndex();
     }
 
-    public int Get(int index) => (_data[index / 8] >> (index % 8)) & 1;
+    public int Get(int index) => (_data[_offset + index / 8] >> (index % 8)) & 1;
     public int GetNum1Bits() => _index[^1];
     public int GetNum0Bits() => 8 * _length - _index[^1];
 
@@ -105,7 +110,7 @@ public sealed class SuccinctBitVectorIndex
     }
 
     private uint LoadU32(int byteOffset)
-        => BinaryPrimitives.ReadUInt32LittleEndian(_data.AsSpan(byteOffset, 4));
+        => BinaryPrimitives.ReadUInt32LittleEndian(_data.AsSpan(_offset + byteOffset, 4));
 
     private int Count1Bits(int byteOffset, int numWords)
     {
