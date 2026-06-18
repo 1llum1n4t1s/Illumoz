@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace Mozc.Base;
@@ -11,7 +13,7 @@ public static class NumberUtil
     // kanjinumber-arabicnumber.tsv の全エントリ(漢数字/大字/全角数字 → アラビア数字)。
     private static readonly Dictionary<int, string> KanjiToArabic = new()
     {
-        ['零'] = "0", ['一'] = "1", ['二'] = "2", ['三'] = "3", ['四'] = "4",
+        ['零'] = "0", ['〇'] = "0", ['一'] = "1", ['二'] = "2", ['三'] = "3", ['四'] = "4",
         ['五'] = "5", ['六'] = "6", ['七'] = "7", ['八'] = "8", ['九'] = "9",
         ['十'] = "10", ['百'] = "100", ['千'] = "1000", ['万'] = "10000",
         ['億'] = "100000000", ['兆'] = "1000000000000", ['京'] = "10000000000000000",
@@ -34,6 +36,215 @@ public static class NumberUtil
                 : rune.ToString());
         }
         return sb.ToString();
+    }
+
+    // 漢数字混じり文字列を「桁を解釈して」アラビア数字へ正規化する
+    // (C++ NumberUtil::NormalizeNumbers 相当)。例: "百二十" → "120"、"二百十一" → "211"、
+    // "百二十万" → "1200000"。数字以外を含む/解釈できない場合は false。
+    // trimLeadingZeros=false なら先頭ゼロの個数を保持する。
+    public static bool TryNormalizeNumber(string input, bool trimLeadingZeros, out string arabic)
+    {
+        arabic = string.Empty;
+        var numbers = new List<ulong>();
+        foreach (Rune rune in input.EnumerateRunes())
+        {
+            string mapped = KanjiNumberToArabicNumber(rune.ToString());
+            if (!ulong.TryParse(mapped, out ulong n))
+            {
+                return false; // 数字でない文字。
+            }
+            numbers.Add(n);
+        }
+        if (numbers.Count == 0)
+        {
+            return false;
+        }
+        if (!NormalizeNumbersHelper(numbers, out ulong value))
+        {
+            return false;
+        }
+
+        var sb = new StringBuilder();
+        if (!trimLeadingZeros)
+        {
+            int numZeros = 0;
+            while (numZeros < numbers.Count && numbers[numZeros] == 0)
+            {
+                numZeros++;
+            }
+            if (numZeros == numbers.Count)
+            {
+                numZeros--; // 全部ゼロなら (k-1) 個。
+            }
+            sb.Append('0', numZeros);
+        }
+        sb.Append(value.ToString(CultureInfo.InvariantCulture));
+        arabic = sb.ToString();
+        return true;
+    }
+
+    private static bool NormalizeNumbersHelper(List<ulong> numbers, out ulong output)
+    {
+        output = 0;
+        ulong max = 0;
+        foreach (ulong v in numbers)
+        {
+            if (v > max)
+            {
+                max = v;
+            }
+        }
+        // スケーリング数(10以上)が無ければ単純に 10進連結。
+        if (max < 10)
+        {
+            int idx0 = 0;
+            return ReduceLeadingBase10(numbers, ref idx0, out output) && idx0 == numbers.Count;
+        }
+        return InterpretJapanese(numbers, out output);
+    }
+
+    private static bool InterpretJapanese(List<ulong> numbers, out ulong output)
+    {
+        output = 0;
+        ulong lastBase = ulong.MaxValue;
+        int i = 0;
+        do
+        {
+            if (!ReduceLessThan10000(numbers, ref i, out ulong coef))
+            {
+                return false;
+            }
+            if (i == numbers.Count)
+            {
+                return TryAdd(output, coef, out output);
+            }
+            if (numbers[i] >= lastBase)
+            {
+                return false; // base は降順でなければならない。
+            }
+            if (!TryMul(coef, numbers[i], out ulong delta) || !TryAdd(output, delta, out output))
+            {
+                return false;
+            }
+            lastBase = numbers[i];
+            i++;
+        }
+        while (i < numbers.Count);
+        return true;
+    }
+
+    private static bool ReduceLeadingBase10(List<ulong> numbers, ref int i, out ulong output)
+    {
+        output = 0;
+        for (; i < numbers.Count; i++)
+        {
+            if (numbers[i] >= 10)
+            {
+                break;
+            }
+            if (!TryMul(output, 10, out output) || !TryAdd(output, numbers[i], out output))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool ReduceLessThan10000(List<ulong> numbers, ref int i, out ulong num)
+    {
+        num = 0;
+        bool success = false;
+        foreach (ulong expected in new ulong[] { 1000, 100, 10, 1 })
+        {
+            if (expected == 1)
+            {
+                if (ReduceOnes(numbers, ref i, out ulong n))
+                {
+                    num += n;
+                    success = true;
+                }
+            }
+            else if (ReduceDigits(numbers, ref i, expected, out ulong n))
+            {
+                num += n;
+                success = true;
+            }
+        }
+        return success && (i == numbers.Count || numbers[i] >= 10000);
+    }
+
+    private static bool ReduceOnes(List<ulong> numbers, ref int i, out ulong num)
+    {
+        num = 0;
+        if (i == numbers.Count || numbers[i] >= 10)
+        {
+            return false;
+        }
+        num = numbers[i];
+        i++;
+        return true;
+    }
+
+    private static bool ReduceDigits(List<ulong> numbers, ref int i, ulong expectedBase, out ulong num)
+    {
+        num = 0;
+        while (i < numbers.Count && numbers[i] == 0)
+        {
+            i++; // 先頭ゼロをスキップ。
+        }
+        if (i == numbers.Count)
+        {
+            return false;
+        }
+        ulong leading = numbers[i];
+        if (leading < 10)
+        {
+            if (numbers.Count - i < 2)
+            {
+                return false;
+            }
+            ulong next = numbers[i + 1];
+            if (next < 10)
+            {
+                // [1,2,...] => 12 (< expectedBase*10)。
+                if (!ReduceLeadingBase10(numbers, ref i, out num)
+                    || num >= expectedBase * 10
+                    || (i != numbers.Count && numbers[i] < 10000))
+                {
+                    i = numbers.Count; // 残りを無視。
+                    return false;
+                }
+                return true;
+            }
+            // [2,10,...] / [1,1000,...]。
+            if (next != expectedBase || (leading == 1 && expectedBase != 1000))
+            {
+                return false;
+            }
+            num = leading * expectedBase;
+            i += 2;
+            return true;
+        }
+        // [10,...] [100,...] [1000,...] [20,...](廿)。
+        if (leading == expectedBase || (expectedBase == 10 && leading == 20))
+        {
+            num = leading;
+            i++;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryAdd(ulong a, ulong b, out ulong r)
+    {
+        r = unchecked(a + b);
+        return r >= a; // オーバーフロー検出。
+    }
+
+    private static bool TryMul(ulong a, ulong b, out ulong r)
+    {
+        r = unchecked(a * b);
+        return a == 0 || r / a == b;
     }
 
     // C++ NumberUtil::IsArabicNumber 相当。全文字が半角/全角数字なら true(空は false)。

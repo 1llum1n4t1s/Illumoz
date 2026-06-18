@@ -59,4 +59,37 @@ public class NumberUtilTests
         Assert.Contains("百", values);
         Assert.DoesNotContain(values, v => v.Length == 1 && v[0] is >= '①' and <= '⑳'); // 丸数字なし
     }
+
+    [Theory]
+    [InlineData("百二十", "120")]
+    [InlineData("二百十一", "211")]
+    [InlineData("百二十万", "1200000")]
+    [InlineData("千二百三十四", "1234")]
+    [InlineData("一万二千", "12000")]
+    [InlineData("十", "10")]
+    [InlineData("二十", "20")]
+    [InlineData("廿", "20")]      // 廿=20
+    [InlineData("五四三", "543")] // スケーリングなし→10進連結
+    [InlineData("123", "123")]
+    public void TryNormalizeNumber_KanjiToArabic(string input, string expected)
+    {
+        Assert.True(NumberUtil.TryNormalizeNumber(input, trimLeadingZeros: true, out string arabic));
+        Assert.Equal(expected, arabic);
+    }
+
+    [Theory]
+    [InlineData("あ")]        // 数字でない
+    [InlineData("百二百")]    // 不正な並び(base 降順違反)
+    [InlineData("")]
+    public void TryNormalizeNumber_Invalid(string input)
+    {
+        Assert.False(NumberUtil.TryNormalizeNumber(input, trimLeadingZeros: true, out _));
+    }
+
+    [Fact]
+    public void TryNormalizeNumber_KeepsLeadingZeros()
+    {
+        Assert.True(NumberUtil.TryNormalizeNumber("〇〇五", trimLeadingZeros: false, out string a));
+        Assert.Equal("005", a);
+    }
 }
