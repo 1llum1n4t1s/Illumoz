@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/renderer 相当。候補ウィンドウのレイアウト計算(描画は GUI 層で Avalonia)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Renderer</RootNamespace>
+  </PropertyGroup>
+
+</Project>
