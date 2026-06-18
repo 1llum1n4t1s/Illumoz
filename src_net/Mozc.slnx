@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="Mozc.Base/Mozc.Base.csproj" />
+  <Project Path="Mozc.Converter.Tests/Mozc.Converter.Tests.csproj" />
+  <Project Path="Mozc.Converter/Mozc.Converter.csproj" />
   <Project Path="Mozc.Dictionary.Tests/Mozc.Dictionary.Tests.csproj" />
   <Project Path="Mozc.Dictionary/Mozc.Dictionary.csproj" />
   <Project Path="Mozc.Ipc.Tests/Mozc.Ipc.Tests.csproj" />
