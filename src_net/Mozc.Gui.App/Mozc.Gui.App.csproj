@@ -16,6 +16,9 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.0" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
+    <!-- Avalonia(Linux backend)推移依存の脆弱性(GHSA-xrw6-gwf8-vvr9)回避のため
+         パッチ版を直接固定。0.90.3 -> 0.94.2 -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.2" />
   </ItemGroup>
 
   <ItemGroup>

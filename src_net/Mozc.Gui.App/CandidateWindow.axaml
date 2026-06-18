@@ -3,7 +3,7 @@
         xmlns:vm="clr-namespace:Mozc.Gui;assembly=Mozc.Gui"
         x:Class="Mozc.Gui.App.CandidateWindow"
         x:DataType="vm:CandidateWindowViewModel"
-        SystemDecorations="None" Topmost="True" ShowInTaskbar="False"
+        WindowDecorations="None" Topmost="True" ShowInTaskbar="False"
         Background="Transparent" SizeToContent="WidthAndHeight"
         CanResize="False" Title="Mozc Candidates">
   <Border Background="#FFFFFF" BorderBrush="#888888" BorderThickness="1" Padding="2"
