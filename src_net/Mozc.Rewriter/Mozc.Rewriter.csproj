@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/rewriter 相当。変換候補の後処理(日付/記号/数値等)パイプライン。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Rewriter</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+  </ItemGroup>
+
+</Project>

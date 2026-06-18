@@ -15,6 +15,8 @@
   <Project Path="Mozc.Prediction/Mozc.Prediction.csproj" />
   <Project Path="Mozc.Protocol.Tests/Mozc.Protocol.Tests.csproj" />
   <Project Path="Mozc.Protocol/Mozc.Protocol.csproj" />
+  <Project Path="Mozc.Rewriter.Tests/Mozc.Rewriter.Tests.csproj" />
+  <Project Path="Mozc.Rewriter/Mozc.Rewriter.csproj" />
   <Project Path="Mozc.Storage.Tests/Mozc.Storage.Tests.csproj" />
   <Project Path="Mozc.Storage/Mozc.Storage.csproj" />
 </Solution>
