@@ -12,6 +12,7 @@ internal static class Program
         string data = string.Empty, roman = string.Empty, keymap = string.Empty;
         string pipe = "mozc.session";
         string? dataDir = null;
+        string? profileDir = null;
         for (int i = 0; i < args.Length; i++)
         {
             string Next() => ++i < args.Length ? args[i] : string.Empty;
@@ -22,6 +23,7 @@ internal static class Program
                 case "--keymap": keymap = Next(); break;
                 case "--pipe": pipe = Next(); break;
                 case "--datadir": dataDir = Next(); break;
+                case "--profile": profileDir = Next(); break;
             }
         }
         if (data.Length == 0 || roman.Length == 0 || keymap.Length == 0)
@@ -32,6 +34,14 @@ internal static class Program
 
         // --datadir 指定時は symbol.tsv/single_kanji.tsv を実データ結線する。
         EngineServer server = ServerHost.Create(data, roman, keymap, dataDir);
+
+        // --profile 指定時は履歴/ユーザー辞書を読み込み、終了時に保存する。
+        if (profileDir != null)
+        {
+            ServerHost.LoadProfile(server, profileDir);
+            global::System.AppDomain.CurrentDomain.ProcessExit +=
+                (_, _) => ServerHost.SaveProfile(server, profileDir);
+        }
 
         // .ipc を公開(key/protocol/pid)。クライアントは IpcPathManager.TryLoad で実 pipe 名を得る。
         IpcPathManager pathManager = IpcPathManager.Create(

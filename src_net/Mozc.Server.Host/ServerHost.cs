@@ -106,6 +106,25 @@ public static class ServerHost
         return new EngineServer(engine, keyMap, rewriter, dataDir);
     }
 
+    // プロファイルディレクトリ配下の標準ファイル名。
+    public const string HistoryFile = "history.db";
+    public const string UserDictionaryFile = "user_dictionary.db";
+
+    // プロファイル(履歴/ユーザー辞書)を dir から読み込む(無いファイルはスキップ)。
+    public static void LoadProfile(EngineServer server, string dir)
+    {
+        server.Handler.LoadHistory(global::System.IO.Path.Combine(dir, HistoryFile));
+        server.Handler.LoadUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
+    }
+
+    // プロファイルを dir へ保存する(dir が無ければ作成)。
+    public static void SaveProfile(EngineServer server, string dir)
+    {
+        global::System.IO.Directory.CreateDirectory(dir);
+        server.Handler.SaveHistory(global::System.IO.Path.Combine(dir, HistoryFile));
+        server.Handler.SaveUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
+    }
+
     public static EngineServer CreateFromBytes(byte[] mozcData, string romanTable, string keymapTsv)
     {
         var keyMap = new KeyMap();

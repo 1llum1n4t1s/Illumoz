@@ -45,4 +45,43 @@ public class ServerHostTests
             server.HandleProtoRequest(new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }.ToByteArray()));
         Assert.True(created.Id > 0);
     }
+
+    private static EngineServer Server()
+    {
+        var sources = new DataSetBuilder.Sources
+        {
+            DictionaryLines = new[] { "わたし\t1\t1\t100\t私" },
+            ConnectionLines = new[] { "2", "0", "0", "0", "0" },
+            IdDefLines = new[] { "0 BOS/EOS,*,*,*,*,*,*", "1 名詞,一般,*,*,*,*,*" },
+            PosMatcherRuleLines = PosRules(),
+        };
+        return ServerHost.CreateFromBytes(new DataSetBuilder().Build(sources), "wa\tわ", "");
+    }
+
+    [Fact]
+    public void SaveProfile_LoadProfile_RoundTrip()
+    {
+        string pid = global::System.Guid.NewGuid().ToString("N");
+        string dir = global::System.IO.Path.Combine(
+            global::System.IO.Path.GetTempPath(), $"mozc_prof_{pid}");
+        try
+        {
+            EngineServer s1 = Server();
+            s1.Handler.RegisterWord("もずく", "Mozc");
+            s1.Handler.History.Learn("わたし", "私");
+            ServerHost.SaveProfile(s1, dir);
+
+            EngineServer s2 = Server();
+            ServerHost.LoadProfile(s2, dir);
+            Assert.Single(s2.Handler.UserDictionary.LookupExact("もずく"));
+            Assert.NotEmpty(s2.Handler.History.Predict("わたし"));
+        }
+        finally
+        {
+            if (global::System.IO.Directory.Exists(dir))
+            {
+                global::System.IO.Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
 }
