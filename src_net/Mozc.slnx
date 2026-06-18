@@ -20,6 +20,7 @@
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />
   <Project Path="Mozc.Os.Linux.Tests/Mozc.Os.Linux.Tests.csproj" />
   <Project Path="Mozc.Os.Linux/Mozc.Os.Linux.csproj" />
+  <Project Path="Mozc.Os.Mac.Tests/Mozc.Os.Mac.Tests.csproj" />
   <Project Path="Mozc.Os.Mac/Mozc.Os.Mac.csproj" />
   <Project Path="Mozc.Os.Windows.Tests/Mozc.Os.Windows.Tests.csproj" />
   <Project Path="Mozc.Os.Windows/Mozc.Os.Windows.csproj" />
