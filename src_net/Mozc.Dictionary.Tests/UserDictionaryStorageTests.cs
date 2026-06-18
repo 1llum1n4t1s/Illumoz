@@ -68,4 +68,27 @@ public class UserDictionaryStorageTests
     [Fact]
     public void Load_RejectsBadMagic()
         => Assert.False(new UserDictionaryStorage().Load(new byte[] { 9, 9, 9, 9, 0, 0, 0, 0 }));
+
+    [Fact]
+    public void ImportTsv_AddsEntries_SkipsInvalid()
+    {
+        var s = new UserDictionaryStorage();
+        string tsv = "# header\nもずく\tMozc\t名詞\tメモ\nわたし\t渡し\t名詞\nbad_line\n\nもずく\tMozc\t名詞\n";
+        int added = s.ImportTsv(tsv);
+        Assert.Equal(2, added); // 2件追加(コメント/列不足/空行/重複はスキップ)
+        Assert.Equal("メモ", s.LookupExact("もずく")[0].Comment);
+    }
+
+    [Fact]
+    public void ExportTsv_RoundTripsViaImport()
+    {
+        var s = new UserDictionaryStorage();
+        s.Add(new E("もずく", "Mozc", "名詞", ""));
+        s.Add(new E("わたし", "渡し", "名詞", "x"));
+        string tsv = s.ExportTsv();
+
+        var s2 = new UserDictionaryStorage();
+        Assert.Equal(2, s2.ImportTsv(tsv));
+        Assert.Equal("x", s2.LookupExact("わたし")[0].Comment);
+    }
 }

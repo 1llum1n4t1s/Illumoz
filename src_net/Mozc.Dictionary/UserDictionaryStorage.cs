@@ -35,6 +35,43 @@ public sealed class UserDictionaryStorage
     public bool Remove(string reading, string word)
         => _entries.RemoveAll(e => e.Reading == reading && e.Word == word) > 0;
 
+    // TSV(よみ\t単語\t品詞[\tコメント])を一括インポートする(辞書ツールの取込相当)。
+    // 追加できた件数を返す(空行/#コメント/列不足/重複はスキップ)。
+    public int ImportTsv(string tsv)
+    {
+        int added = 0;
+        foreach (string line in tsv.Split('\n'))
+        {
+            string row = line.TrimEnd('\r');
+            if (row.Length == 0 || row[0] == '#')
+            {
+                continue;
+            }
+            string[] f = row.Split('\t');
+            if (f.Length < 3)
+            {
+                continue;
+            }
+            if (Add(new UserEntry(f[0], f[1], f[2], f.Length >= 4 ? f[3] : string.Empty)))
+            {
+                added++;
+            }
+        }
+        return added;
+    }
+
+    // 全エントリを TSV へ書き出す(辞書ツールの書出相当)。
+    public string ExportTsv()
+    {
+        var sb = new StringBuilder();
+        foreach (UserEntry e in _entries)
+        {
+            sb.Append(e.Reading).Append('\t').Append(e.Word).Append('\t')
+              .Append(e.Pos).Append('\t').Append(e.Comment).Append('\n');
+        }
+        return sb.ToString();
+    }
+
     public void Clear() => _entries.Clear();
 
     // 読みの前方一致で引く(変換/予測供給用)。
