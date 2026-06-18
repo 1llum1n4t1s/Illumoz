@@ -43,6 +43,8 @@ MODULE.bazel.lock
 /oss
 /src-*
 /src_*
+# .NET 10 移行ツリーは正式な追跡対象（/src_* の除外を解除）
+!/src_net/
 
 # Mozc build artifacts by Bazel (symbolic links)
 /src/bazel-bin

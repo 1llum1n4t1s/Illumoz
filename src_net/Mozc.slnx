@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Mozc.Protocol.Tests/Mozc.Protocol.Tests.csproj" />
+  <Project Path="Mozc.Protocol/Mozc.Protocol.csproj" />
+</Solution>

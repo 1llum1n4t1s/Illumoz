@@ -1,0 +1,19 @@
+<Project>
+  <!-- Mozc .NET 10 / C# (NativeAOT) 全面移行ツリー共通設定 -->
+  <!-- 詳細プランは ~/.claude/plans/net10-avalonia-mvvm-vectorized-russell.md を参照 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- NativeAOT 互換性アナライザを全ライブラリで有効化（実行ファイル側で PublishAot を立てる） -->
+    <IsAotCompatible>true</IsAotCompatible>
+
+    <!-- 日本語の照合・書式に必要。AOT 既定の invariant を解除 -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!-- 生成コード（protobuf 等）の警告で全体を止めないよう、警告はエラー化しない（CI で別途ゲート） -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,14 @@
+# .NET ビルド成果物
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+
+# publish 出力
+publish/
+artifacts/
