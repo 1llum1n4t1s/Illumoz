@@ -17,6 +17,7 @@
     <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
     <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
     <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+    <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
   </ItemGroup>
 
 </Project>
