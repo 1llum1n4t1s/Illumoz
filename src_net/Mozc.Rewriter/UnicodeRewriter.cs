@@ -99,24 +99,17 @@ public sealed class UnicodeRewriter : IRewriter
         return "U+" + codepoint.ToString("X4", CultureInfo.InvariantCulture);
     }
 
-    // C++ Util::IsAcceptableCharacterAsCandidate 相当の保守的判定。
+    // 候補受理判定。C++ Util::IsAcceptableCharacterAsCandidate(範囲/制御/双方向制御)
+    // に加え、ConvertFromUtf32 が扱えないサロゲート・非文字も拒否する。
     private static bool IsAcceptableCodepoint(int cp)
     {
-        if (cp < 0 || cp > 0x10FFFF)
+        if (cp < 0 || !Mozc.Base.CharacterUtil.IsAcceptableCharacterAsCandidate(cp))
         {
-            return false; // Unicode 範囲外
+            return false;
         }
         if (cp >= 0xD800 && cp <= 0xDFFF)
         {
             return false; // サロゲート
-        }
-        if (cp < 0x20)
-        {
-            return false; // 制御文字(C0)
-        }
-        if (cp >= 0x7F && cp <= 0x9F)
-        {
-            return false; // 制御文字(DEL/C1)
         }
         // 非文字(U+FDD0..U+FDEF, 各面の末尾 FFFE/FFFF)。
         if (cp >= 0xFDD0 && cp <= 0xFDEF)
