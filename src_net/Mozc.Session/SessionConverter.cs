@@ -59,6 +59,46 @@ public sealed class SessionConverter
         return sb.ToString();
     }
 
+    // 各変換文節の読みに完全一致するユーザー辞書語を先頭候補へ挿入する。
+    private void InsertUserDictionaryCandidates(Segments segments)
+    {
+        if (_userDict == null)
+        {
+            return;
+        }
+        for (int i = 0; i < segments.ConversionSegmentsSize; i++)
+        {
+            Segment seg = segments.ConversionSegment(i);
+            var matches = _userDict.LookupExact(seg.Key);
+            if (matches.Count == 0 || seg.CandidatesSize == 0)
+            {
+                continue;
+            }
+            var existing = new HashSet<string>();
+            for (int j = 0; j < seg.CandidatesSize; j++)
+            {
+                existing.Add(seg.Get(j).Value);
+            }
+            Candidate base0 = seg.Get(0);
+            int insertAt = 0;
+            foreach (var m in matches)
+            {
+                if (existing.Add(m.Word))
+                {
+                    seg.InsertCandidate(insertAt++, new Candidate
+                    {
+                        Key = seg.Key,
+                        Value = m.Word,
+                        ContentKey = seg.Key,
+                        ContentValue = m.Word,
+                        Description = "ユーザー辞書",
+                        Cost = base0.Cost - 1000,
+                    });
+                }
+            }
+        }
+    }
+
     // スペース等で変換開始。
     public bool Convert()
     {
@@ -69,6 +109,7 @@ public sealed class SessionConverter
         }
         _segments = _engine.Convert(query);
         _rewriter?.Rewrite(_segments);
+        InsertUserDictionaryCandidates(_segments);
         int n = _segments.ConversionSegmentsSize;
         if (n == 0)
         {

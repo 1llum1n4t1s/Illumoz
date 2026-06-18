@@ -90,6 +90,22 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void Convert_IncludesUserDictionaryWord()
+    {
+        var userDict = new Mozc.Dictionary.UserDictionaryStorage();
+        userDict.Add(new Mozc.Dictionary.UserDictionaryStorage.UserEntry("わたし", "ワタシ社", "名詞", ""));
+        var sc = new SessionConverter(Engine(), rewriter: null, history: null, userDict: userDict);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+
+        var cands = sc.GetCandidates();
+        Assert.Contains("ワタシ社", cands); // ユーザー辞書語が変換候補に出る
+    }
+
+    [Fact]
     public void SelectByShortcut_SelectsCandidate()
     {
         var sc = new SessionConverter(Engine());
