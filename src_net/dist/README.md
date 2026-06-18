@@ -28,7 +28,7 @@ C++/Bazel を使わず .NET 10 / NativeAOT で各 OS に配布するための定
 
 ## 実証(2026-06-19): TSF TIP DLL の NativeAOT 共有ライブラリ
 - `dotnet publish Mozc.Os.Windows -r win-x64 -p:NativeLib=Shared -p:PublishAot=true` で **3.7MB のネイティブ COM DLL 生成成功**。
-- `dumpbin /EXPORTS` で **`DllGetClassObject` / `DllCanUnloadNow` のエクスポートを確認**(COM 登録可能な実 TIP DLL)。
+- `dumpbin /EXPORTS` で **COM サーバ標準4エクスポート `DllGetClassObject`/`DllCanUnloadNow`/`DllRegisterServer`/`DllUnregisterServer` を確認**(regsvr32 で登録可能な完全な TIP DLL)。
 - 残: 実機 Windows でこの DLL を CLSID 登録 + `ITfInputProcessorProfiles::Register` し、任意アプリで入力動作を目視。
 
 ## 実証(2026-06-19): native bridge C ABI エクスポート
