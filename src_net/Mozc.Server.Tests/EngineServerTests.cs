@@ -1,3 +1,4 @@
+using Google.Protobuf;
 using Mozc.Converter;
 using Mozc.Dictionary;
 using Mozc.Engine;
@@ -45,6 +46,31 @@ public class EngineServerTests
         byte[] req = CommandCodec.EncodeInput(input);
         byte[] res = server.HandleRequest(req);
         return CommandCodec.DecodeOutput(res);
+    }
+
+    [Fact]
+    public void GetConfig_SetConfig_OverIpc()
+    {
+        EngineServer server = Server();
+
+        // GET_CONFIG: 既定 Config が返る。
+        Output got = RoundTrip(server, new Input { Type = CommandType.GetConfig });
+        Assert.True(got.Consumed);
+        Mozc.Config.Config cfg = Mozc.Config.Config.Parser.ParseFrom(got.ConfigBytes);
+        Assert.Equal(Mozc.Config.Config.Types.PreeditMethod.Roman, cfg.PreeditMethod);
+
+        // SET_CONFIG: 変更して送信 → 反映される。
+        cfg.PreeditMethod = Mozc.Config.Config.Types.PreeditMethod.Kana;
+        Output set = RoundTrip(server, new Input
+        {
+            Type = CommandType.SetConfig,
+            ConfigBytes = cfg.ToByteArray(),
+        });
+        Assert.True(set.Consumed);
+
+        Output again = RoundTrip(server, new Input { Type = CommandType.GetConfig });
+        Mozc.Config.Config cfg2 = Mozc.Config.Config.Parser.ParseFrom(again.ConfigBytes);
+        Assert.Equal(Mozc.Config.Config.Types.PreeditMethod.Kana, cfg2.PreeditMethod);
     }
 
     [Fact]

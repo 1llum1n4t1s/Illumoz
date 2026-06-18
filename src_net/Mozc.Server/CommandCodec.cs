@@ -15,6 +15,7 @@ public static class CommandCodec
         w.Write((byte)input.Type);
         w.Write(input.SessionId);
         WriteString(w, input.KeyString);
+        WriteBytes(w, input.ConfigBytes);
         return ms.ToArray();
     }
 
@@ -25,7 +26,8 @@ public static class CommandCodec
         var type = (CommandType)r.ReadByte();
         ulong sessionId = r.ReadUInt64();
         string keyString = ReadString(r);
-        return new Input { Type = type, SessionId = sessionId, KeyString = keyString };
+        byte[] configBytes = ReadBytes(r);
+        return new Input { Type = type, SessionId = sessionId, KeyString = keyString, ConfigBytes = configBytes };
     }
 
     public static byte[] EncodeOutput(Output output)
@@ -42,6 +44,7 @@ public static class CommandCodec
         {
             WriteString(w, c);
         }
+        WriteBytes(w, output.ConfigBytes);
         return ms.ToArray();
     }
 
@@ -60,6 +63,7 @@ public static class CommandCodec
         {
             candidates.Add(ReadString(r));
         }
+        byte[] configBytes = ReadBytes(r);
         return new Output
         {
             SessionId = sessionId,
@@ -68,6 +72,7 @@ public static class CommandCodec
             Preedit = preedit,
             Result = result,
             Candidates = candidates,
+            ConfigBytes = configBytes,
         };
     }
 
@@ -82,5 +87,17 @@ public static class CommandCodec
     {
         int len = r.ReadInt32();
         return Encoding.UTF8.GetString(r.ReadBytes(len));
+    }
+
+    private static void WriteBytes(global::System.IO.BinaryWriter w, byte[] b)
+    {
+        w.Write(b.Length);
+        w.Write(b);
+    }
+
+    private static byte[] ReadBytes(global::System.IO.BinaryReader r)
+    {
+        int len = r.ReadInt32();
+        return r.ReadBytes(len);
     }
 }

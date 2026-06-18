@@ -48,8 +48,31 @@ public sealed class EngineServer
         {
             return CommandCodec.EncodeOutput(new Output { ErrorOccured = true });
         }
-        Output output = _handler.EvalCommand(input);
+        Output output = EvalWithConfig(input);
         return CommandCodec.EncodeOutput(output);
+    }
+
+    // Config 系コマンドは EngineServer 層(ConfigManager 所有)で処理し、
+    // それ以外は SessionHandler に委譲する。
+    private Output EvalWithConfig(Input input)
+    {
+        switch (input.Type)
+        {
+            case CommandType.GetConfig:
+                return new Output { Consumed = true, ConfigBytes = _config.Serialize() };
+            case CommandType.SetConfig:
+                try
+                {
+                    SetConfig(Mozc.Config.Config.Parser.ParseFrom(input.ConfigBytes));
+                    return new Output { Consumed = true, ConfigBytes = _config.Serialize() };
+                }
+                catch (Google.Protobuf.InvalidProtocolBufferException)
+                {
+                    return new Output { ErrorOccured = true };
+                }
+            default:
+                return _handler.EvalCommand(input);
+        }
     }
 
     // C++ ワイヤー互換(protobuf)経路。commands.proto の Input/Output を直接やり取りする。
@@ -64,7 +87,7 @@ public sealed class EngineServer
         {
             return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
         }
-        Output output = _handler.EvalCommand(input);
+        Output output = EvalWithConfig(input);
         return ProtoBridge.EncodeOutput(output);
     }
 }

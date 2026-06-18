@@ -9,6 +9,8 @@ public enum CommandType
     SendKey,
     SendCommand,
     NoOperation,
+    GetConfig,
+    SetConfig,
 }
 
 // C++ SessionCommand.CommandType の主要部(候補選択/確定/取消)。
@@ -31,6 +33,8 @@ public sealed class Input
     // SEND_COMMAND 用。
     public SessionCommandType SessionCommand { get; init; } = SessionCommandType.None;
     public int CommandId { get; init; }
+    // SET_CONFIG 用の protobuf Config バイト列。
+    public byte[] ConfigBytes { get; init; } = global::System.Array.Empty<byte>();
 }
 
 public sealed class Output
@@ -41,4 +45,6 @@ public sealed class Output
     public string Result { get; init; } = string.Empty; // 確定文字列(あれば)
     public IReadOnlyList<string> Candidates { get; init; } = global::System.Array.Empty<string>();
     public bool ErrorOccured { get; init; }
+    // GET_CONFIG の応答 protobuf Config バイト列。
+    public byte[] ConfigBytes { get; init; } = global::System.Array.Empty<byte>();
 }
