@@ -14,7 +14,11 @@ internal static class ComExports
     private const int S_FALSE = 1;
     private const int CLASS_E_CLASSNOTAVAILABLE = unchecked((int)0x80040111);
 
+    // Mozc TIP の CLSID(tsf_profile.h と整合させる)。
+    private static readonly Guid MozcTipClsid = new("10a67bc8-22fa-4a59-90dc-2546652c56bf");
+
     // DllGetClassObject: COM がクラスファクトリを要求する入口。
+    // 要求 CLSID が Mozc TIP なら MozcClassFactory を生成し riid に QI して返す。
     [UnmanagedCallersOnly(EntryPoint = "DllGetClassObject")]
     public static unsafe int DllGetClassObject(Guid* rclsid, Guid* riid, void** ppv)
     {
@@ -22,8 +26,32 @@ internal static class ComExports
         {
             *ppv = null;
         }
-        // TODO(実機): 自前 IClassFactory(GeneratedComClass)を生成し ppv に返す。
-        return CLASS_E_CLASSNOTAVAILABLE;
+        if (rclsid == null || riid == null || ppv == null)
+        {
+            return unchecked((int)0x80070057); // E_INVALIDARG
+        }
+        if (*rclsid != MozcTipClsid)
+        {
+            return CLASS_E_CLASSNOTAVAILABLE;
+        }
+
+        var factory = new MozcClassFactory();
+        nint unknown = ComInterop.Wrappers.GetOrCreateComInterfaceForObject(
+            factory, CreateComInterfaceFlags.None);
+        try
+        {
+            Guid iid = *riid;
+            int hr = System.Runtime.InteropServices.Marshal.QueryInterface(unknown, in iid, out nint result);
+            if (hr == S_OK)
+            {
+                *ppv = (void*)result;
+            }
+            return hr;
+        }
+        finally
+        {
+            System.Runtime.InteropServices.Marshal.Release(unknown);
+        }
     }
 
     // DllCanUnloadNow: ロード中オブジェクトが無ければ S_OK。

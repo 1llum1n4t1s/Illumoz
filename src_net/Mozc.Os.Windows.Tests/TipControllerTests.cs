@@ -43,6 +43,31 @@ public class TipControllerTests
     }
 
     [Fact]
+    public void ClassFactory_CreateInstance_ReturnsTipInterface()
+    {
+        var factory = new MozcClassFactory();
+        // ITfTextInputProcessor の IID で TIP を生成(ComWrappers 経由の実 COM 活性化)。
+        var iid = new global::System.Guid("aa80e7f7-2021-11d2-93e0-0060b067b86e");
+        int hr = factory.CreateInstance(outer: 0, in iid, out nint ppv);
+        Assert.Equal(0, hr); // S_OK
+        Assert.NotEqual(0, ppv);
+        global::System.Runtime.InteropServices.Marshal.Release(ppv);
+
+        // LockServer は S_OK。
+        Assert.Equal(0, factory.LockServer(true));
+    }
+
+    [Fact]
+    public void ClassFactory_UnknownInterface_ReturnsNoInterface()
+    {
+        var factory = new MozcClassFactory();
+        var bogus = new global::System.Guid("00000000-0000-0000-0000-000000000099");
+        int hr = factory.CreateInstance(outer: 0, in bogus, out nint ppv);
+        Assert.NotEqual(0, hr); // E_NOINTERFACE 系
+        Assert.Equal(0, ppv);
+    }
+
+    [Fact]
     public void TextService_ActivateDeactivate_DrivesController()
     {
         EngineServer server = Server();
