@@ -43,6 +43,48 @@ public class PosMatcherTests
         Assert.Equal(expected, m.IsRuleInTable(rule, (ushort)id));
     }
 
+    // 35規則の合成データ。Functional(0)=[100,200], Pronoun(24)=[300,300]、他は空。
+    private static PosMatcher BuildNamed()
+    {
+        int n = PosMatcher.RuleCount; // 35
+        var data = new ushort[n + n + 7];
+        // 関数ID表。
+        data[(int)PosMatcher.Rule.Functional] = 10;
+        data[(int)PosMatcher.Rule.Pronoun] = 24;
+        data[(int)PosMatcher.Rule.Number] = 4;
+        // レンジ表: 70=Functional, 73=Pronoun, 76=空(0xFFFF)。
+        int rangeBase = n + n; // 70
+        data[rangeBase + 0] = 100; data[rangeBase + 1] = 200; data[rangeBase + 2] = 0xFFFF;
+        data[rangeBase + 3] = 300; data[rangeBase + 4] = 300; data[rangeBase + 5] = 0xFFFF;
+        data[rangeBase + 6] = 0xFFFF; // 空レンジ。
+        // オフセット表(既定は空レンジ 76)。
+        for (int i = 0; i < n; i++) data[n + i] = (ushort)(rangeBase + 6);
+        data[n + (int)PosMatcher.Rule.Functional] = (ushort)(rangeBase + 0);
+        data[n + (int)PosMatcher.Rule.Pronoun] = (ushort)(rangeBase + 3);
+        return new PosMatcher(data, lidTableSize: n);
+    }
+
+    [Fact]
+    public void NamedAccessors_MapToRuleIndices()
+    {
+        var m = BuildNamed();
+        Assert.Equal(10, m.GetFunctionalId());
+        Assert.Equal(24, m.GetPronounId());
+
+        Assert.True(m.IsFunctional(150));
+        Assert.True(m.IsFunctional(100));
+        Assert.True(m.IsFunctional(200));
+        Assert.False(m.IsFunctional(201));
+
+        Assert.True(m.IsPronoun(300));
+        Assert.False(m.IsPronoun(301));
+
+        // 空レンジの規則は常に false。
+        Assert.False(m.IsContentNoun(150));
+        Assert.False(m.IsVerbSuffix(150));
+        Assert.False(m.IsKagyoTaConnectionVerb(150));
+    }
+
     [Fact]
     public void FromBytes_ParsesLittleEndianUint16()
     {
