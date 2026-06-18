@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/session 相当。キーイベント解釈・キーマップ・セッション状態(段階移植)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Session</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+  </ItemGroup>
+
+</Project>

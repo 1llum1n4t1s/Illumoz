@@ -17,6 +17,8 @@
   <Project Path="Mozc.Protocol/Mozc.Protocol.csproj" />
   <Project Path="Mozc.Rewriter.Tests/Mozc.Rewriter.Tests.csproj" />
   <Project Path="Mozc.Rewriter/Mozc.Rewriter.csproj" />
+  <Project Path="Mozc.Session.Tests/Mozc.Session.Tests.csproj" />
+  <Project Path="Mozc.Session/Mozc.Session.csproj" />
   <Project Path="Mozc.Storage.Tests/Mozc.Storage.Tests.csproj" />
   <Project Path="Mozc.Storage/Mozc.Storage.csproj" />
 </Solution>
