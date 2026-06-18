@@ -27,6 +27,12 @@ public sealed class SessionHandler
 
     public Prediction.UserHistoryPredictor History => _history;
 
+    // 起動時に履歴 db を読み込む(無ければ何もしない)。
+    public bool LoadHistory(string path) => Prediction.UserHistoryStorage.LoadFile(_history, path);
+
+    // 終了時/定期に履歴 db を書き出す。
+    public void SaveHistory(string path) => Prediction.UserHistoryStorage.Save(_history, path);
+
     public int SessionCount => _sessions.Count;
 
     public Output EvalCommand(Input input)
