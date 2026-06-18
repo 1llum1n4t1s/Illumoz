@@ -65,6 +65,24 @@ public class UnicodeRewriterTests
         Assert.True(found);
     }
 
+    [Theory]
+    [InlineData("A", "U+0041")]
+    [InlineData("あ", "U+3042")]
+    [InlineData("\U0001F600", "U+1F600")] // 😀 サロゲートペア
+    public void ToUnicodeFormat_SingleChar(string text, string expected)
+    {
+        Assert.Equal(expected, UnicodeRewriter.ToUnicodeFormat(text));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("ab")]   // 2文字
+    [InlineData("あい")] // 2文字
+    public void ToUnicodeFormat_NotSingle_ReturnsNull(string text)
+    {
+        Assert.Null(UnicodeRewriter.ToUnicodeFormat(text));
+    }
+
     [Fact]
     public void Rewrite_NonUnicodeKey_NoChange()
     {

@@ -73,6 +73,32 @@ public sealed class UnicodeRewriter : IRewriter
         return true;
     }
 
+    // 逆変換(C++ RewriteToUnicodeCharFormat 相当): 単一文字を「U+XXXX」表記へ。
+    // 1グラフェム(コードポイント1個)でなければ null。サロゲートペアも扱う。
+    public static string? ToUnicodeFormat(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+        // 単一コードポイント(BMP 1文字 or サロゲートペア2文字)のみ受理。
+        int codepoint;
+        if (text.Length == 1 && !char.IsSurrogate(text[0]))
+        {
+            codepoint = text[0];
+        }
+        else if (text.Length == 2 && char.IsHighSurrogate(text[0]) && char.IsLowSurrogate(text[1]))
+        {
+            codepoint = char.ConvertToUtf32(text[0], text[1]);
+        }
+        else
+        {
+            return null;
+        }
+        // C++ absl::StrFormat("U+%04X") 相当(最低4桁ゼロ埋め)。
+        return "U+" + codepoint.ToString("X4", CultureInfo.InvariantCulture);
+    }
+
     // C++ Util::IsAcceptableCharacterAsCandidate 相当の保守的判定。
     private static bool IsAcceptableCodepoint(int cp)
     {
