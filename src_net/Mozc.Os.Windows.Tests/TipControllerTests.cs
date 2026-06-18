@@ -43,6 +43,17 @@ public class TipControllerTests
     }
 
     [Fact]
+    public void Registration_Plan_HasInprocServer32()
+    {
+        var plan = TipRegistration.BuildClsidPlan(@"C:\Mozc\Mozc.Os.Windows.dll");
+        // CLSID キーに DLL パスと ThreadingModel=Apartment が含まれる。
+        Assert.Contains(plan, w => w.KeyPath.Contains("10A67BC8", global::System.StringComparison.OrdinalIgnoreCase)
+            && w.KeyPath.EndsWith("InprocServer32") && w.ValueName == null
+            && w.Value == @"C:\Mozc\Mozc.Os.Windows.dll");
+        Assert.Contains(plan, w => w.ValueName == "ThreadingModel" && w.Value == "Apartment");
+    }
+
+    [Fact]
     public void ClassFactory_CreateInstance_ReturnsTipInterface()
     {
         var factory = new MozcClassFactory();
