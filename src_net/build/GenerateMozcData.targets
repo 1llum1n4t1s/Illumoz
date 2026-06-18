@@ -1,0 +1,38 @@
+<Project>
+  <!--
+    Bazel genrule(mozc_data.bzl)の代替。Mozc.DataGen CLI を呼んで src/data から
+    mozc.data を生成する MSBuild Target。Engine/Server を含むアプリの .csproj から
+    <Import Project="..\build\GenerateMozcData.targets" /> して使う。
+
+    必要プロパティ(呼び出し側 .csproj で上書き可):
+      MozcDataOutput      生成する mozc.data の出力先
+      MozcSrcDataDir      src/data ルート
+      MozcDataGenDll      Mozc.DataGen.dll のパス
+    既定は src_net/build からの相対で解決する。Bazel は一切不要。
+  -->
+  <PropertyGroup>
+    <MozcSrcDataDir Condition="'$(MozcSrcDataDir)' == ''">$(MSBuildThisFileDirectory)..\..\src\data</MozcSrcDataDir>
+    <MozcDataOutput Condition="'$(MozcDataOutput)' == ''">$(MSBuildProjectDirectory)\mozc.data</MozcDataOutput>
+    <MozcDataGenDll Condition="'$(MozcDataGenDll)' == ''">$(MSBuildThisFileDirectory)..\Mozc.DataGen\bin\$(Configuration)\net10.0\Mozc.DataGen.dll</MozcDataGenDll>
+  </PropertyGroup>
+
+  <!--
+    実 src/data のソース割り当て(OSS 版)。dictionary_oss の dictionary00-09 を結合、
+    connection_single_column.txt(先頭行 = pos_size)、rules/id.def 等を渡す。
+    ファイル名はリポジトリ構成に合わせて呼び出し側で上書き可能。
+  -->
+  <ItemGroup>
+    <MozcDictFile Include="$(MozcSrcDataDir)\dictionary_oss\dictionary0*.txt" />
+  </ItemGroup>
+
+  <Target Name="GenerateMozcData"
+          BeforeTargets="BeforeBuild"
+          Inputs="@(MozcDictFile);$(MozcSrcDataDir)\dictionary_oss\connection_single_column.txt;$(MozcSrcDataDir)\dictionary_oss\id.def"
+          Outputs="$(MozcDataOutput)">
+    <PropertyGroup>
+      <_MozcDictArgs>@(MozcDictFile->'--dict &quot;%(FullPath)&quot;', ' ')</_MozcDictArgs>
+    </PropertyGroup>
+    <Message Importance="high" Text="[Mozc] Generating mozc.data (Bazel-free) -> $(MozcDataOutput)" />
+    <Exec Command="dotnet &quot;$(MozcDataGenDll)&quot; --out &quot;$(MozcDataOutput)&quot; $(_MozcDictArgs) --connection &quot;$(MozcSrcDataDir)\dictionary_oss\connection_single_column.txt&quot; --id-def &quot;$(MozcSrcDataDir)\dictionary_oss\id.def&quot; --pos-matcher-rule &quot;$(MozcSrcDataDir)\rules\pos_matcher_rule.def&quot; --segmenter-rule &quot;$(MozcSrcDataDir)\rules\segmenter.def&quot; --boundary &quot;$(MozcSrcDataDir)\rules\boundary.def&quot;" />
+  </Target>
+</Project>
