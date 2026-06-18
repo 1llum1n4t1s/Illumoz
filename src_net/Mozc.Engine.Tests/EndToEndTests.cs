@@ -58,6 +58,15 @@ public class EndToEndTests
     }
 
     [Fact]
+    public void Predict_NumberReading_ProducesDigits()
+    {
+        var engine = new MozcEngine(BuildData(), RomanTable);
+        // 辞書に無い数の読みでも NumberDecoder 統合で数字候補が出る。
+        var preds = engine.Predict("にじゅう");
+        Assert.Contains("20", preds.ConvertAll(r => r.Value));
+    }
+
+    [Fact]
     public void Romaji_To_Kana_To_Conversion()
     {
         var engine = new MozcEngine(BuildData(), RomanTable);

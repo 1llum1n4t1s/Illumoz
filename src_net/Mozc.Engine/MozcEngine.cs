@@ -27,8 +27,12 @@ public sealed class MozcEngine
             _posMatcher,
             new CandidateFilter(_posMatcher));
 
+        // 数の読み→数字予測(にじゅう→20)を有効化する。
         _predictor = new DictionaryPredictor(
-            _dataManager.GetSystemDictionary(), _dataManager.GetConnector(), _dataManager.GetSegmenter());
+            _dataManager.GetSystemDictionary(), _dataManager.GetConnector(), _dataManager.GetSegmenter(),
+            numberDecoder: new NumberDecoder(),
+            numberId: _posMatcher.GetNumberId(),
+            kanjiNumberId: _posMatcher.GetKanjiNumberId());
 
         _composerTable = new Table();
         _composerTable.LoadFromString(romanTableTsv);
