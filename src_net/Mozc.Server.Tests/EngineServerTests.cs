@@ -162,6 +162,28 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void UserDictionary_SaveLoad_AcrossHandlers()
+    {
+        string id = global::System.Guid.NewGuid().ToString("N");
+        string path = global::System.IO.Path.Combine(global::System.IO.Path.GetTempPath(), $"mozc_ud_{id}.db");
+        try
+        {
+            EngineServer s1 = Server();
+            s1.Handler.UserDictionary.Add(
+                new Mozc.Dictionary.UserDictionaryStorage.UserEntry("もずく", "Mozc", "名詞", ""));
+            s1.Handler.SaveUserDictionary(path);
+
+            EngineServer s2 = Server();
+            Assert.True(s2.Handler.LoadUserDictionary(path));
+            Assert.Single(s2.Handler.UserDictionary.LookupExact("もずく"));
+        }
+        finally
+        {
+            if (global::System.IO.File.Exists(path)) { global::System.IO.File.Delete(path); }
+        }
+    }
+
+    [Fact]
     public void UserDictionary_WordAppearsInSuggestions()
     {
         EngineServer server = Server();

@@ -41,6 +41,10 @@ public sealed class SessionHandler
     // 終了時/定期に履歴 db を書き出す。
     public void SaveHistory(string path) => Prediction.UserHistoryStorage.Save(_history, path);
 
+    // ユーザー辞書 db の読込/保存(無ければ何もしない)。
+    public bool LoadUserDictionary(string path) => _userDict.LoadFile(path);
+    public void SaveUserDictionary(string path) => _userDict.Save(path);
+
     public int SessionCount => _sessions.Count;
 
     public Output EvalCommand(Input input)
