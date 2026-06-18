@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/dictionary 相当。辞書アクセス層(system/value/user/suffix/single_kanji)とPosMatcher。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Dictionary</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Storage\Mozc.Storage.csproj" />
+    <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>
