@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/prediction 相当。辞書予測(predictive lookup + 言語モデルコスト順位付け)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Prediction</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Dictionary\Mozc.Dictionary.csproj" />
+    <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+  </ItemGroup>
+
+</Project>
