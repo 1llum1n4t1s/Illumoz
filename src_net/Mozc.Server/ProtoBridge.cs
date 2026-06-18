@@ -107,11 +107,16 @@ public static class ProtoBridge
             };
             for (int i = 0; i < output.Suggestions.Count; i++)
             {
-                cw.Candidate.Add(new Pb.CandidateWindow.Types.Candidate
+                var cand = new Pb.CandidateWindow.Types.Candidate
                 {
                     Index = (uint)i,
                     Value = output.Suggestions[i],
-                });
+                };
+                if (i < shortcuts.Length)
+                {
+                    cand.Annotation = new Pb.Annotation { Shortcut = shortcuts[i].ToString() };
+                }
+                cw.Candidate.Add(cand);
             }
             proto.CandidateWindow = cw;
         }

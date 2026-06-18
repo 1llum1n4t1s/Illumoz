@@ -112,6 +112,8 @@ public class ProtoBridgeTests
         Assert.NotNull(last.CandidateWindow);
         Assert.Equal(Pb.Category.Suggestion, last.CandidateWindow.Category);
         Assert.Contains(last.CandidateWindow.Candidate, c => c.Value == "私");
+        // サジェスト候補にも shortcut が付く(既定 123456789)。
+        Assert.Equal("1", last.CandidateWindow.Candidate[0].Annotation.Shortcut);
     }
 
     [Fact]
