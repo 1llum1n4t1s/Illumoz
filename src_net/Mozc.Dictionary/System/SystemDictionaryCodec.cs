@@ -44,7 +44,180 @@ public sealed class SystemDictionaryCodec
     private const byte UpperCrammedIdMask = 0x3f;
     private const byte LastTokenFlag = 0x80;
 
+    // 検証用上限(codec.cc)。
+    private const int PosMax = 0x0fff;       // 12bit
+    private const int CostMax = 0x7fff;      // 15bit
+    private const int ValueTrieIdMax = 0x3fffff; // 22bit
+
     public byte GetTokensTerminationFlag() => TokensTerminationFlag;
+
+    // codec.cc EncodeTokens 相当。1 つのキーに紐づくトークン列を可変長バイト列へ。
+    // 先頭バイトが終端フラグ(0xff)と衝突しないことは C++ 同様(最初のトークンは
+    // SameAsPrev* にならない設計なので flags の下位ビットが立ち 0xff にはならない)。
+    public byte[] EncodeTokens(IReadOnlyList<TokenInfo> tokens)
+    {
+        var output = new List<byte>();
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            EncodeToken(tokens, i, output);
+        }
+        if (output.Count > 0 && output[0] == TokensTerminationFlag)
+        {
+            throw new InvalidOperationException("first token byte must not equal the termination flag");
+        }
+        return output.ToArray();
+    }
+
+    private void EncodeToken(IReadOnlyList<TokenInfo> tokens, int index, List<byte> output)
+    {
+        byte flags = GetFlagsForToken(tokens, index);
+        Span<byte> buff = stackalloc byte[9];
+        buff[0] = flags;
+        int offset = 1;
+        TokenInfo info = tokens[index];
+        EncodePos(info, flags, buff, ref offset);
+        EncodeCost(info, buff, ref offset);
+        EncodeValueInfo(info, flags, buff, ref offset);
+        for (int i = 0; i < offset; i++)
+        {
+            output.Add(buff[i]);
+        }
+    }
+
+    private static byte GetFlagForPos(TokenInfo info)
+    {
+        Token token = info.Token;
+        if (token.Lid > PosMax || token.Rid > PosMax)
+        {
+            throw new InvalidOperationException($"too large pos id: lid {token.Lid}, rid {token.Rid}");
+        }
+        if (info.Pos == TokenInfo.PosType.FrequentPos)
+        {
+            return FrequentPosFlag;
+        }
+        if (info.Pos == TokenInfo.PosType.SameAsPrevPos)
+        {
+            return SameAsPrevPosFlag;
+        }
+        return token.Lid == token.Rid ? MonoPosFlag : FullPosFlag;
+    }
+
+    private static byte GetFlagForValue(TokenInfo info) => info.Value switch
+    {
+        TokenInfo.ValueType.SameAsPrevValue => SameAsPrevValueFlag,
+        TokenInfo.ValueType.AsIsHiragana => AsIsHiraganaValueFlag,
+        TokenInfo.ValueType.AsIsKatakana => AsIsKatakanaValueFlag,
+        _ => NormalValueFlag,
+    };
+
+    private static byte GetFlagsForToken(IReadOnlyList<TokenInfo> tokens, int index)
+    {
+        byte flags = 0;
+        if (index == tokens.Count - 1)
+        {
+            flags |= LastTokenFlag;
+        }
+        TokenInfo info = tokens[index];
+        if ((info.Token.Attributes & Token.Attribute.SpellingCorrection) != 0)
+        {
+            flags |= SpellingCorrectionFlag;
+        }
+        flags |= GetFlagForPos(info);
+        if (index == 0 && (flags & PosTypeFlagMask) == SameAsPrevPosFlag)
+        {
+            throw new InvalidOperationException("first token cannot become SameAsPrevPos");
+        }
+        flags |= GetFlagForValue(info);
+        if (index == 0 && (flags & ValueTypeFlagMask) == SameAsPrevValueFlag)
+        {
+            throw new InvalidOperationException("first token cannot become SameAsPrevValue");
+        }
+        if ((flags & UpperCrammedIdMask) == 0)
+        {
+            // 下位 6bit が空いているので value trie id の格納に流用する。
+            flags |= CrammedIdFlag;
+        }
+        return flags;
+    }
+
+    private static void EncodeCost(TokenInfo info, Span<byte> dst, ref int offset)
+    {
+        Token token = info.Token;
+        if (token.Cost > CostMax)
+        {
+            throw new InvalidOperationException("cost must be within 15 bits");
+        }
+        if (info.Cost == TokenInfo.CostType.CanUseSmallEncoding)
+        {
+            dst[offset] = (byte)((token.Cost >> 8) | SmallCostFlag);
+            offset += 1;
+        }
+        else
+        {
+            dst[offset] = (byte)(token.Cost >> 8);
+            dst[offset + 1] = (byte)(token.Cost & 0xff);
+            offset += 2;
+        }
+    }
+
+    private static void EncodePos(TokenInfo info, byte flags, Span<byte> dst, ref int offset)
+    {
+        Token token = info.Token;
+        int lid = token.Lid;
+        int rid = token.Rid;
+        switch (flags & PosTypeFlagMask)
+        {
+            case FullPosFlag:
+                dst[offset] = (byte)(lid & 255);
+                dst[offset + 1] = (byte)(((rid << 4) & 255) | (lid >> 8));
+                dst[offset + 2] = (byte)((rid >> 4) & 255);
+                offset += 3;
+                break;
+            case MonoPosFlag:
+                dst[offset] = (byte)(lid & 255);
+                dst[offset + 1] = (byte)(lid >> 8);
+                offset += 2;
+                break;
+            case FrequentPosFlag:
+                if (info.IdInFrequentPosMap < 0)
+                {
+                    throw new InvalidOperationException("id_in_frequent_pos_map must be set");
+                }
+                dst[offset] = (byte)info.IdInFrequentPosMap;
+                offset += 1;
+                break;
+            case SameAsPrevPosFlag:
+                break;
+        }
+    }
+
+    private static void EncodeValueInfo(TokenInfo info, byte flags, Span<byte> dst, ref int offset)
+    {
+        if ((flags & ValueTypeFlagMask) != NormalValueFlag)
+        {
+            return; // word trie id を格納する必要がない。
+        }
+        int id = info.IdInValueTrie;
+        if (id > ValueTrieIdMax)
+        {
+            throw new InvalidOperationException("too large word trie id (must be < 2^22)");
+        }
+        if ((flags & CrammedIdFlag) != 0)
+        {
+            dst[offset] = (byte)(id & 255);
+            dst[offset + 1] = (byte)((id >> 8) & 255);
+            // 上位 6bit を flags バイト(dst[0])の下位 6bit に詰める。
+            dst[0] |= (byte)((id >> 16) & UpperCrammedIdMask);
+            offset += 2;
+        }
+        else
+        {
+            dst[offset] = (byte)(id & 255);
+            dst[offset + 1] = (byte)((id >> 8) & 255);
+            dst[offset + 2] = (byte)((id >> 16) & 255);
+            offset += 3;
+        }
+    }
 
     // codec.cc DecodeToken 相当。ptr の先頭からトークン 1 件を読み tokenInfo に格納。
     // 戻り値 true=次トークンあり / false=最終トークン。readBytes に消費バイト数。
