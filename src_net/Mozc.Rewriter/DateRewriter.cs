@@ -133,6 +133,11 @@ public sealed class DateRewriter : IRewriter
                 int year = now.Year + data.Diff;
                 results.Add($"{year}");
                 results.Add($"{year}年");
+                string? era = AdToEra(year);
+                if (era != null)
+                {
+                    results.Add(era);
+                }
                 break;
             }
             case DateType.CurrentTime:
@@ -145,12 +150,55 @@ public sealed class DateRewriter : IRewriter
         return results;
     }
 
-    // C++ ConvertDateWithYear: "Y/MM/DD", "Y-MM-DD", "Y年M月D日"。
+    // C++ ConvertDateWithYear: "Y/MM/DD", "Y-MM-DD", "Y年M月D日"(+和暦年)。
     private static void ConvertDateWithYear(int year, int month, int day, List<string> results)
     {
         results.Add($"{year}/{month:00}/{day:00}");
         results.Add($"{year}-{month:00}-{day:00}");
         results.Add($"{year}年{month}月{day}日");
+        string? era = AdToEraWithMonth(year, month);
+        if (era != null)
+        {
+            results.Add($"{era}{month}月{day}日");
+        }
+    }
+
+    // 元号開始(西暦, 開始月, 元号名)。改元月をまたぐ年は月で判定する。
+    private static readonly (int Year, int Month, string Name)[] Eras =
+    {
+        (2019, 5, "令和"),
+        (1989, 1, "平成"),
+        (1926, 12, "昭和"),
+        (1912, 7, "大正"),
+        (1868, 1, "明治"),
+    };
+
+    // 西暦年→和暦年(例: 2026→令和8年)。改元年の月は考慮しない簡易版(年のみ)。
+    public static string? AdToEra(int adYear)
+    {
+        foreach ((int y, _, string name) in Eras)
+        {
+            if (adYear >= y)
+            {
+                int n = adYear - y + 1;
+                return n == 1 ? $"{name}元年" : $"{name}{n}年";
+            }
+        }
+        return null;
+    }
+
+    // 改元月を考慮した和暦(年月用)。
+    private static string? AdToEraWithMonth(int adYear, int month)
+    {
+        foreach ((int y, int m, string name) in Eras)
+        {
+            if (adYear > y || (adYear == y && month >= m))
+            {
+                int n = adYear - y + 1;
+                return n == 1 ? $"{name}元年" : $"{name}{n}年";
+            }
+        }
+        return null;
     }
 
     // C++ ConvertTime: "H:MM", "H時MM分", 半, 午前/午後。

@@ -89,4 +89,28 @@ public class DateRewriterTests
         Assert.Contains("2026", values);
         Assert.Contains("2026年", values);
     }
+
+    [Theory]
+    [InlineData(2026, "令和8年")]
+    [InlineData(2019, "令和元年")]
+    [InlineData(1989, "平成元年")]
+    [InlineData(2000, "平成12年")]
+    [InlineData(1980, "昭和55年")]
+    public void AdToEra_ConvertsKnownYears(int year, string expected)
+        => Assert.Equal(expected, DateRewriter.AdToEra(year));
+
+    [Fact]
+    public void RewriteYear_IncludesEra()
+    {
+        var rewriter = new DateRewriter(new FixedClock(new global::System.DateTime(2026, 6, 19)));
+        Segments segments = OneSegment("ことし", "今年");
+        Assert.True(rewriter.Rewrite(segments));
+        var values = new List<string>();
+        Segment seg = segments.ConversionSegment(0);
+        for (int i = 0; i < seg.CandidatesSize; i++)
+        {
+            values.Add(seg.Get(i).Value);
+        }
+        Assert.Contains("令和8年", values);
+    }
 }
