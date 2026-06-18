@@ -26,6 +26,7 @@ public sealed class SessionHandler
     }
 
     public Prediction.UserHistoryPredictor History => _history;
+    public MozcEngine Engine => _engine;
 
     // keymap を差し替える(以降の新規セッションに反映。設定変更時に EngineServer から呼ぶ)。
     public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;

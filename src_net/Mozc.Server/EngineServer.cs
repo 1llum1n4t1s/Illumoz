@@ -9,6 +9,7 @@ namespace Mozc.Server;
 // 実トランスポート(名前付きパイプ/Unix socket サーバ)は Mozc.Ipc の server 実装と接続する。
 public sealed class EngineServer
 {
+    private readonly MozcEngine _engine;
     private readonly SessionHandler _handler;
     private readonly ConfigManager _config = new();
     // keymap プリセットを config から再ロードするための src/data ルート(任意)。
@@ -16,6 +17,7 @@ public sealed class EngineServer
 
     public EngineServer(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null, string? dataDir = null)
     {
+        _engine = engine;
         _handler = new SessionHandler(engine, keyMap, rewriter);
         _dataDir = dataDir;
         ApplyConfig();
@@ -40,6 +42,12 @@ public sealed class EngineServer
             {
                 _handler.SetKeyMap(km);
             }
+        }
+
+        // カスタムローマ字表(bytes=TSV)が設定されていれば composer に反映する。
+        if (c.CustomRomanTable.Length > 0)
+        {
+            _engine.SetRomanTable(c.CustomRomanTable.ToStringUtf8());
         }
     }
 

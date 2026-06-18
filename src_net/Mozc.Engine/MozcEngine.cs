@@ -14,7 +14,7 @@ public sealed class MozcEngine
     private readonly ImmutableConverter _converter;
     private readonly PosMatcher _posMatcher;
     private readonly DictionaryPredictor _predictor;
-    private readonly Table _composerTable;
+    private Table _composerTable;
 
     public MozcEngine(byte[] mozcData, string romanTableTsv)
     {
@@ -35,6 +35,15 @@ public sealed class MozcEngine
     }
 
     public PosMatcher PosMatcher => _posMatcher;
+
+    // ローマ字変換表を差し替える(Config.CustomRomanTable 反映用)。
+    // 以降に CreateComposer する入力セッションへ反映される。
+    public void SetRomanTable(string romanTableTsv)
+    {
+        var table = new Table();
+        table.LoadFromString(romanTableTsv);
+        _composerTable = table;
+    }
 
     // mozc.data に埋め込まれた記号/単漢字/絵文字テーブル(無ければ空)。
     public IReadOnlyDictionary<string, string[]> GetSymbolTable() => _dataManager.GetStringMap("symbol");

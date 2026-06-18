@@ -92,6 +92,21 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void SetConfig_AppliesCustomRomanTable()
+    {
+        EngineServer server = Server();
+        // 既定表に無い "q" を カスタムで "あ" に割り当てる。
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.CustomRomanTable = ByteString.CopyFromUtf8("q\tあ");
+        server.SetConfig(c);
+
+        // 新規セッションで q→あ が効く(composer が再ロードされた)。
+        var composer = server.Handler.Engine.CreateComposer();
+        composer.InsertCharacter("q");
+        Assert.Equal("あ", composer.GetStringForPreedit());
+    }
+
+    [Fact]
     public void GetConfig_SetConfig_OverIpc()
     {
         EngineServer server = Server();
