@@ -57,6 +57,22 @@ public sealed class SystemDictionaryBuilder
         return SystemDictionary.OpenFromSections(KeyTrieImage, ValueTrieImage, TokenArrayImage, FrequentPosImage);
     }
 
+    // mozc.data の "dict" セクション相当: 4 セクションを DictionaryFileCodec で 1 つに梱包。
+    // C++ SystemDictionaryBuilder::WriteToStream(value,key,token,freq_pos の順)相当。
+    public byte[] BuildDictionaryImage(IEnumerable<Token> tokens)
+    {
+        BuildFromTokens(tokens);
+        var fileCodec = new global::Mozc.Dictionary.File.DictionaryFileCodec();
+        var sections = new List<global::Mozc.Dictionary.File.DictionaryFileSection>
+        {
+            new(fileCodec.GetSectionName(_codec.SectionNameForValue), ValueTrieImage),
+            new(fileCodec.GetSectionName(_codec.SectionNameForKey), KeyTrieImage),
+            new(fileCodec.GetSectionName(_codec.SectionNameForTokens), TokenArrayImage),
+            new(fileCodec.GetSectionName(_codec.SectionNameForPos), FrequentPosImage),
+        };
+        return fileCodec.WriteSections(sections);
+    }
+
     private static uint CombinedPos(ushort lid, ushort rid) => ((uint)lid << 16) | rid;
 
     private static TokenInfo.ValueType GetValueType(Token token)

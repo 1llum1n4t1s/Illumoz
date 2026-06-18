@@ -52,6 +52,27 @@ public sealed class SystemDictionary : DictionaryBase
         return dict;
     }
 
+    // mozc.data の "dict" セクション(DictionaryFileCodec 梱包)から構築。
+    public static SystemDictionary OpenFromDictionaryImage(byte[] dictImage)
+    {
+        var fileCodec = new global::Mozc.Dictionary.File.DictionaryFileCodec();
+        var sections = fileCodec.ReadSections(dictImage);
+        var codec = new SystemDictionaryCodec();
+
+        byte[] Section(string name)
+        {
+            var s = fileCodec.FindSection(sections, name)
+                ?? throw new InvalidDataException($"missing dictionary section: {name}");
+            return s.Image.ToArray();
+        }
+
+        return OpenFromSections(
+            Section(codec.SectionNameForKey),
+            Section(codec.SectionNameForValue),
+            Section(codec.SectionNameForTokens),
+            Section(codec.SectionNameForPos));
+    }
+
     private static uint[] ReadUint32Array(byte[] image)
     {
         int n = image.Length / 4;
