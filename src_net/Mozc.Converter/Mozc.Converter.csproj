@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
     <ProjectReference Include="..\Mozc.Storage\Mozc.Storage.csproj" />
+    <ProjectReference Include="..\Mozc.Dictionary\Mozc.Dictionary.csproj" />
   </ItemGroup>
 
 </Project>

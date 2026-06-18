@@ -26,6 +26,24 @@ public sealed class Segmenter
         _boundary = boundary;
     }
 
+    // C++ Segmenter::IsBoundary(lnode, rnode, is_single_segment) 相当。
+    public bool IsBoundary(Node lnode, Node rnode, bool isSingleSegment)
+    {
+        if (lnode.Type == Node.NodeType.BosNode || rnode.Type == Node.NodeType.EosNode)
+        {
+            return true;
+        }
+        if (isSingleSegment)
+        {
+            return false;
+        }
+        if ((lnode.Attributes & Node.Attribute.StartsWithParticle) != 0)
+        {
+            return false;
+        }
+        return IsBoundary(lnode.Rid, rnode.Lid);
+    }
+
     public bool IsBoundary(int rid, int lid)
     {
         int index = _lTable[rid] + _lNumElements * _rTable[lid];
