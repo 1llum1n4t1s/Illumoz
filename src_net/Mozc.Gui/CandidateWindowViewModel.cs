@@ -8,9 +8,15 @@ namespace Mozc.Gui;
 public sealed partial class CandidateItemViewModel : ObservableObject
 {
     public CandidateItemViewModel(int index, string value, string description)
+        : this(index, value, description, ((index + 1) % 10).ToString())
+    {
+    }
+
+    public CandidateItemViewModel(int index, string value, string description, string shortcut)
     {
         Index = index;
-        Shortcut = ((index + 1) % 10).ToString();
+        // サーバ提供のショートカットがあれば優先、無ければ番号(1..9,0)。
+        Shortcut = shortcut.Length > 0 ? shortcut : ((index + 1) % 10).ToString();
         Value = value;
         Description = description;
     }
@@ -39,6 +45,21 @@ public sealed partial class CandidateWindowViewModel : ObservableObject
         for (int i = 0; i < candidates.Count; i++)
         {
             Items.Add(new CandidateItemViewModel(i, candidates[i].Value, candidates[i].Description)
+            {
+                IsFocused = i == focusedIndex,
+            });
+        }
+        FocusedIndex = focusedIndex;
+        IsVisible = candidates.Count > 0;
+    }
+
+    // サーバ提供のショートカット付きで更新する(SelectionShortcut を尊重)。
+    public void Update(IReadOnlyList<(string Value, string Description, string Shortcut)> candidates, int focusedIndex)
+    {
+        Items.Clear();
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            Items.Add(new CandidateItemViewModel(i, candidates[i].Value, candidates[i].Description, candidates[i].Shortcut)
             {
                 IsFocused = i == focusedIndex,
             });

@@ -22,6 +22,16 @@ public class CandidateWindowViewModelTests
     }
 
     [Fact]
+    public void Update_HonorsServerShortcuts()
+    {
+        var vm = new CandidateWindowViewModel();
+        vm.Update(new[] { ("私", "名詞", "a"), ("渡し", "名詞", "s"), ("わたし", "", "") }, 0);
+        Assert.Equal("a", vm.Items[0].Shortcut);  // サーバ提供
+        Assert.Equal("s", vm.Items[1].Shortcut);
+        Assert.Equal("3", vm.Items[2].Shortcut);  // 空はフォールバック番号
+    }
+
+    [Fact]
     public void Update_Empty_Hides()
     {
         var vm = new CandidateWindowViewModel();
