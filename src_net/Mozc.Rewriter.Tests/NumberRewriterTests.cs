@@ -74,6 +74,31 @@ public class NumberRewriterTests
     }
 
     [Fact]
+    public void Rewrite_KanjiNumberBase_AddsArabicAndVariants()
+    {
+        var rewriter = new NumberRewriter();
+        var segments = new Segments();
+        Segment seg = segments.AddSegment();
+        seg.SetKey("ひゃくにじゅう");
+        // アラビア整数候補は無く、漢数字候補のみ。
+        Candidate c = seg.AddCandidate();
+        c.Key = "ひゃくにじゅう";
+        c.Value = "百二十";
+        c.ContentKey = "ひゃくにじゅう";
+        c.ContentValue = "百二十";
+
+        Assert.True(rewriter.Rewrite(segments));
+
+        var values = new List<string>();
+        for (int i = 0; i < seg.CandidatesSize; i++)
+        {
+            values.Add(seg.Get(i).Value);
+        }
+        Assert.Contains("120", values);    // 桁解釈したアラビア数字
+        Assert.Contains("１２０", values);  // 全角
+    }
+
+    [Fact]
     public void Rewrite_NonNumber_NoOp()
     {
         var rewriter = new NumberRewriter();

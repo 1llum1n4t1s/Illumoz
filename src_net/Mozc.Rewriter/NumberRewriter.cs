@@ -29,14 +29,25 @@ public sealed class NumberRewriter : IRewriter
                 break;
             }
         }
-        if (baseIdx < 0)
+
+        // アラビア整数候補が無ければ、漢数字候補(百二十 等)を桁解釈してアラビア化し基準にする。
+        string baseArabic;
+        if (baseIdx >= 0)
         {
-            return false;
+            baseArabic = segment.Get(baseIdx).Value;
+        }
+        else
+        {
+            baseIdx = FindKanjiNumberBase(segment, out baseArabic);
+            if (baseIdx < 0)
+            {
+                return false;
+            }
         }
 
         Candidate baseCand = segment.Get(baseIdx);
         IReadOnlyList<NumberUtil.NumberString> variants =
-            NumberUtil.ArabicToVariants(baseCand.Value);
+            NumberUtil.ArabicToVariants(baseArabic);
         if (variants.Count == 0)
         {
             return false;
@@ -49,6 +60,19 @@ public sealed class NumberRewriter : IRewriter
         }
 
         var newCands = new List<Candidate>();
+        // 漢数字基準のときは素のアラビア数字(120)も候補に加える。
+        if (existing.Add(baseArabic))
+        {
+            newCands.Add(new Candidate
+            {
+                Key = baseCand.Key,
+                Value = baseArabic,
+                ContentKey = baseCand.ContentKey,
+                ContentValue = baseArabic,
+                Description = "数字",
+                Cost = baseCand.Cost,
+            });
+        }
         foreach (NumberUtil.NumberString v in variants)
         {
             if (existing.Add(v.Value))
@@ -70,5 +94,23 @@ public sealed class NumberRewriter : IRewriter
         }
         segment.InsertCandidates(baseIdx + 1, newCands);
         return true;
+    }
+
+    // 値が漢数字(百二十 等)で桁解釈可能な最初の候補を探し、そのアラビア表記を返す。
+    // 既にアラビア化された値(content_value と一致)は対象外。
+    private static int FindKanjiNumberBase(Segment segment, out string arabic)
+    {
+        arabic = string.Empty;
+        for (int i = 0; i < segment.CandidatesSize; i++)
+        {
+            string value = segment.Get(i).Value;
+            if (NumberUtil.TryNormalizeNumber(value, trimLeadingZeros: true, out string a)
+                && a != value)
+            {
+                arabic = a;
+                return i;
+            }
+        }
+        return -1;
     }
 }
