@@ -30,12 +30,16 @@ public sealed class DictionaryPredictor
     private readonly ushort _numberId;
     private readonly ushort _kanjiNumberId;
 
+    // 単漢字予測(任意)。設定時は Predict に単漢字候補を併合する。
+    private readonly SingleKanjiPredictor? _singleKanjiPredictor;
+
     private const int CostFactor = 500;            // C++ kCostFactor
     private const int DefaultPredictionLimit = 100;
 
     public DictionaryPredictor(DictionaryBase dictionary, Connector connector, Segmenter segmenter,
         SuggestionFilter? suggestionFilter = null,
-        NumberDecoder? numberDecoder = null, ushort numberId = 0, ushort kanjiNumberId = 0)
+        NumberDecoder? numberDecoder = null, ushort numberId = 0, ushort kanjiNumberId = 0,
+        SingleKanjiPredictor? singleKanjiPredictor = null)
     {
         _dictionary = dictionary;
         _connector = connector;
@@ -44,6 +48,7 @@ public sealed class DictionaryPredictor
         _numberDecoder = numberDecoder;
         _numberId = numberId;
         _kanjiNumberId = kanjiNumberId;
+        _singleKanjiPredictor = singleKanjiPredictor;
     }
 
     // C++ GetLMCost(unigram, history_rid=0): cost_with/without_context は等しくなるので
@@ -89,6 +94,12 @@ public sealed class DictionaryPredictor
         if (_numberDecoder != null)
         {
             raw.AddRange(_numberDecoder.Aggregate(query, _numberId, _kanjiNumberId));
+        }
+
+        // 単漢字候補(あ→亜/阿…)を併合する。
+        if (_singleKanjiPredictor != null)
+        {
+            raw.AddRange(_singleKanjiPredictor.Decode(query));
         }
 
         int queryLen = ScriptClassifier.CharsLen(query);

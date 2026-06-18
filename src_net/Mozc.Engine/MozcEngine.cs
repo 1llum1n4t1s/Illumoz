@@ -27,12 +27,16 @@ public sealed class MozcEngine
             _posMatcher,
             new CandidateFilter(_posMatcher));
 
-        // 数の読み→数字予測(にじゅう→20)を有効化する。
+        // 数の読み→数字予測(にじゅう→20)と単漢字予測(あ→亜)を有効化する。
+        var singleKanji = _dataManager.GetStringMap("single_kanji");
         _predictor = new DictionaryPredictor(
             _dataManager.GetSystemDictionary(), _dataManager.GetConnector(), _dataManager.GetSegmenter(),
             numberDecoder: new NumberDecoder(),
             numberId: _posMatcher.GetNumberId(),
-            kanjiNumberId: _posMatcher.GetKanjiNumberId());
+            kanjiNumberId: _posMatcher.GetKanjiNumberId(),
+            singleKanjiPredictor: singleKanji.Count > 0
+                ? new SingleKanjiPredictor(singleKanji, _posMatcher.GetGeneralSymbolId())
+                : null);
 
         _composerTable = new Table();
         _composerTable.LoadFromString(romanTableTsv);

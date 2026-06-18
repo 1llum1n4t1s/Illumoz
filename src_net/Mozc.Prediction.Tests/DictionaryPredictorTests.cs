@@ -58,6 +58,24 @@ public class DictionaryPredictorTests
     }
 
     [Fact]
+    public void Predict_WithSingleKanjiPredictor_MergesKanji()
+    {
+        DataManager dm = BuildManager();
+        var skp = new SingleKanjiPredictor(
+            new System.Collections.Generic.Dictionary<string, string[]>
+            {
+                ["とう"] = new[] { "棟", "塔" },
+            },
+            generalSymbolId: 1);
+        var p = new DictionaryPredictor(
+            dm.GetSystemDictionary(), dm.GetConnector(), dm.GetSegmenter(),
+            singleKanjiPredictor: skp);
+        var values = p.Predict("とう").ConvertAll(r => r.Value);
+        Assert.Contains("棟", values);
+        Assert.Contains("塔", values);
+    }
+
+    [Fact]
     public void Predict_WithoutNumberDecoder_NoNumberCandidate()
     {
         DictionaryPredictor p = Predictor(BuildManager());
