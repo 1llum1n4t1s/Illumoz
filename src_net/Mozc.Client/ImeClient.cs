@@ -44,6 +44,9 @@ public sealed class ImeClient
     public ImeState SendSpecialKey(Pb.KeyEvent.Types.SpecialKey special)
         => SendKey(new Pb.KeyEvent { SpecialKey = special });
 
+    // 直近の応答状態(ショートカット選択の参照用)。
+    public ImeState LastState { get; private set; } = new();
+
     public ImeState SendKey(Pb.KeyEvent key)
     {
         EnsureSession();
@@ -53,7 +56,7 @@ public sealed class ImeClient
             Id = _sessionId,
             Key = key,
         });
-        return ToState(o);
+        return LastState = ToState(o);
     }
 
     // 候補の明示選択+確定(SUBMIT_CANDIDATE)。
@@ -70,7 +73,21 @@ public sealed class ImeClient
                 Id = index,
             },
         });
-        return ToState(o);
+        return LastState = ToState(o);
+    }
+
+    // ショートカット文字(候補窓の '1'..'9' 等)で確定する。直近状態の Shortcuts で
+    // index を解決(該当無しは現状態を返すだけ)。
+    public ImeState SubmitByShortcut(char shortcut)
+    {
+        for (int i = 0; i < LastState.Shortcuts.Count; i++)
+        {
+            if (LastState.Shortcuts[i].Length == 1 && LastState.Shortcuts[i][0] == shortcut)
+            {
+                return SubmitCandidate(i);
+            }
+        }
+        return LastState;
     }
 
     public void Shutdown()

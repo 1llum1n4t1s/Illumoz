@@ -76,4 +76,20 @@ public class ImeClientTests
         ImeState s = client.SubmitCandidate(0);
         Assert.Equal("私", s.Commit);
     }
+
+    [Fact]
+    public void SubmitByShortcut_Commits()
+    {
+        var client = new ImeClient(Server().HandleProtoRequest);
+        foreach (char c in "watashi")
+        {
+            client.SendCharacter(c);
+        }
+        // 変換して候補窓を出す(候補に shortcut が付く)。
+        ImeState s = client.SendSpecialKey(Pb.KeyEvent.Types.SpecialKey.Space);
+        Assert.Equal("1", s.Shortcuts[0]);
+        // '1' のショートカットで確定。
+        ImeState committed = client.SubmitByShortcut('1');
+        Assert.Equal("私", committed.Commit);
+    }
 }
