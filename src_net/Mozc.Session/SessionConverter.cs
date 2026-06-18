@@ -13,6 +13,7 @@ public sealed class SessionConverter
     private readonly MozcEngine _engine;
     private readonly IRewriter? _rewriter;
     private readonly Prediction.UserHistoryPredictor? _history;
+    private readonly Dictionary.UserDictionaryStorage? _userDict;
     private Composer.Composer _composer;
 
     private Segments? _segments;
@@ -20,11 +21,13 @@ public sealed class SessionConverter
     private int[] _selected = global::System.Array.Empty<int>();
 
     public SessionConverter(MozcEngine engine, IRewriter? rewriter = null,
-        Prediction.UserHistoryPredictor? history = null)
+        Prediction.UserHistoryPredictor? history = null,
+        Dictionary.UserDictionaryStorage? userDict = null)
     {
         _engine = engine;
         _rewriter = rewriter;
         _history = history;
+        _userDict = userDict;
         _composer = engine.CreateComposer();
     }
 
@@ -181,6 +184,19 @@ public sealed class SessionConverter
     {
         string query = _composer.GetQueryForConversion();
         var best = new Dictionary<string, Prediction.PredictionResult>();
+
+        // ユーザー辞書(前方一致)を最優先(コスト最小で上位固定)。
+        if (_userDict != null)
+        {
+            foreach (var e in _userDict.LookupPredictive(query))
+            {
+                var r = new Prediction.PredictionResult { Key = e.Reading, Value = e.Word, Cost = -20000 };
+                if (!best.TryGetValue(e.Word, out var cur) || r.Cost < cur.Cost)
+                {
+                    best[e.Word] = r;
+                }
+            }
+        }
 
         // 履歴予測は辞書より優先(コストを大きく下げて上位固定)。
         if (_history != null)

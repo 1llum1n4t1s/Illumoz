@@ -22,10 +22,11 @@ public sealed class Session
     private readonly List<string> _typed = new();
 
     public Session(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null,
-        Prediction.UserHistoryPredictor? history = null)
+        Prediction.UserHistoryPredictor? history = null,
+        Dictionary.UserDictionaryStorage? userDict = null)
     {
         _keyMap = keyMap;
-        _converter = new SessionConverter(engine, rewriter, history);
+        _converter = new SessionConverter(engine, rewriter, history, userDict);
     }
 
     public SessionConverter Converter => _converter;

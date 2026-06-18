@@ -162,6 +162,28 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void UserDictionary_WordAppearsInSuggestions()
+    {
+        EngineServer server = Server();
+        // ユーザー辞書に「わたし→Watashi」を登録。
+        server.Handler.UserDictionary.Add(
+            new Mozc.Dictionary.UserDictionaryStorage.UserEntry("わたし", "Watashi", "名詞", ""));
+
+        Output create = RoundTrip(server, new Input { Type = CommandType.CreateSession });
+        ulong sid = create.SessionId;
+        Output? last = null;
+        foreach (char ch in "watashi")
+        {
+            last = RoundTrip(server, new Input
+            {
+                Type = CommandType.SendKey, SessionId = sid, KeyString = ch.ToString(),
+            });
+        }
+        Assert.NotNull(last);
+        Assert.Contains("Watashi", last!.Suggestions); // ユーザー辞書語がサジェストに出る
+    }
+
+    [Fact]
     public void SendKey_ReturnsSuggestions_OverIpc()
     {
         EngineServer server = Server();
