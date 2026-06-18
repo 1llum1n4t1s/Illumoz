@@ -1,0 +1,7 @@
+; TSF TIP DLL のエクスポート定義(C++ src/win32/tip/mozc_tip.def 相当)。
+; NativeAOT publish 時に [UnmanagedCallersOnly(EntryPoint=...)] と併せて
+; これらの名前を DLL からエクスポートする(linker /DEF)。
+LIBRARY Mozc.Os.Windows
+EXPORTS
+    DllGetClassObject  PRIVATE
+    DllCanUnloadNow    PRIVATE
