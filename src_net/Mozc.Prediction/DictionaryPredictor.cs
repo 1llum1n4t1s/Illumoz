@@ -23,15 +23,18 @@ public sealed class DictionaryPredictor
     private readonly DictionaryBase _dictionary;
     private readonly Connector _connector;
     private readonly Segmenter _segmenter;
+    private readonly SuggestionFilter _suggestionFilter;
 
     private const int CostFactor = 500;            // C++ kCostFactor
     private const int DefaultPredictionLimit = 100;
 
-    public DictionaryPredictor(DictionaryBase dictionary, Connector connector, Segmenter segmenter)
+    public DictionaryPredictor(DictionaryBase dictionary, Connector connector, Segmenter segmenter,
+        SuggestionFilter? suggestionFilter = null)
     {
         _dictionary = dictionary;
         _connector = connector;
         _segmenter = segmenter;
+        _suggestionFilter = suggestionFilter ?? SuggestionFilter.Empty;
     }
 
     // C++ GetLMCost(unigram, history_rid=0): cost_with/without_context は等しくなるので
@@ -84,9 +87,14 @@ public sealed class DictionaryPredictor
         }
 
         // value 重複は最小コストを採用、コスト昇順で上位 maxResults。
+        // サジェストフィルタ対象は除外する。
         var best = new Dictionary<string, PredictionResult>();
         foreach (PredictionResult r in raw)
         {
+            if (_suggestionFilter.ShouldSuppress(r.Value))
+            {
+                continue;
+            }
             if (!best.TryGetValue(r.Value, out PredictionResult? cur) || r.Cost < cur.Cost)
             {
                 best[r.Value] = r;
