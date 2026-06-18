@@ -1,3 +1,4 @@
+using System.Linq;
 using Mozc.Converter;
 using Mozc.Dictionary;
 using Mozc.Engine;
@@ -87,6 +88,26 @@ public class SessionConverterTests
         }
         var preds = sc.PredictFromHistory();
         Assert.Contains(preds, p => p.Value == "私" && p.Key == "わたし");
+    }
+
+    [Fact]
+    public void GetCandidateDescriptions_MatchesUserDictionary()
+    {
+        var userDict = new Mozc.Dictionary.UserDictionaryStorage();
+        userDict.Add(new Mozc.Dictionary.UserDictionaryStorage.UserEntry("わたし", "ワタシ社", "名詞", ""));
+        var sc = new SessionConverter(Engine(), rewriter: null, history: null, userDict: userDict);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+
+        var cands = sc.GetCandidates();
+        var descs = sc.GetCandidateDescriptions();
+        Assert.Equal(cands.Count, descs.Count);
+        int idx = cands.ToList().IndexOf("ワタシ社");
+        Assert.True(idx >= 0);
+        Assert.Equal("ユーザー辞書", descs[idx]);
     }
 
     [Fact]

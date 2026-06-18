@@ -329,4 +329,20 @@ public sealed class SessionConverter
         }
         return list;
     }
+
+    // 注目文節の候補の説明(記号/全角/単漢字 等。候補と同数、無ければ空文字)。
+    public IReadOnlyList<string> GetCandidateDescriptions()
+    {
+        if (CurrentState != State.Conversion)
+        {
+            return global::System.Array.Empty<string>();
+        }
+        Segment seg = _segments!.ConversionSegment(_focusedSegment);
+        var list = new List<string>(seg.CandidatesSize);
+        for (int i = 0; i < seg.CandidatesSize; i++)
+        {
+            list.Add(seg.Get(i).Description);
+        }
+        return list;
+    }
 }

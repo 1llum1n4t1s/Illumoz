@@ -93,6 +93,11 @@ public static class ProtoBridge
                 {
                     cand.Annotation = new Pb.Annotation { Shortcut = shortcuts[i].ToString() };
                 }
+                if (i < output.CandidateDescriptions.Count && output.CandidateDescriptions[i].Length > 0)
+                {
+                    cand.Annotation ??= new Pb.Annotation();
+                    cand.Annotation.Description = output.CandidateDescriptions[i];
+                }
                 cw.Candidate.Add(cand);
             }
             proto.CandidateWindow = cw;
