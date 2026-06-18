@@ -87,6 +87,43 @@ public sealed class NumberDecoder
         return results;
     }
 
+    // C++ NumberDecoder::Decode(request) 相当。デコード結果を予測候補へ整形する。
+    // 数字(アラビア)候補は number_id、漢数字混じりは kanji_number_id。
+    // ヒューリスティックコスト wcost = 1000*(1+digit_num)。
+    public List<PredictionResult> Aggregate(string requestKey, ushort numberId, ushort kanjiNumberId)
+    {
+        var results = new List<PredictionResult>();
+        foreach (DecodeResult d in Decode(requestKey))
+        {
+            bool isArabic = IsAllNumber(d.Candidate);
+            results.Add(new PredictionResult
+            {
+                Key = Runes(requestKey, 0, d.ConsumedRunes),
+                Value = d.Candidate,
+                Wcost = 1000 * (1 + d.DigitNum),
+                Lid = isArabic ? numberId : kanjiNumberId,
+                Rid = isArabic ? numberId : kanjiNumberId,
+            });
+        }
+        return results;
+    }
+
+    private static bool IsAllNumber(string s)
+    {
+        if (s.Length == 0)
+        {
+            return false;
+        }
+        foreach (char c in s)
+        {
+            if (c < '0' || c > '9')
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void DecodeAux(string key, State state, List<DecodeResult> results)
     {
         if (key.Length == 0)

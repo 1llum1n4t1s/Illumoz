@@ -51,4 +51,24 @@ public class NumberDecoderTests
         // "いちさん" は Unit 連続で無効 → "1" のみ。
         Assert.Equal("1", new NumberDecoder().DecodeToString("いちさん"));
     }
+
+    [Fact]
+    public void Aggregate_ArabicUsesNumberId()
+    {
+        var results = new NumberDecoder().Aggregate("にじゅう", numberId: 50, kanjiNumberId: 60);
+        Assert.NotEmpty(results);
+        PredictionResult last = results[^1];
+        Assert.Equal("20", last.Value);
+        Assert.Equal(50, last.Lid);                 // アラビア数字 → number_id
+        Assert.Equal(1000 * (1 + 2), last.Wcost);   // digit_num=2
+    }
+
+    [Fact]
+    public void Aggregate_KanjiMixedUsesKanjiNumberId()
+    {
+        var results = new NumberDecoder().Aggregate("いちまん", numberId: 50, kanjiNumberId: 60);
+        PredictionResult last = results[^1];
+        Assert.Equal("1万", last.Value);
+        Assert.Equal(60, last.Lid); // 漢数字混じり → kanji_number_id
+    }
 }
