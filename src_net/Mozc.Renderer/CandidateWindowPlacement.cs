@@ -32,4 +32,8 @@ public static class CandidateWindowPlacement
 
         return new Point(left, top);
     }
+
+    // 凍結済み TableLayout の総サイズを使って配置する(layouter→placement の橋渡し)。
+    public static Point PlaceFromLayout(TableLayout layout, Rect caret, Rect screen)
+        => Place(caret, layout.GetTotalSize(), screen);
 }

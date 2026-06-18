@@ -39,4 +39,19 @@ public class CandidateWindowPlacementTests
         Point p = CandidateWindowPlacement.Place(caret, new Size(150, 200), Screen);
         Assert.Equal(0, p.X);
     }
+
+    [Fact]
+    public void PlaceFromLayout_UsesLayoutSize()
+    {
+        var candidates = new List<CandidateRow>
+        {
+            new("1", "私", "名詞"),
+            new("2", "渡し", "名詞"),
+        };
+        TableLayout layout = CandidateWindowLayouter.Build(candidates, s => new Size(s.Length * 8, 16));
+        var caret = new Rect(100, 200, 2, 20);
+        Point p = CandidateWindowPlacement.PlaceFromLayout(layout, caret, Screen);
+        Assert.Equal(100, p.X);   // 画面内なのでキャレット左に揃う
+        Assert.Equal(220, p.Y);   // キャレット直下
+    }
 }
