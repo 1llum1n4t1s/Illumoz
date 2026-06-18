@@ -1,0 +1,44 @@
+using Mozc.Composer;
+using Mozc.Converter;
+using Mozc.Dictionary;
+
+namespace Mozc.Engine;
+
+// C++ src/engine の Engine 相当(中核スライス)。mozc.data から DataManager を構築し、
+// ImmutableConverter を保持。Composer(ローマ字入力)→ かなクエリ → 変換 を一気通貫で行う。
+// 予測・Rewriter・Session 層は後続。
+public sealed class MozcEngine
+{
+    private readonly DataManager _dataManager;
+    private readonly ImmutableConverter _converter;
+    private readonly PosMatcher _posMatcher;
+    private readonly Table _composerTable;
+
+    public MozcEngine(byte[] mozcData, string romanTableTsv)
+    {
+        _dataManager = new DataManager(mozcData);
+        _posMatcher = _dataManager.GetPosMatcher();
+        _converter = new ImmutableConverter(
+            _dataManager.GetSystemDictionary(),
+            _dataManager.GetConnector(),
+            _dataManager.GetSegmenter(),
+            _posMatcher,
+            new CandidateFilter(_posMatcher));
+
+        _composerTable = new Table();
+        _composerTable.LoadFromString(romanTableTsv);
+    }
+
+    public PosMatcher PosMatcher => _posMatcher;
+
+    // 新規 Composer を払い出す(入力セッション 1 つ分)。
+    public Composer.Composer CreateComposer() => new(_composerTable);
+
+    // かなクエリ文字列をそのまま変換する。
+    public Segments Convert(string reading, int maxCandidates = 30)
+        => _converter.Convert(reading, maxCandidates);
+
+    // ローマ字入力済みの Composer から変換用クエリを取り出して変換する。
+    public Segments ConvertFromComposer(Composer.Composer composer, int maxCandidates = 30)
+        => Convert(composer.GetQueryForConversion(), maxCandidates);
+}

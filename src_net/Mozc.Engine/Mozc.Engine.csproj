@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/engine 相当。DataManager + 変換器 + Composer を束ねる薄いファサード。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Engine</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Dictionary\Mozc.Dictionary.csproj" />
+    <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+    <ProjectReference Include="..\Mozc.Composer\Mozc.Composer.csproj" />
+  </ItemGroup>
+
+</Project>

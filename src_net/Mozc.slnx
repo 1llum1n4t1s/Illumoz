@@ -7,6 +7,8 @@
   <Project Path="Mozc.Converter/Mozc.Converter.csproj" />
   <Project Path="Mozc.Dictionary.Tests/Mozc.Dictionary.Tests.csproj" />
   <Project Path="Mozc.Dictionary/Mozc.Dictionary.csproj" />
+  <Project Path="Mozc.Engine.Tests/Mozc.Engine.Tests.csproj" />
+  <Project Path="Mozc.Engine/Mozc.Engine.csproj" />
   <Project Path="Mozc.Ipc.Tests/Mozc.Ipc.Tests.csproj" />
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />
   <Project Path="Mozc.Protocol.Tests/Mozc.Protocol.Tests.csproj" />
