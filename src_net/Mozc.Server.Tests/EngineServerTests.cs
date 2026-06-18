@@ -134,6 +134,19 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void Config_SpaceCharacterForm_FullWidth()
+    {
+        EngineServer server = Server();
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.SpaceCharacterForm = Mozc.Config.Config.Types.FundamentalCharacterForm.FundamentalFullWidth;
+        server.SetConfig(c);
+
+        var comp = server.Handler.Engine.CreateComposer();
+        comp.InsertCharacter(" ");
+        Assert.Equal("　", comp.GetStringForPreedit()); // 全角スペース
+    }
+
+    [Fact]
     public void SetConfig_AppliesCustomRomanTable()
     {
         EngineServer server = Server();

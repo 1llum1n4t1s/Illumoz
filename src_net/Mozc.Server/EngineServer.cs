@@ -60,6 +60,18 @@ public sealed class EngineServer
         _engine.AddRomanRule("[", open);
         _engine.AddRomanRule("]", close);
         _engine.AddRomanRule("/", slash);
+
+        // スペースの字形(全角/半角)を反映する(C++ space_character_form)。
+        // INPUT_MODE はモード追従のため上書きしない。
+        switch (c.SpaceCharacterForm)
+        {
+            case Mozc.Config.Config.Types.FundamentalCharacterForm.FundamentalFullWidth:
+                _engine.AddRomanRule(" ", "　");
+                break;
+            case Mozc.Config.Config.Types.FundamentalCharacterForm.FundamentalHalfWidth:
+                _engine.AddRomanRule(" ", " ");
+                break;
+        }
     }
 
     // SymbolMethod → (開き括弧, 閉じ括弧, スラッシュ/中黒)。
