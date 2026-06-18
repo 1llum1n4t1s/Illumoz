@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WiX インストーラ定義の骨格(C++ src/win32/installer 相当)。
+     TIP DLL(NativeAOT)/ mozc_server / renderer / GUI を同梱し CLSID/プロファイル登録する。
+     実際の RegisterTextService は実機 Windows でのカスタムアクション/登録 API。 -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Mozc (.NET)" Manufacturer="Mozc .NET migration"
+           Version="1.0.0.0" UpgradeCode="9E3B7C1A-0000-0000-0000-000000000001">
+    <MajorUpgrade DowngradeErrorMessage="新しいバージョンが既にインストールされています。" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Mozc">
+        <Component Id="MozcTip" Guid="*">
+          <File Id="MozcTipDll" Source="$(var.PublishDir)\Mozc.Os.Windows.dll" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcServer" Guid="*">
+          <File Id="MozcServerExe" Source="$(var.PublishDir)\Mozc.Server.Host.exe" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcTool" Guid="*">
+          <File Id="MozcToolExe" Source="$(var.PublishDir)\Mozc.Gui.App.exe" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcData" Guid="*">
+          <File Id="MozcDataFile" Source="$(var.PublishDir)\mozc.data" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentRef Id="MozcTip" />
+      <ComponentRef Id="MozcServer" />
+      <ComponentRef Id="MozcTool" />
+      <ComponentRef Id="MozcData" />
+    </Feature>
+  </Package>
+</Wix>

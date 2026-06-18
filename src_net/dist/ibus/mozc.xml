@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ibus component 定義(C++ src/unix/ibus/mozc.xml 相当)。
+     exec は C# 製 ibus エンジン(Mozc.Os.Linux の native stub + .NET ランタイム or NativeAOT 実行ファイル)。 -->
+<component>
+  <name>com.google.IBus.Mozc</name>
+  <description>Mozc Japanese input (.NET/C#)</description>
+  <exec>/usr/lib/ibus-mozc/ibus-engine-mozc --ibus</exec>
+  <version>1.0.0</version>
+  <author>Mozc .NET migration</author>
+  <license>BSD</license>
+  <homepage>https://github.com/google/mozc</homepage>
+  <textdomain>ibus-mozc</textdomain>
+  <engines>
+    <engine>
+      <name>mozc-jp</name>
+      <longname>Mozc</longname>
+      <language>ja</language>
+      <license>BSD</license>
+      <layout>default</layout>
+      <rank>80</rank>
+      <icon_prop_key>InputMode</icon_prop_key>
+      <symbol>あ</symbol>
+      <setup>/usr/lib/mozc/mozc_tool --mode=config_dialog</setup>
+    </engine>
+  </engines>
+</component>
