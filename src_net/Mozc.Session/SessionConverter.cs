@@ -12,16 +12,19 @@ public sealed class SessionConverter
 
     private readonly MozcEngine _engine;
     private readonly IRewriter? _rewriter;
+    private readonly Prediction.UserHistoryPredictor? _history;
     private Composer.Composer _composer;
 
     private Segments? _segments;
     private int _focusedSegment;
     private int[] _selected = global::System.Array.Empty<int>();
 
-    public SessionConverter(MozcEngine engine, IRewriter? rewriter = null)
+    public SessionConverter(MozcEngine engine, IRewriter? rewriter = null,
+        Prediction.UserHistoryPredictor? history = null)
     {
         _engine = engine;
         _rewriter = rewriter;
+        _history = history;
         _composer = engine.CreateComposer();
     }
 
@@ -127,12 +130,41 @@ public sealed class SessionConverter
         }
     }
 
-    // 確定文字列を返し、状態を初期化する。
+    // 確定文字列を返し、状態を初期化する。確定時は履歴予測へ学習する。
     public string Commit()
     {
         string result = GetPreedit();
+        LearnHistory();
         Reset();
         return result;
+    }
+
+    // 変換中の各文節について (読み, 選択中の表記) を履歴学習する。
+    private void LearnHistory()
+    {
+        if (_history == null || CurrentState != State.Conversion || _segments == null)
+        {
+            return;
+        }
+        for (int i = 0; i < _segments.ConversionSegmentsSize; i++)
+        {
+            Segment seg = _segments.ConversionSegment(i);
+            if (seg.CandidatesSize > 0)
+            {
+                Candidate c = seg.Get(_selected[i]);
+                _history.Learn(seg.Key, c.Value);
+            }
+        }
+    }
+
+    // 履歴予測(入力読みの前方一致)。候補ウィンドウ/サジェスト用。
+    public List<Prediction.PredictionResult> PredictFromHistory(int maxResults = 10)
+    {
+        if (_history == null)
+        {
+            return new List<Prediction.PredictionResult>();
+        }
+        return _history.Predict(_composer.GetQueryForConversion(), maxResults);
     }
 
     // 変換を取り消して入力状態へ戻る(かなは保持)。

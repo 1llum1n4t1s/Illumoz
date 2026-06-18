@@ -69,6 +69,27 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void Commit_LearnsHistory_ThenPredicts()
+    {
+        var history = new Prediction.UserHistoryPredictor();
+        var sc = new SessionConverter(Engine(), rewriter: null, history: history);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+        sc.Commit(); // 「私」を確定 → 履歴学習
+
+        // 同じ読みを再入力すると履歴予測に現れる。
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        var preds = sc.PredictFromHistory();
+        Assert.Contains(preds, p => p.Value == "私" && p.Key == "わたし");
+    }
+
+    [Fact]
     public void SegmentFocus_AndCandidates()
     {
         var sc = new SessionConverter(Engine());

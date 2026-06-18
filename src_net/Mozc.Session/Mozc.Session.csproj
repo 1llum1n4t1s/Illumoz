@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Mozc.Composer\Mozc.Composer.csproj" />
     <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
     <ProjectReference Include="..\Mozc.Rewriter\Mozc.Rewriter.csproj" />
+    <ProjectReference Include="..\Mozc.Prediction\Mozc.Prediction.csproj" />
   </ItemGroup>
 
 </Project>

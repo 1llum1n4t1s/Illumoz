@@ -11,6 +11,8 @@ public sealed class SessionHandler
     private readonly MozcEngine _engine;
     private readonly KeyMap _keyMap;
     private readonly IRewriter? _rewriter;
+    // 履歴予測はユーザ単位で全セッション共有(C++ も UserHistoryPredictor は engine 共有)。
+    private readonly Prediction.UserHistoryPredictor _history = new();
     private readonly Dictionary<ulong, Session> _sessions = new();
     private ulong _nextId = 1;
 
@@ -22,6 +24,8 @@ public sealed class SessionHandler
         _keyMap = keyMap;
         _rewriter = rewriter;
     }
+
+    public Prediction.UserHistoryPredictor History => _history;
 
     public int SessionCount => _sessions.Count;
 
@@ -51,7 +55,7 @@ public sealed class SessionHandler
             return new Output { ErrorOccured = true };
         }
         ulong id = _nextId++;
-        _sessions[id] = new Session(_engine, _keyMap, _rewriter);
+        _sessions[id] = new Session(_engine, _keyMap, _rewriter, _history);
         return new Output { SessionId = id, Consumed = true };
     }
 

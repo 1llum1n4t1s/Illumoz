@@ -21,10 +21,11 @@ public sealed class Session
     // Backspace 用に打鍵列を保持(Composer は編集 API 未実装のため再構築する)。
     private readonly List<string> _typed = new();
 
-    public Session(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null)
+    public Session(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null,
+        Prediction.UserHistoryPredictor? history = null)
     {
         _keyMap = keyMap;
-        _converter = new SessionConverter(engine, rewriter);
+        _converter = new SessionConverter(engine, rewriter, history);
     }
 
     public SessionConverter Converter => _converter;
