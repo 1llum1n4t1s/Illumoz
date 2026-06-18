@@ -6,6 +6,20 @@ namespace Mozc.Prediction.Tests;
 public class UserHistoryPredictorTests
 {
     [Fact]
+    public void PredictZeroQuery_RecentFirst()
+    {
+        long clock = 100;
+        var p = new UserHistoryPredictor(clock: () => clock);
+        p.Learn("あ", "亜"); clock = 200;
+        p.Learn("い", "胃"); clock = 300;
+        p.Learn("う", "宇");
+
+        var r = p.PredictZeroQuery();
+        Assert.Equal("宇", r[0].Value); // 直近が先頭
+        Assert.Equal("亜", r[^1].Value); // 最古が末尾
+    }
+
+    [Fact]
     public void Learn_ThenPredict_PrefixMatch()
     {
         var p = new UserHistoryPredictor();

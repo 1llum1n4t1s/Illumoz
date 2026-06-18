@@ -121,6 +121,27 @@ public sealed class UserHistoryPredictor
         return results;
     }
 
+    // ゼロクエリ予測(入力前。直近アクセス順→頻度順に履歴を提示。C++ zero query 相当)。
+    public List<PredictionResult> PredictZeroQuery(int maxResults = 5)
+    {
+        var entries = new List<Entry>(_entries.Values);
+        entries.Sort((a, b) =>
+        {
+            int c = b.LastAccess.CompareTo(a.LastAccess);
+            if (c != 0) { return c; }
+            c = b.Frequency.CompareTo(a.Frequency);
+            return c != 0 ? c : string.CompareOrdinal(a.Value, b.Value);
+        });
+        var results = new List<PredictionResult>();
+        int n = global::System.Math.Min(maxResults, entries.Count);
+        for (int i = 0; i < n; i++)
+        {
+            Entry e = entries[i];
+            results.Add(new PredictionResult { Key = e.Key, Value = e.Value, Cost = HistoryCost(e) });
+        }
+        return results;
+    }
+
     // 履歴コスト: 基準から頻度の対数で減算。C++ は別式だが順位の単調性を満たす近似。
     private static int HistoryCost(Entry e)
     {
