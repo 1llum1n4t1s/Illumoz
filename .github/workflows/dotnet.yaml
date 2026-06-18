@@ -1,0 +1,63 @@
+name: dotnet (net10 migration)
+
+# C++/Bazel CI の代替。src_net(.NET 10 移行ツリー)をビルド・テストする。
+# 既存 Bazel ワークフロー(windows/linux/macos/android.yaml)とは独立。
+
+on:
+  push:
+    branches: [main, master, "feature/net10-port"]
+    paths: ["src_net/**", "src/data/**", ".github/workflows/dotnet.yaml"]
+  pull_request:
+    paths: ["src_net/**", "src/data/**", ".github/workflows/dotnet.yaml"]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore src_net/Mozc.slnx
+
+      - name: Build
+        run: dotnet build src_net/Mozc.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test src_net/Mozc.slnx -c Release --no-build --verbosity normal
+
+  publish-datagen-aot:
+    # データ生成 CLI を NativeAOT で各 RID 向けに publish できることを検証(配布の de-risk)。
+    needs: build-test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Publish Mozc.DataGen (NativeAOT)
+        run: >
+          dotnet publish src_net/Mozc.DataGen/Mozc.DataGen.csproj
+          -c Release -r ${{ matrix.rid }}
+          -p:PublishAot=true
+          -o publish/${{ matrix.rid }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mozc-datagen-${{ matrix.rid }}
+          path: publish/${{ matrix.rid }}
