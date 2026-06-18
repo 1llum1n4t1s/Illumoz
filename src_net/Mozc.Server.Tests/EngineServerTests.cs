@@ -92,6 +92,27 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void Config_PunctuationMethod_AppliesToComposer()
+    {
+        EngineServer server = Server();
+        // 既定(TOUTEN_KUTEN): "," → 、
+        var d = server.Handler.Engine.CreateComposer();
+        d.InsertCharacter(",");
+        Assert.Equal("、", d.GetStringForPreedit());
+
+        // COMMA_PERIOD: "," → ，, "." → ．
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.PunctuationMethod = Mozc.Config.Config.Types.PunctuationMethod.CommaPeriod;
+        server.SetConfig(c);
+        var cm = server.Handler.Engine.CreateComposer();
+        cm.InsertCharacter(",");
+        Assert.Equal("，", cm.GetStringForPreedit());
+        var pd = server.Handler.Engine.CreateComposer();
+        pd.InsertCharacter(".");
+        Assert.Equal("．", pd.GetStringForPreedit());
+    }
+
+    [Fact]
     public void SetConfig_AppliesCustomRomanTable()
     {
         EngineServer server = Server();

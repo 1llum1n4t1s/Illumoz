@@ -49,7 +49,21 @@ public sealed class EngineServer
         {
             _engine.SetRomanTable(c.CustomRomanTable.ToStringUtf8());
         }
+
+        // 句読点方式を composer のローマ字ルールへ反映する(C++ punctuation_method)。
+        (string comma, string period) = PunctuationFor(c.PunctuationMethod);
+        _engine.AddRomanRule(",", comma);
+        _engine.AddRomanRule(".", period);
     }
+
+    // PunctuationMethod → (読点相当, 句点相当)。
+    private static (string, string) PunctuationFor(Mozc.Config.Config.Types.PunctuationMethod m) => m switch
+    {
+        Mozc.Config.Config.Types.PunctuationMethod.CommaPeriod => ("，", "．"),
+        Mozc.Config.Config.Types.PunctuationMethod.ToutenPeriod => ("、", "．"),
+        Mozc.Config.Config.Types.PunctuationMethod.CommaKuten => ("，", "。"),
+        _ => ("、", "。"), // TOUTEN_KUTEN(既定)
+    };
 
     // protobuf enum → C++ OriginalName 文字列(KeymapPresets が解決する)。
     private static string KeymapName(Mozc.Config.Config.Types.SessionKeymap k) => k switch

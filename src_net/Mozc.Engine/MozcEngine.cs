@@ -45,6 +45,10 @@ public sealed class MozcEngine
         _composerTable = table;
     }
 
+    // ローマ字ルールを 1 件追加/上書きする(句読点方式の反映等)。
+    public void AddRomanRule(string input, string output)
+        => _composerTable.AddRule(input, output, string.Empty);
+
     // mozc.data に埋め込まれた記号/単漢字/絵文字テーブル(無ければ空)。
     public IReadOnlyDictionary<string, string[]> GetSymbolTable() => _dataManager.GetStringMap("symbol");
     public IReadOnlyDictionary<string, string[]> GetSingleKanjiTable() => _dataManager.GetStringMap("single_kanji");
