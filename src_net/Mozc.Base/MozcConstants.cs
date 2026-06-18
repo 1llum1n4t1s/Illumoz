@@ -16,6 +16,9 @@ public static class MozcConstants
     // IPC キーの長さ(16byte を hex 化した 32 文字)
     public const int IpcKeySize = 32;
 
+    // 受信初期バッファサイズ (ipc.h: IPC_INITIAL_READ_BUFFER_SIZE = 16 * 16384)
+    public const int IpcInitialReadBufferSize = 16 * 16384;
+
     // Windows 名前付きパイプのプレフィックス (const.h: kIPCPrefix)。
     // .NET の NamedPipeClientStream には "\\.\pipe\" を除いた部分を渡すため、
     // プレフィックス本体(パイプ名の接頭辞)だけを保持する。
