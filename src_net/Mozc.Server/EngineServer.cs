@@ -54,7 +54,22 @@ public sealed class EngineServer
         (string comma, string period) = PunctuationFor(c.PunctuationMethod);
         _engine.AddRomanRule(",", comma);
         _engine.AddRomanRule(".", period);
+
+        // 記号方式(括弧/中黒・スラッシュ)を反映する(C++ symbol_method)。
+        (string open, string close, string slash) = SymbolFor(c.SymbolMethod);
+        _engine.AddRomanRule("[", open);
+        _engine.AddRomanRule("]", close);
+        _engine.AddRomanRule("/", slash);
     }
+
+    // SymbolMethod → (開き括弧, 閉じ括弧, スラッシュ/中黒)。
+    private static (string, string, string) SymbolFor(Mozc.Config.Config.Types.SymbolMethod m) => m switch
+    {
+        Mozc.Config.Config.Types.SymbolMethod.SquareBracketSlash => ("［", "］", "／"),
+        Mozc.Config.Config.Types.SymbolMethod.CornerBracketSlash => ("「", "」", "／"),
+        Mozc.Config.Config.Types.SymbolMethod.SquareBracketMiddleDot => ("［", "］", "・"),
+        _ => ("「", "」", "・"), // CORNER_BRACKET_MIDDLE_DOT(既定)
+    };
 
     // PunctuationMethod → (読点相当, 句点相当)。
     private static (string, string) PunctuationFor(Mozc.Config.Config.Types.PunctuationMethod m) => m switch

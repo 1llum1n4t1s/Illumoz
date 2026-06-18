@@ -113,6 +113,27 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void Config_SymbolMethod_AppliesToComposer()
+    {
+        EngineServer server = Server();
+        // 既定(CORNER_BRACKET_MIDDLE_DOT): [→「 /→・
+        var d = server.Handler.Engine.CreateComposer();
+        d.InsertCharacter("[");
+        Assert.Equal("「", d.GetStringForPreedit());
+
+        // SQUARE_BRACKET_SLASH: [→［ /→／
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.SymbolMethod = Mozc.Config.Config.Types.SymbolMethod.SquareBracketSlash;
+        server.SetConfig(c);
+        var b = server.Handler.Engine.CreateComposer();
+        b.InsertCharacter("[");
+        Assert.Equal("［", b.GetStringForPreedit());
+        var s = server.Handler.Engine.CreateComposer();
+        s.InsertCharacter("/");
+        Assert.Equal("／", s.GetStringForPreedit());
+    }
+
+    [Fact]
     public void SetConfig_AppliesCustomRomanTable()
     {
         EngineServer server = Server();
