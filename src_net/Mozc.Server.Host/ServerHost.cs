@@ -27,6 +27,7 @@ public static class ServerHost
             merger.AddRewriter(emoji);
         }
         merger.AddRewriter(new CalculatorRewriter());
+        merger.AddRewriter(new VariantsRewriter());
         merger.AddRewriter(new TransliterationRewriter());
         return merger;
     }
