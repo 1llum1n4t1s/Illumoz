@@ -40,6 +40,36 @@ public sealed class IpcPathManager
         return true;
     }
 
+    // サーバ側: ランダム 32hex key + protocol/product/pid で .ipc を生成し公開する
+    // (ipc_path_manager.cc の CreateNewPathName + SavePathName 相当)。
+    // 起動時にこれを呼び、クライアントが TryLoad で読む。
+    public static IpcPathManager Create(string name, uint processId, string productVersion = "1.0.0.0")
+    {
+        string key = GenerateKey();
+        var info = new IPCPathInfo
+        {
+            Key = key,
+            ProtocolVersion = MozcConstants.IpcProtocolVersion,
+            ProductVersion = productVersion,
+            ProcessId = processId,
+        };
+        string path = MozcPaths.GetIpcKeyFileName(name);
+        string? dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+        File.WriteAllBytes(path, info.ToByteArray());
+        return new IpcPathManager { _name = name, _info = info };
+    }
+
+    private static string GenerateKey()
+    {
+        byte[] bytes = new byte[MozcConstants.IpcKeySize / 2];
+        global::System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+        return global::System.Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
     // .ipc ファイルを読み込み IPCPathInfo を parse。key を検証して保持。
     // 成功時 true。ファイル不在/壊れ/キー不正は false。
     public bool TryLoad(string name)

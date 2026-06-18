@@ -30,9 +30,16 @@ internal static class Program
 
         EngineServer server = ServerHost.Create(data, roman, keymap);
 
+        // .ipc を公開(key/protocol/pid)。クライアントは IpcPathManager.TryLoad で実 pipe 名を得る。
+        IpcPathManager pathManager = IpcPathManager.Create(
+            pipe, (uint)global::System.Environment.ProcessId);
+        string actualPipe = global::System.OperatingSystem.IsWindows()
+            ? pathManager.GetWindowsPipeName()
+            : pipe;
+
         if (global::System.OperatingSystem.IsWindows())
         {
-            using var ipc = new NamedPipeIpcServer(pipe, server.HandleProtoRequest);
+            using var ipc = new NamedPipeIpcServer(actualPipe, server.HandleProtoRequest);
             ipc.Start();
             global::System.Console.WriteLine($"mozc_server (C#) listening on pipe '{pipe}'. Ctrl+C to stop.");
             WaitForever();
