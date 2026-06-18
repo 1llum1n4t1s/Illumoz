@@ -1,0 +1,146 @@
+using System.Buffers.Binary;
+using System.Text;
+
+namespace Mozc.Dictionary;
+
+// C++ src/dictionary/user_dictionary_storage.cc 相当(中核スライス)。ユーザー登録単語を
+// 保持し、読みの前方一致で引く。決定的バイナリで永続化する(user_dictionary.db 相当)。
+// 変換/予測へ供給する自己完結ストア(外部データ不要)。
+public sealed class UserDictionaryStorage
+{
+    // 1 エントリ。Reading=よみ, Word=表記, Pos=品詞, Comment=コメント。
+    public sealed record UserEntry(string Reading, string Word, string Pos, string Comment);
+
+    private const uint Magic = 0x4D5A5544; // "MZUD"
+    private readonly List<UserEntry> _entries = new();
+
+    public int Count => _entries.Count;
+    public IReadOnlyList<UserEntry> Entries => _entries;
+
+    // 追加(同一 Reading+Word は重複登録しない)。
+    public bool Add(UserEntry entry)
+    {
+        if (string.IsNullOrEmpty(entry.Reading) || string.IsNullOrEmpty(entry.Word))
+        {
+            return false;
+        }
+        if (_entries.Exists(e => e.Reading == entry.Reading && e.Word == entry.Word))
+        {
+            return false;
+        }
+        _entries.Add(entry);
+        return true;
+    }
+
+    public bool Remove(string reading, string word)
+        => _entries.RemoveAll(e => e.Reading == reading && e.Word == word) > 0;
+
+    public void Clear() => _entries.Clear();
+
+    // 読みの前方一致で引く(変換/予測供給用)。
+    public List<UserEntry> LookupPredictive(string prefix)
+    {
+        var result = new List<UserEntry>();
+        if (string.IsNullOrEmpty(prefix))
+        {
+            return result;
+        }
+        foreach (UserEntry e in _entries)
+        {
+            if (e.Reading.StartsWith(prefix, global::System.StringComparison.Ordinal))
+            {
+                result.Add(e);
+            }
+        }
+        return result;
+    }
+
+    // 完全一致(変換用)。
+    public List<UserEntry> LookupExact(string reading)
+    {
+        var result = new List<UserEntry>();
+        foreach (UserEntry e in _entries)
+        {
+            if (e.Reading == reading)
+            {
+                result.Add(e);
+            }
+        }
+        return result;
+    }
+
+    public byte[] Serialize()
+    {
+        // 決定的順: Reading→Word→Pos。
+        var sorted = new List<UserEntry>(_entries);
+        sorted.Sort((a, b) =>
+        {
+            int c = string.CompareOrdinal(a.Reading, b.Reading);
+            if (c != 0) { return c; }
+            c = string.CompareOrdinal(a.Word, b.Word);
+            return c != 0 ? c : string.CompareOrdinal(a.Pos, b.Pos);
+        });
+
+        using var ms = new global::System.IO.MemoryStream();
+        WriteU32(ms, Magic);
+        WriteU32(ms, sorted.Count);
+        foreach (UserEntry e in sorted)
+        {
+            WriteStr(ms, e.Reading);
+            WriteStr(ms, e.Word);
+            WriteStr(ms, e.Pos);
+            WriteStr(ms, e.Comment);
+        }
+        return ms.ToArray();
+    }
+
+    public void Save(string path) => global::System.IO.File.WriteAllBytes(path, Serialize());
+
+    public bool Load(ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 8 || BinaryPrimitives.ReadUInt32LittleEndian(data) != Magic)
+        {
+            return false;
+        }
+        int pos = 4;
+        int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
+        pos += 4;
+        for (int i = 0; i < count; i++)
+        {
+            string reading = ReadStr(data, ref pos);
+            string word = ReadStr(data, ref pos);
+            string posTag = ReadStr(data, ref pos);
+            string comment = ReadStr(data, ref pos);
+            Add(new UserEntry(reading, word, posTag, comment));
+        }
+        return true;
+    }
+
+    public bool LoadFile(string path)
+        => global::System.IO.File.Exists(path) && Load(global::System.IO.File.ReadAllBytes(path));
+
+    private static void WriteU32(global::System.IO.MemoryStream ms, uint v)
+    {
+        global::System.Span<byte> b = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32LittleEndian(b, v);
+        ms.Write(b);
+    }
+
+    private static void WriteU32(global::System.IO.MemoryStream ms, int v) => WriteU32(ms, (uint)v);
+
+    private static void WriteStr(global::System.IO.MemoryStream ms, string s)
+    {
+        byte[] b = Encoding.UTF8.GetBytes(s);
+        WriteU32(ms, b.Length);
+        ms.Write(b);
+    }
+
+    private static string ReadStr(ReadOnlySpan<byte> data, ref int pos)
+    {
+        int len = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
+        pos += 4;
+        string s = Encoding.UTF8.GetString(data.Slice(pos, len));
+        pos += len;
+        return s;
+    }
+}
