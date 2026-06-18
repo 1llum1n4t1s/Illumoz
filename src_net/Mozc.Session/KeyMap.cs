@@ -9,6 +9,10 @@ public sealed class KeyMap
 
     public int EntryCount { get; private set; }
 
+    // keymap tsv ファイルから読み込む(プリセット ms-ime.tsv 等)。
+    public void LoadFromFile(string path)
+        => LoadFromString(global::System.IO.File.ReadAllText(path));
+
     public void LoadFromString(string tsv)
     {
         foreach (string rawLine in tsv.Split('\n'))
