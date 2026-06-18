@@ -4,6 +4,7 @@
        GObject signal handler stub のみ実機で native(極薄)。 -->
   <PropertyGroup>
     <RootNamespace>Mozc.Os.Linux</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
