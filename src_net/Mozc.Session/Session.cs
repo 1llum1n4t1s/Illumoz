@@ -206,6 +206,8 @@ public sealed class Session
                 return Current(true);
             case "Backspace":
                 return Backspace();
+            case "Undo":
+                return Undo();
             default:
                 // 未対応 command はキーを消費しない。
                 return new SessionResult { Preedit = GetPreedit(), Consumed = false };

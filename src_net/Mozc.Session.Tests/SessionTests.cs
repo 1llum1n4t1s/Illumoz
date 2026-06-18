@@ -58,6 +58,7 @@ public class SessionTests
             "Conversion\tEnter\tCommit",
             "Composition\tBackspace\tBackspace",
             "Conversion\tEscape\tCancel",
+            "Precomposition\tCtrl Backspace\tUndo",
         }));
         return km;
     }
@@ -105,6 +106,24 @@ public class SessionTests
 
         // 2 回目の Undo は何もしない。
         Assert.False(s.Undo().Consumed);
+    }
+
+    [Fact]
+    public void Undo_ViaKeymap_CtrlBackspace()
+    {
+        Session s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        s.SendKey("Space");
+        s.SendKey("Enter");
+        Assert.Equal("", s.GetPreedit());
+
+        // Precomposition で Ctrl+Backspace → Undo コマンド。
+        SessionResult r = s.SendKey("Ctrl Backspace");
+        Assert.True(r.Consumed);
+        Assert.Equal("わたし", s.GetPreedit());
     }
 
     [Fact]
