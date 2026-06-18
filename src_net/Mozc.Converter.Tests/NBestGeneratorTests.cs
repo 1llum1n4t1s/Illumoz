@@ -1,4 +1,5 @@
 using Mozc.Converter;
+using Mozc.Dictionary;
 using Xunit;
 
 namespace Mozc.Converter.Tests;
@@ -36,6 +37,16 @@ public class NBestGeneratorTests
     private static Node Word(string key, string value, ushort lid, ushort rid, int wcost)
         => new() { Key = key, Value = value, Lid = lid, Rid = rid, Wcost = wcost };
 
+    // 全規則空レンジの PosMatcher を用いた CandidateFilter(重複除去のみ実効)。
+    private static CandidateFilter EmptyFilter()
+    {
+        int n = PosMatcher.RuleCount;
+        var data = new ushort[n + n + 1];
+        data[n + n] = 0xFFFF;
+        for (int i = 0; i < n; i++) data[n + i] = (ushort)(n + n);
+        return new CandidateFilter(new PosMatcher(data, n));
+    }
+
     [Fact]
     public void EnumeratesHomophones_InCostOrder()
     {
@@ -51,8 +62,7 @@ public class NBestGeneratorTests
 
         Assert.True(new Viterbi(conn).Forward(lattice));
 
-        var nbest = new NBestGenerator(conn, seg, lattice, _ => false,
-            new NBestGenerator.DedupCandidateFilter());
+        var nbest = new NBestGenerator(conn, seg, lattice, _ => false, EmptyFilter());
         nbest.Reset(lattice.BosNode, lattice.EosNode);
 
         var seg2 = new Segment();
@@ -84,8 +94,7 @@ public class NBestGeneratorTests
         lattice.Insert(0, Word("あめ", "雨", 1, 1, 100));
         Assert.True(new Viterbi(conn).Forward(lattice));
 
-        var nbest = new NBestGenerator(conn, seg, lattice, _ => false,
-            new NBestGenerator.DedupCandidateFilter());
+        var nbest = new NBestGenerator(conn, seg, lattice, _ => false, EmptyFilter());
         nbest.Reset(lattice.BosNode, lattice.EosNode);
         var s = new Segment();
         s.SetKey("あめ");
@@ -105,8 +114,7 @@ public class NBestGeneratorTests
         lattice.Insert(0, Word("あめ", "雨", 1, 1, 100));
         Assert.True(new Viterbi(conn).Forward(lattice));
 
-        var nbest = new NBestGenerator(conn, seg, lattice, _ => false,
-            new NBestGenerator.DedupCandidateFilter());
+        var nbest = new NBestGenerator(conn, seg, lattice, _ => false, EmptyFilter());
         nbest.Reset(lattice.BosNode, lattice.EosNode);
         var s = new Segment();
         s.SetKey("あめ");

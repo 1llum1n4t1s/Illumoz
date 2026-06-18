@@ -15,15 +15,6 @@ public sealed class NBestGenerator
 
     private enum BoundaryCheckResult { Valid, ValidWeakConnected, Invalid }
 
-    public enum FilterResult { GoodCandidate, BadCandidate, StopEnumeration }
-
-    // CandidateFilter 相当のインターフェイス。
-    public interface ICandidateFilter
-    {
-        void Reset();
-        FilterResult Filter(Candidate candidate, IReadOnlyList<Node> nodes);
-    }
-
     private const int CostDiff = 3453;            // log prob of 1/1000
     private const int WeakConnectedPenalty = 3453;
     private const int InvalidPenaltyCost = 100000;
@@ -43,7 +34,7 @@ public sealed class NBestGenerator
     private readonly Segmenter _segmenter;
     private readonly Lattice _lattice;
     private readonly Func<ushort, bool> _isFunctional;
-    private readonly ICandidateFilter _filter;
+    private readonly CandidateFilter _filter;
 
     private readonly PriorityQueue<QueueElement, int> _agenda = new();
     private readonly List<Node> _topNodes = new();
@@ -51,9 +42,11 @@ public sealed class NBestGenerator
     private Node _endNode = null!;
     private BoundaryCheckMode _mode;
     private bool _viterbiResultChecked;
+    private CandidateFilter.Options _options = new();
+    private string _originalKey = string.Empty;
 
     public NBestGenerator(Connector connector, Segmenter segmenter, Lattice lattice,
-        Func<ushort, bool> isFunctional, ICandidateFilter filter)
+        Func<ushort, bool> isFunctional, CandidateFilter filter)
     {
         _connector = connector;
         _segmenter = segmenter;
@@ -62,7 +55,8 @@ public sealed class NBestGenerator
         _filter = filter;
     }
 
-    public void Reset(Node beginNode, Node endNode, BoundaryCheckMode mode = BoundaryCheckMode.Strict)
+    public void Reset(Node beginNode, Node endNode, BoundaryCheckMode mode = BoundaryCheckMode.Strict,
+        CandidateFilter.Options? options = null, string originalKey = "")
     {
         _agenda.Clear();
         _topNodes.Clear();
@@ -71,6 +65,8 @@ public sealed class NBestGenerator
         _mode = mode;
         _beginNode = beginNode;
         _endNode = endNode;
+        _options = options ?? new CandidateFilter.Options();
+        _originalKey = originalKey;
 
         foreach (Node node in _lattice.BeginNodes(endNode.BeginPos))
         {
@@ -105,9 +101,9 @@ public sealed class NBestGenerator
             _viterbiResultChecked = true;
             switch (InsertTopResult(candidate))
             {
-                case FilterResult.GoodCandidate:
+                case CandidateFilter.ResultType.GoodCandidate:
                     return true;
-                case FilterResult.StopEnumeration:
+                case CandidateFilter.ResultType.StopEnumeration:
                     return false;
             }
         }
@@ -127,9 +123,9 @@ public sealed class NBestGenerator
             {
                 switch (MakeCandidateFromElement(top, candidate))
                 {
-                    case FilterResult.GoodCandidate:
+                    case CandidateFilter.ResultType.GoodCandidate:
                         return true;
-                    case FilterResult.StopEnumeration:
+                    case CandidateFilter.ResultType.StopEnumeration:
                         return false;
                 }
                 continue;
@@ -231,13 +227,13 @@ public sealed class NBestGenerator
 
     private void Push(QueueElement elm) => _agenda.Enqueue(elm, elm.Fx);
 
-    private FilterResult InsertTopResult(Candidate candidate)
+    private CandidateFilter.ResultType InsertTopResult(Candidate candidate)
     {
         if (!MakeCandidateFromBestPath(candidate))
         {
-            return FilterResult.StopEnumeration;
+            return CandidateFilter.ResultType.StopEnumeration;
         }
-        return _filter.Filter(candidate, _topNodes);
+        return _filter.FilterCandidate(_options, _originalKey, candidate, _topNodes, _topNodes);
     }
 
     private bool MakeCandidateFromBestPath(Candidate candidate)
@@ -269,11 +265,11 @@ public sealed class NBestGenerator
         return true;
     }
 
-    private FilterResult MakeCandidateFromElement(QueueElement element, Candidate candidate)
+    private CandidateFilter.ResultType MakeCandidateFromElement(QueueElement element, Candidate candidate)
     {
         if (element.Next == null)
         {
-            return FilterResult.BadCandidate;
+            return CandidateFilter.ResultType.BadCandidate;
         }
         var nodes = new List<Node>();
         for (QueueElement? elm = element.Next; elm.Next != null; elm = elm.Next)
@@ -282,10 +278,10 @@ public sealed class NBestGenerator
         }
         if (nodes.Count == 0)
         {
-            return FilterResult.BadCandidate;
+            return CandidateFilter.ResultType.BadCandidate;
         }
         MakeCandidate(candidate, element.Gx, element.StructureGx, element.WGx, nodes);
-        return _filter.Filter(candidate, nodes);
+        return _filter.FilterCandidate(_options, _originalKey, candidate, _topNodes, nodes);
     }
 
     private void MakeCandidate(Candidate candidate, int cost, int structureCost, int wcost,
@@ -405,13 +401,4 @@ public sealed class NBestGenerator
            IsAsciiAlpha(left.Key[^1]) && IsAsciiAlpha(right.Key[0]);
 
     private static bool IsAsciiAlpha(char c) => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z';
-
-    // 既定フィルタ: value 重複を除去して受理(CandidateFilter の最小代替)。
-    public sealed class DedupCandidateFilter : ICandidateFilter
-    {
-        private readonly HashSet<string> _seen = new();
-        public void Reset() => _seen.Clear();
-        public FilterResult Filter(Candidate candidate, IReadOnlyList<Node> nodes)
-            => _seen.Add(candidate.Value) ? FilterResult.GoodCandidate : FilterResult.BadCandidate;
-    }
 }
