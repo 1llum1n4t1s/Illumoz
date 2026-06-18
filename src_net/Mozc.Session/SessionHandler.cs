@@ -107,6 +107,7 @@ public sealed class SessionHandler
             Preedit = r.Preedit,
             Result = r.Committed,
             Candidates = session.Converter.GetCandidates(),
+            Suggestions = session.GetSuggestions(),
         };
     }
 }

@@ -44,6 +44,11 @@ public static class CommandCodec
         {
             WriteString(w, c);
         }
+        w.Write(output.Suggestions.Count);
+        foreach (string s in output.Suggestions)
+        {
+            WriteString(w, s);
+        }
         WriteBytes(w, output.ConfigBytes);
         return ms.ToArray();
     }
@@ -63,6 +68,12 @@ public static class CommandCodec
         {
             candidates.Add(ReadString(r));
         }
+        int sn = r.ReadInt32();
+        var suggestions = new List<string>(sn);
+        for (int i = 0; i < sn; i++)
+        {
+            suggestions.Add(ReadString(r));
+        }
         byte[] configBytes = ReadBytes(r);
         return new Output
         {
@@ -72,6 +83,7 @@ public static class CommandCodec
             Preedit = preedit,
             Result = result,
             Candidates = candidates,
+            Suggestions = suggestions,
             ConfigBytes = configBytes,
         };
     }

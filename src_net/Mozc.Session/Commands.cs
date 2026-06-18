@@ -44,6 +44,8 @@ public sealed class Output
     public string Preedit { get; init; } = string.Empty;
     public string Result { get; init; } = string.Empty; // 確定文字列(あれば)
     public IReadOnlyList<string> Candidates { get; init; } = global::System.Array.Empty<string>();
+    // 入力中サジェスト(変換前の予測候補)。
+    public IReadOnlyList<string> Suggestions { get; init; } = global::System.Array.Empty<string>();
     public bool ErrorOccured { get; init; }
     // GET_CONFIG の応答 protobuf Config バイト列。
     public byte[] ConfigBytes { get; init; } = global::System.Array.Empty<byte>();

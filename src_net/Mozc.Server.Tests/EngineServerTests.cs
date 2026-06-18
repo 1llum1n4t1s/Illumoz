@@ -162,6 +162,28 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void SendKey_ReturnsSuggestions_OverIpc()
+    {
+        EngineServer server = Server();
+        Output create = RoundTrip(server, new Input { Type = CommandType.CreateSession });
+        ulong sid = create.SessionId;
+
+        Output? last = null;
+        foreach (char c in "watashi")
+        {
+            last = RoundTrip(server, new Input
+            {
+                Type = CommandType.SendKey,
+                SessionId = sid,
+                KeyString = c.ToString(),
+            });
+        }
+        // 入力中サジェストに「私」が IPC 経由で返る。
+        Assert.NotNull(last);
+        Assert.Contains("私", last!.Suggestions);
+    }
+
+    [Fact]
     public void GetConfig_SetConfig_OverIpc()
     {
         EngineServer server = Server();
