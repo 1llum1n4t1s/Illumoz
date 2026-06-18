@@ -38,6 +38,26 @@ public sealed partial class CandidateWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isVisible;
     [ObservableProperty] private int _focusedIndex = -1;
 
+    // 1 ページの候補数(C++ 既定は 9)。
+    public int PageSize { get; set; } = 9;
+
+    // フォーカス候補が属するページ番号(0 始まり)。
+    public int FocusedPage => FocusedIndex < 0 ? 0 : FocusedIndex / PageSize;
+
+    public int PageCount => Items.Count == 0 ? 0 : (Items.Count + PageSize - 1) / PageSize;
+
+    // フォーカス候補のページに属する候補のみ返す(候補窓の表示分割)。
+    public IReadOnlyList<CandidateItemViewModel> PageItems()
+    {
+        int start = FocusedPage * PageSize;
+        var page = new List<CandidateItemViewModel>();
+        for (int i = start; i < Items.Count && i < start + PageSize; i++)
+        {
+            page.Add(Items[i]);
+        }
+        return page;
+    }
+
     // 候補(値/注釈)とフォーカス位置で更新。空なら非表示。
     public void Update(IReadOnlyList<(string Value, string Description)> candidates, int focusedIndex)
     {

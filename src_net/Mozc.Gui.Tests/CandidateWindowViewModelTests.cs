@@ -41,6 +41,25 @@ public class CandidateWindowViewModelTests
     }
 
     [Fact]
+    public void Paging_FocusedPageAndItems()
+    {
+        var vm = new CandidateWindowViewModel { PageSize = 3 };
+        var cands = new List<(string, string)>();
+        for (int i = 0; i < 8; i++)
+        {
+            cands.Add(($"c{i}", ""));
+        }
+        vm.Update(cands, focusedIndex: 4); // 4 は 2 ページ目(index 3-5)
+
+        Assert.Equal(3, vm.PageCount);   // 8件/3 = 3ページ
+        Assert.Equal(1, vm.FocusedPage); // 0始まり
+        var page = vm.PageItems();
+        Assert.Equal(3, page.Count);
+        Assert.Equal("c3", page[0].Value);
+        Assert.Equal("c5", page[2].Value);
+    }
+
+    [Fact]
     public void Hide_Clears()
     {
         var vm = new CandidateWindowViewModel();
