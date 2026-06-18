@@ -118,13 +118,13 @@ public sealed class EngineServer
         }
     }
 
-    // config の CharacterForm → Base の CharacterForm。LAST_FORM は未実装のため
-    // 既定(FullWidth)へ解決する(履歴記憶は将来対応)。
+    // config の CharacterForm → Base の CharacterForm(LAST_FORM も対応)。
     private static Mozc.Base.CharacterForm MapForm(Mozc.Config.Config.Types.CharacterForm f) => f switch
     {
         Mozc.Config.Config.Types.CharacterForm.HalfWidth => Mozc.Base.CharacterForm.HalfWidth,
         Mozc.Config.Config.Types.CharacterForm.FullWidth => Mozc.Base.CharacterForm.FullWidth,
-        _ => Mozc.Base.CharacterForm.FullWidth, // LAST_FORM
+        Mozc.Config.Config.Types.CharacterForm.LastForm => Mozc.Base.CharacterForm.LastForm,
+        _ => Mozc.Base.CharacterForm.FullWidth,
     };
 
     // CommandRewriter にモード状態を流し込む(pipeline 内を探索)。

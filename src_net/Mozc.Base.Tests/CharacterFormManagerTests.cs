@@ -65,6 +65,47 @@ public class CharacterFormManagerTests
     }
 
     [Fact]
+    public void LastForm_DefaultsToFullWidth()
+    {
+        var m = new CharacterFormManager();
+        m.AddRule("0", CharacterForm.LastForm);
+        Assert.Equal(CharacterForm.FullWidth, m.GetCharacterForm("5"));
+    }
+
+    [Fact]
+    public void LastForm_RemembersChosenForm()
+    {
+        var m = new CharacterFormManager();
+        m.AddRule("0", CharacterForm.LastForm);
+        m.SetCharacterForm("0", CharacterForm.HalfWidth);
+        Assert.Equal(CharacterForm.HalfWidth, m.GetCharacterForm("9"));
+        Assert.Equal("123", m.ConvertString("１２３")); // 記憶した半角で整形
+
+        m.ClearHistory();
+        Assert.Equal(CharacterForm.FullWidth, m.GetCharacterForm("9")); // 既定に戻る
+    }
+
+    [Fact]
+    public void GuessAndSetCharacterForm_LearnsFromWidth()
+    {
+        var m = new CharacterFormManager();
+        m.AddRule("A", CharacterForm.LastForm);
+        m.GuessAndSetCharacterForm("ＡＢＣ"); // 全角を観測
+        Assert.Equal(CharacterForm.FullWidth, m.GetCharacterForm("x"));
+        m.GuessAndSetCharacterForm("abc");    // 半角を観測
+        Assert.Equal(CharacterForm.HalfWidth, m.GetCharacterForm("x"));
+    }
+
+    [Fact]
+    public void SetCharacterForm_IgnoredForNonLastFormRule()
+    {
+        var m = new CharacterFormManager();
+        m.AddRule("0", CharacterForm.FullWidth); // 固定ルール
+        m.SetCharacterForm("0", CharacterForm.HalfWidth); // 無視される
+        Assert.Equal(CharacterForm.FullWidth, m.GetCharacterForm("0"));
+    }
+
+    [Fact]
     public void ConvertString_MixedRuns()
     {
         var m = new CharacterFormManager();

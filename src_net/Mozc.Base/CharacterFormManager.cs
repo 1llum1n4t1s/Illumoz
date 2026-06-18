@@ -12,12 +12,16 @@ public enum CharacterForm
     NoConversion = 0,
     FullWidth = 1,
     HalfWidth = 2,
+    LastForm = 3, // ユーザーが最後に選んだ形を記憶して使う(履歴連動)。
 }
 
 public sealed class CharacterFormManager
 {
     // 正規化代表文字(数字→'0'、英字→'A'、カタカナ→'ア'、記号は半角1文字)ごとの好み。
     private readonly Dictionary<char, CharacterForm> _table = new();
+
+    // LAST_FORM 指定のグループについて、ユーザーが最後に選んだ形を記憶する。
+    private readonly Dictionary<char, CharacterForm> _lastFormStorage = new();
 
     // C++ Preedit の既定ルール(全部 FULL_WIDTH)を構築した manager。
     public static CharacterFormManager CreatePreeditDefault()
@@ -70,6 +74,7 @@ public sealed class CharacterFormManager
     }
 
     // 文字列(または1文字)の好みを返す。判定不能は NoConversion。
+    // ルールが LAST_FORM のグループは記憶された形(既定 FullWidth)を返す。
     public CharacterForm GetCharacterForm(string str)
     {
         char norm = NormalizedCharacter(str);
@@ -77,8 +82,71 @@ public sealed class CharacterFormManager
         {
             return CharacterForm.NoConversion;
         }
-        return _table.TryGetValue(norm, out CharacterForm f) ? f : CharacterForm.NoConversion;
+        if (!_table.TryGetValue(norm, out CharacterForm f))
+        {
+            return CharacterForm.NoConversion;
+        }
+        if (f == CharacterForm.LastForm)
+        {
+            return _lastFormStorage.TryGetValue(norm, out CharacterForm stored)
+                ? stored
+                : CharacterForm.FullWidth; // 既定。
+        }
+        return f;
     }
+
+    // ルールが LAST_FORM のグループについて、選択された形を記憶する(C++ SetCharacterForm)。
+    public void SetCharacterForm(string str, CharacterForm form)
+    {
+        if (form != CharacterForm.FullWidth && form != CharacterForm.HalfWidth)
+        {
+            return;
+        }
+        char norm = NormalizedCharacter(str);
+        if (norm == '\0' || !_table.TryGetValue(norm, out CharacterForm rule))
+        {
+            return;
+        }
+        if (rule == CharacterForm.LastForm)
+        {
+            _lastFormStorage[norm] = form;
+        }
+    }
+
+    // str の実際の字幅を判定し、その形を LAST_FORM 記憶へ反映する(C++ GuessAndSetCharacterForm)。
+    public void GuessAndSetCharacterForm(string str)
+    {
+        if (string.IsNullOrEmpty(str))
+        {
+            return;
+        }
+        bool hasFull = false;
+        bool hasHalf = false;
+        foreach (Rune rune in str.EnumerateRunes())
+        {
+            int cp = rune.Value;
+            // 全角 ASCII / 全角数字英字 → 全角、ASCII → 半角(ざっくり判定)。
+            if (cp >= 0xFF01 && cp <= 0xFF5E)
+            {
+                hasFull = true;
+            }
+            else if (cp >= 0x21 && cp <= 0x7E)
+            {
+                hasHalf = true;
+            }
+        }
+        if (hasFull && !hasHalf)
+        {
+            SetCharacterForm(str, CharacterForm.FullWidth);
+        }
+        else if (hasHalf && !hasFull)
+        {
+            SetCharacterForm(str, CharacterForm.HalfWidth);
+        }
+    }
+
+    // LAST_FORM 記憶をクリアする(C++ ClearHistory)。
+    public void ClearHistory() => _lastFormStorage.Clear();
 
     // str を好みに沿って全角/半角変換する(C++ TryConvertStringWithPreference 相当)。
     // 連続する同 form のランをまとめて変換する。
