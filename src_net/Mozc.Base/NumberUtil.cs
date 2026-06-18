@@ -111,17 +111,7 @@ public static class NumberUtil
     }
 
     private static bool ContainsDigit(string s)
-    {
-        foreach (Rune r in s.EnumerateRunes())
-        {
-            int c = r.Value;
-            if (c is >= '0' and <= '9' || c is >= 0xFF10 and <= 0xFF19)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+        => ScriptClassifier.ContainsScriptType(s, ScriptType.Numeric);
 
     private static bool NormalizeNumbersHelper(List<ulong> numbers, out ulong output)
     {

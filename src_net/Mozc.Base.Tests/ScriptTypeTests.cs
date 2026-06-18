@@ -36,4 +36,13 @@ public class ScriptTypeTests
     [InlineData("abc123", false)]
     public void IsEnglishTransliteration_Cases(string s, bool expected)
         => Assert.Equal(expected, ScriptClassifier.IsEnglishTransliteration(s));
+
+    [Theory]
+    [InlineData("私は2人", ScriptType.Numeric, true)]   // 2 がある
+    [InlineData("私は2人", ScriptType.Alphabet, false)] // 英字なし
+    [InlineData("abc漢字", ScriptType.Kanji, true)]
+    [InlineData("あいう", ScriptType.Katakana, false)]
+    [InlineData("グーグルA", ScriptType.Alphabet, true)]
+    public void ContainsScriptType_Cases(string s, ScriptType type, bool expected)
+        => Assert.Equal(expected, ScriptClassifier.ContainsScriptType(s, type));
 }

@@ -90,6 +90,19 @@ public static class ScriptClassifier
     // 文字列が指定文字種一色か(C++ Util::IsScriptType 相当)。
     public static bool IsScriptType(string str, ScriptType type) => GetScriptType(str) == type;
 
+    // 文字列に指定文字種のコードポイントが 1 つでも含まれるか(C++ Util::ContainsScriptType)。
+    public static bool ContainsScriptType(string str, ScriptType type)
+    {
+        foreach (Rune rune in str.EnumerateRunes())
+        {
+            if (Classify(rune.Value) == type)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // 先頭コードポイントの文字種と、その UTF-8 バイト長を返す(C++ GetFirstScriptType(value,&mblen))。
     public static ScriptType GetFirstScriptType(string text, out int firstByteLen)
     {
