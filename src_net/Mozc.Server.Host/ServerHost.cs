@@ -27,6 +27,7 @@ public static class ServerHost
             merger.AddRewriter(emoji);
         }
         merger.AddRewriter(new CalculatorRewriter());
+        merger.AddRewriter(new UnicodeRewriter());
         merger.AddRewriter(new VariantsRewriter());
         merger.AddRewriter(new TransliterationRewriter());
         return merger;
@@ -52,6 +53,7 @@ public static class ServerHost
             merger.AddRewriter(new EmojiRewriter(emoji));
         }
         merger.AddRewriter(new CalculatorRewriter());
+        merger.AddRewriter(new UnicodeRewriter());
         merger.AddRewriter(new VariantsRewriter());
         merger.AddRewriter(new TransliterationRewriter());
         return merger;
