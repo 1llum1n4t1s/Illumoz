@@ -122,6 +122,7 @@ public static class ServerHost
     public const string HistoryFile = "history.db";
     public const string UserDictionaryFile = "user_dictionary.db";
     public const string ConfigFile = "config1.db";
+    public const string CharacterFormFile = "character_form.db";
 
     // OS 標準のユーザープロファイルディレクトリ(C++ SystemUtil::GetUserProfileDirectory 相当)。
     // Windows: %APPDATA%\Mozc / macOS: ~/Library/Application Support/Mozc /
@@ -158,6 +159,9 @@ public static class ServerHost
         }
         server.Handler.LoadHistory(global::System.IO.Path.Combine(dir, HistoryFile));
         server.Handler.LoadUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
+        // 文字形 LAST_FORM 記憶は ApplyConfig(マネージャ再構築)の後に読む。
+        server.ConversionFormManager.LoadHistory(
+            global::System.IO.Path.Combine(dir, CharacterFormFile));
     }
 
     // プロファイルを dir へ保存する(dir が無ければ作成)。
@@ -167,6 +171,8 @@ public static class ServerHost
         server.Config.Save(global::System.IO.Path.Combine(dir, ConfigFile));
         server.Handler.SaveHistory(global::System.IO.Path.Combine(dir, HistoryFile));
         server.Handler.SaveUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
+        server.ConversionFormManager.SaveHistory(
+            global::System.IO.Path.Combine(dir, CharacterFormFile));
     }
 
     public static EngineServer CreateFromBytes(byte[] mozcData, string romanTable, string keymapTsv)

@@ -81,7 +81,15 @@ public class ServerHostTests
             s1.Handler.History.Learn("わたし", "私");
             Mozc.Config.Config c = s1.Config.GetConfig();
             c.PreeditMethod = Mozc.Config.Config.Types.PreeditMethod.Kana;
+            // 文字形 LAST_FORM ルール + 記憶を設定。
+            c.CharacterFormRules.Add(new Mozc.Config.Config.Types.CharacterFormRule
+            {
+                Group = "0",
+                ConversionCharacterForm = Mozc.Config.Config.Types.CharacterForm.LastForm,
+                PreeditCharacterForm = Mozc.Config.Config.Types.CharacterForm.LastForm,
+            });
             s1.SetConfig(c);
+            s1.ConversionFormManager.SetCharacterForm("0", Mozc.Base.CharacterForm.HalfWidth);
             ServerHost.SaveProfile(s1, dir);
 
             EngineServer s2 = Server();
@@ -89,6 +97,9 @@ public class ServerHostTests
             Assert.Single(s2.Handler.UserDictionary.LookupExact("もずく"));
             Assert.NotEmpty(s2.Handler.History.Predict("わたし"));
             Assert.Equal(Mozc.Config.Config.Types.PreeditMethod.Kana, s2.Config.GetConfig().PreeditMethod);
+            // LAST_FORM 記憶(半角)が復元される。
+            Assert.Equal(Mozc.Base.CharacterForm.HalfWidth,
+                s2.ConversionFormManager.GetCharacterForm("5"));
         }
         finally
         {
