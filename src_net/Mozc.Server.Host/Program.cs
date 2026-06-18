@@ -37,13 +37,19 @@ internal static class Program
             global::System.Console.WriteLine($"mozc_server (C#) listening on pipe '{pipe}'. Ctrl+C to stop.");
             WaitForever();
         }
-        else
+        else if (global::System.OperatingSystem.IsLinux())
         {
             byte[] name = global::System.Text.Encoding.ASCII.GetBytes("\0" + pipe);
             using var ipc = new UnixSocketIpcServer(name, server.HandleProtoRequest);
             ipc.Start();
             global::System.Console.WriteLine($"mozc_server (C#) listening on abstract socket '{pipe}'. Ctrl+C to stop.");
             WaitForever();
+        }
+        else
+        {
+            // macOS は abstract socket 非対応 → Mach OOL or filesystem UDS transport を別途(後続)。
+            global::System.Console.Error.WriteLine("unsupported platform for IPC server transport");
+            return 3;
         }
         return 0;
     }
