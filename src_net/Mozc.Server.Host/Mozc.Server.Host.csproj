@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Mozc.Server\Mozc.Server.csproj" />
     <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
     <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
+    <ProjectReference Include="..\Mozc.Rewriter\Mozc.Rewriter.csproj" />
     <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
   </ItemGroup>
 
