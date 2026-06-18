@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mozc.Ipc.Tests" />
+  </ItemGroup>
+
 </Project>
