@@ -11,23 +11,48 @@ public sealed class EngineServer
 {
     private readonly SessionHandler _handler;
     private readonly ConfigManager _config = new();
+    // keymap プリセットを config から再ロードするための src/data ルート(任意)。
+    private readonly string? _dataDir;
 
-    public EngineServer(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null)
+    public EngineServer(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null, string? dataDir = null)
     {
         _handler = new SessionHandler(engine, keyMap, rewriter);
+        _dataDir = dataDir;
         ApplyConfig();
     }
 
     public SessionHandler Handler => _handler;
     public ConfigManager Config => _config;
 
-    // Config を session の挙動へ反映する(現状: 履歴学習レベル)。
+    // Config を session の挙動へ反映する(履歴学習レベル + keymap プリセット)。
     public void ApplyConfig()
     {
         Mozc.Config.Config c = _config.GetConfig();
         bool learn = c.HistoryLearningLevel == Mozc.Config.Config.Types.HistoryLearningLevel.DefaultHistory;
         _handler.History.LearningEnabled = learn;
+
+        // SessionKeymap に対応するプリセットが src/data にあれば差し替える。
+        if (_dataDir != null)
+        {
+            string name = KeymapName(c.SessionKeymap);
+            KeyMap? km = KeymapPresets.Load(_dataDir, name);
+            if (km != null)
+            {
+                _handler.SetKeyMap(km);
+            }
+        }
     }
+
+    // protobuf enum → C++ OriginalName 文字列(KeymapPresets が解決する)。
+    private static string KeymapName(Mozc.Config.Config.Types.SessionKeymap k) => k switch
+    {
+        Mozc.Config.Config.Types.SessionKeymap.Msime => "MSIME",
+        Mozc.Config.Config.Types.SessionKeymap.Atok => "ATOK",
+        Mozc.Config.Config.Types.SessionKeymap.Kotoeri => "KOTOERI",
+        Mozc.Config.Config.Types.SessionKeymap.Mobile => "MOBILE",
+        Mozc.Config.Config.Types.SessionKeymap.Chromeos => "CHROMEOS",
+        _ => "CUSTOM",
+    };
 
     // 設定を更新して即時反映する(SetConfig 経路)。
     public void SetConfig(Mozc.Config.Config config)

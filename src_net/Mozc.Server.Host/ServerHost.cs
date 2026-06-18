@@ -103,7 +103,7 @@ public static class ServerHost
         IRewriter rewriter = dataDir != null
             ? BuildDefaultRewriter(dataDir: dataDir)
             : BuildDefaultRewriter(engine);
-        return new EngineServer(engine, keyMap, rewriter);
+        return new EngineServer(engine, keyMap, rewriter, dataDir);
     }
 
     public static EngineServer CreateFromBytes(byte[] mozcData, string romanTable, string keymapTsv)

@@ -9,7 +9,7 @@ namespace Mozc.Session;
 public sealed class SessionHandler
 {
     private readonly MozcEngine _engine;
-    private readonly KeyMap _keyMap;
+    private KeyMap _keyMap;
     private readonly IRewriter? _rewriter;
     // 履歴予測はユーザ単位で全セッション共有(C++ も UserHistoryPredictor は engine 共有)。
     private readonly Prediction.UserHistoryPredictor _history = new();
@@ -26,6 +26,10 @@ public sealed class SessionHandler
     }
 
     public Prediction.UserHistoryPredictor History => _history;
+
+    // keymap を差し替える(以降の新規セッションに反映。設定変更時に EngineServer から呼ぶ)。
+    public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;
+    public KeyMap KeyMap => _keyMap;
 
     // 起動時に履歴 db を読み込む(無ければ何もしない)。
     public bool LoadHistory(string path) => Prediction.UserHistoryStorage.LoadFile(_history, path);
