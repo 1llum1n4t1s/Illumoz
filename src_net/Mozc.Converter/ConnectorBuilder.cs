@@ -8,6 +8,8 @@ namespace Mozc.Converter;
 public sealed class ConnectorBuilder
 {
     private const ushort MagicNumber = 0xCDAB;
+    private const int InvalidCost = 30000;       // Connector.InvalidCost と一致。
+    private const byte Invalid1ByteCost = 255;   // 1byte 無効値(reader が 255→InvalidCost)。
 
     // cost[rid][lid] と default[rid] から連接データを生成。
     // resolution!=1 のとき値は 1 バイト(cost/resolution、255=無効)、=1 のとき 2 バイト。
@@ -70,7 +72,8 @@ public sealed class ConnectorBuilder
                         int v = cost[rid][lid] / resolution;
                         if (use1Byte)
                         {
-                            values.Add((byte)v);
+                            // INVALID_COST は 255 で格納(reader が 255→InvalidCost に復元)。
+                            values.Add(cost[rid][lid] == InvalidCost ? Invalid1ByteCost : (byte)v);
                         }
                         else
                         {

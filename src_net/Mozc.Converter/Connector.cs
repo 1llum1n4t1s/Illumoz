@@ -95,6 +95,11 @@ public sealed class Connector
         {
             return BinaryPrimitives.ReadUInt16LittleEndian(_data.AsSpan(_defaultCostOffset + rid * 2));
         }
+        // 1byte 無効値(255)は InvalidCost をそのまま返す(resolution 倍しない)。
+        if (value.Value == InvalidCost)
+        {
+            return InvalidCost;
+        }
         return value.Value * _resolution;
     }
 

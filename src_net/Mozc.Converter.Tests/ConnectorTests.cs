@@ -68,6 +68,35 @@ public class ConnectorTests
     }
 
     [Fact]
+    public void InvalidCost_In1ByteMode_RoundTrips()
+    {
+        // 1byte モード(resolution=64)で、行 default と異なる INVALID_COST セルが
+        // 255 格納 → reader で 30000 に復元されること(連接行列の special 列セル相当)。
+        const int n = 4;
+        const int resolution = 64;
+        var defaultCost = new ushort[n];
+        var cost = new ushort[n][];
+        for (int rid = 0; rid < n; rid++)
+        {
+            defaultCost[rid] = (ushort)(128); // 非INVALID の最頻値
+            cost[rid] = new ushort[n];
+            for (int lid = 0; lid < n; lid++)
+            {
+                cost[rid][lid] = 128;
+            }
+        }
+        cost[1][2] = 30000; // INVALID, default(128)と異なる→stored
+        cost[0][3] = 640;   // 通常 stored 値(64の倍数)
+
+        byte[] image = ConnectorBuilder.Build(resolution, defaultCost, cost);
+        var connector = Connector.Create(image);
+
+        Assert.Equal(30000, connector.GetTransitionCost(1, 2)); // INVALID 復元
+        Assert.Equal(640, connector.GetTransitionCost(0, 3));
+        Assert.Equal(128, connector.GetTransitionCost(0, 0));   // default
+    }
+
+    [Fact]
     public void RejectsBadMagic()
     {
         byte[] bad = new byte[8];
