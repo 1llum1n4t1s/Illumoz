@@ -13,6 +13,7 @@ public static class ServerHost
     {
         var merger = new RewriterMerger();
         merger.AddRewriter(new DateRewriter(clock ?? new SystemClock()));
+        merger.AddRewriter(new NumberRewriter());
         merger.AddRewriter(new CalculatorRewriter());
         return merger;
     }
