@@ -11,6 +11,7 @@
 extern int mozc_imk_process_key(uint16_t keyCode, const char *charsUtf8, int charsLen, uint32_t modifiers);
 extern int mozc_imk_get_preedit(char *buf, int cap);
 extern int mozc_imk_get_commit(char *buf, int cap);
+extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補列 */
 
 @interface MozcImkInputController : IMKInputController
 @end
@@ -41,6 +42,20 @@ extern int mozc_imk_get_commit(char *buf, int cap);
         NSString *s = [NSString stringWithUTF8String:preedit];
         [sender setMarkedText:s selectionRange:NSMakeRange(p, 0)
              replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
+    }
+
+    /* 候補列(改行区切り)を IMKCandidates へ供給。空なら隠す。 */
+    char cands[4096];
+    int c = mozc_imk_get_candidates(cands, sizeof(cands));
+    IMKCandidates *panel = [self candidates];
+    if (panel) {
+        if (c > 0 && c < (int)sizeof(cands)) {
+            cands[c] = '\0';
+            [panel updateCandidates];
+            [panel show:kIMKLocateCandidatesBelowHint];
+        } else {
+            [panel hide];
+        }
     }
 
     return consumed ? YES : NO;
