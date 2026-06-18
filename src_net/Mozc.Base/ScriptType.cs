@@ -87,6 +87,32 @@ public static class ScriptClassifier
         return true;
     }
 
+    // 文字列が指定文字種一色か(C++ Util::IsScriptType 相当)。
+    public static bool IsScriptType(string str, ScriptType type) => GetScriptType(str) == type;
+
+    // 先頭コードポイントの文字種と、その UTF-8 バイト長を返す(C++ GetFirstScriptType(value,&mblen))。
+    public static ScriptType GetFirstScriptType(string text, out int firstByteLen)
+    {
+        foreach (Rune rune in text.EnumerateRunes())
+        {
+            firstByteLen = rune.Utf8SequenceLength;
+            return Classify(rune.Value);
+        }
+        firstByteLen = 0;
+        return ScriptType.Unknown;
+    }
+
+    // コードポイント数(C++ Util::CharsLen)。
+    public static int CharsLen(string s)
+    {
+        int n = 0;
+        foreach (Rune _ in s.EnumerateRunes())
+        {
+            n++;
+        }
+        return n;
+    }
+
     public static ScriptType Classify(int c)
     {
         // ひらがな
