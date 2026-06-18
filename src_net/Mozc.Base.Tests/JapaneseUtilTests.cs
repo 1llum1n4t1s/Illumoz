@@ -45,4 +45,13 @@ public class JapaneseUtilTests
     {
         Assert.Equal("漢字あ", JapaneseUtil.FullWidthAsciiToHalfWidthAscii("漢字あ"));
     }
+
+    [Theory]
+    [InlineData("あいう", "ｱｲｳ")]
+    [InlineData("かたかな", "ｶﾀｶﾅ")]
+    [InlineData("が", "ｶﾞ")]       // 濁点は分解
+    public void HiraganaToHalfwidthKatakana_Converts(string input, string expected)
+    {
+        Assert.Equal(expected, JapaneseUtil.HiraganaToHalfwidthKatakana(input));
+    }
 }

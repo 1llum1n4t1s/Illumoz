@@ -44,6 +44,10 @@ public static class JapaneseUtil
     public static string HiraganaToFullwidthRomanji(string input) =>
         HalfWidthAsciiToFullWidthAscii(HiraganaToRomanji(input));
 
+    // C++ japanese::HiraganaToHalfwidthKatakana 相当。2 規則の合成。
+    public static string HiraganaToHalfwidthKatakana(string input) =>
+        FullWidthKatakanaToHalfWidthKatakana(HiraganaToKatakana(input));
+
     public static string NormalizeVoicedSoundMark(string input) =>
         JapaneseTextConverter.Convert(
             JapaneseRules.normalize_voiced_sound_da,
