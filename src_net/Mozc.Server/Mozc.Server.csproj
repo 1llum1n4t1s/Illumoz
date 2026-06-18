@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/server (mozc_server) 相当。SessionHandler を保持し IPC リクエストを処理する。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Server</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
+    <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
+  </ItemGroup>
+
+</Project>
