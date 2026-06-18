@@ -88,6 +88,24 @@ public static class ProtoBridge
             }
             proto.CandidateWindow = cw;
         }
+        else if (output.Suggestions.Count > 0)
+        {
+            // 変換候補が無く入力中サジェストがある場合は SUGGESTION として候補窓に載せる。
+            var cw = new Pb.CandidateWindow
+            {
+                Size = (uint)output.Suggestions.Count,
+                Category = Pb.Category.Suggestion,
+            };
+            for (int i = 0; i < output.Suggestions.Count; i++)
+            {
+                cw.Candidate.Add(new Pb.CandidateWindow.Types.Candidate
+                {
+                    Index = (uint)i,
+                    Value = output.Suggestions[i],
+                });
+            }
+            proto.CandidateWindow = cw;
+        }
         return proto.ToByteArray();
     }
 

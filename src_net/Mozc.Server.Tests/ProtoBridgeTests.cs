@@ -105,6 +105,11 @@ public class ProtoBridgeTests
         Assert.Single(last.Preedit.Segment);
         Assert.Equal("わたし", last.Preedit.Segment[0].Value);
         Assert.Equal(3u, last.Preedit.Segment[0].ValueLength); // わ/た/し = 3 文字
+
+        // 入力中サジェストが SUGGESTION カテゴリの候補窓として載る。
+        Assert.NotNull(last.CandidateWindow);
+        Assert.Equal(Pb.Category.Suggestion, last.CandidateWindow.Category);
+        Assert.Contains(last.CandidateWindow.Candidate, c => c.Value == "私");
     }
 
     [Fact]
