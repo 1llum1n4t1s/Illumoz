@@ -36,6 +36,22 @@ public class KeyParserTests
     {
         Assert.False(KeyParser.TryParse("Ctrl Boguskey", out _));
     }
+
+    [Theory]
+    [InlineData("F13", SpecialKey.F13)]
+    [InlineData("F24", SpecialKey.F24)]
+    [InlineData("Multiply", SpecialKey.Multiply)]
+    [InlineData("Add", SpecialKey.Add)]
+    [InlineData("Decimal", SpecialKey.Decimal)]
+    [InlineData("Divide", SpecialKey.Divide)]
+    [InlineData("Comma", SpecialKey.Comma)]
+    [InlineData("Clear", SpecialKey.Clear)]
+    [InlineData("Equals", SpecialKey.Equals)]
+    public void ParsesExtendedSpecialKeys(string input, SpecialKey expected)
+    {
+        Assert.True(KeyParser.TryParse(input, out KeyEvent ke));
+        Assert.Equal(expected, ke.Special);
+    }
 }
 
 public class KeyMapTests

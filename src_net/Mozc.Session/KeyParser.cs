@@ -36,10 +36,16 @@ public static class KeyParser
         ["f1"] = SpecialKey.F1, ["f2"] = SpecialKey.F2, ["f3"] = SpecialKey.F3, ["f4"] = SpecialKey.F4,
         ["f5"] = SpecialKey.F5, ["f6"] = SpecialKey.F6, ["f7"] = SpecialKey.F7, ["f8"] = SpecialKey.F8,
         ["f9"] = SpecialKey.F9, ["f10"] = SpecialKey.F10, ["f11"] = SpecialKey.F11, ["f12"] = SpecialKey.F12,
+        ["f13"] = SpecialKey.F13, ["f14"] = SpecialKey.F14, ["f15"] = SpecialKey.F15, ["f16"] = SpecialKey.F16,
+        ["f17"] = SpecialKey.F17, ["f18"] = SpecialKey.F18, ["f19"] = SpecialKey.F19, ["f20"] = SpecialKey.F20,
+        ["f21"] = SpecialKey.F21, ["f22"] = SpecialKey.F22, ["f23"] = SpecialKey.F23, ["f24"] = SpecialKey.F24,
         ["numpad0"] = SpecialKey.Numpad0, ["numpad1"] = SpecialKey.Numpad1, ["numpad2"] = SpecialKey.Numpad2,
         ["numpad3"] = SpecialKey.Numpad3, ["numpad4"] = SpecialKey.Numpad4, ["numpad5"] = SpecialKey.Numpad5,
         ["numpad6"] = SpecialKey.Numpad6, ["numpad7"] = SpecialKey.Numpad7, ["numpad8"] = SpecialKey.Numpad8,
         ["numpad9"] = SpecialKey.Numpad9,
+        ["multiply"] = SpecialKey.Multiply, ["add"] = SpecialKey.Add, ["separator"] = SpecialKey.Separator,
+        ["subtract"] = SpecialKey.Subtract, ["decimal"] = SpecialKey.Decimal, ["divide"] = SpecialKey.Divide,
+        ["equals"] = SpecialKey.Equals, ["comma"] = SpecialKey.Comma, ["clear"] = SpecialKey.Clear,
         ["undefinedkey"] = SpecialKey.UndefinedKey,
     };
 

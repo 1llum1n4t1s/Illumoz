@@ -7,10 +7,12 @@ public enum SpecialKey
 {
     On, Off, Left, Down, Up, Right, Enter, Escape, Del, Backspace,
     Henkan, Muhenkan, Kana, Katakana, Eisu, Home, End, Space, TextInput,
-    Tab, PageUp, PageDown, Insert, Hankaku, Kanji,
+    Tab, PageUp, PageDown, Insert, Hankaku, Kanji, Zenkaku,
     F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
     Numpad0, Numpad1, Numpad2, Numpad3, Numpad4,
     Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+    Multiply, Add, Separator, Subtract, Decimal, Divide, Equals, Comma, Clear,
     UndefinedKey,
 }
 
