@@ -32,6 +32,7 @@
   <Project Path="Mozc.Session/Mozc.Session.csproj" />
   <Project Path="Mozc.Renderer.Tests/Mozc.Renderer.Tests.csproj" />
   <Project Path="Mozc.Renderer/Mozc.Renderer.csproj" />
+  <Project Path="Mozc.Server.Host/Mozc.Server.Host.csproj" />
   <Project Path="Mozc.Server.Tests/Mozc.Server.Tests.csproj" />
   <Project Path="Mozc.Server/Mozc.Server.csproj" />
   <Project Path="Mozc.Storage.Tests/Mozc.Storage.Tests.csproj" />

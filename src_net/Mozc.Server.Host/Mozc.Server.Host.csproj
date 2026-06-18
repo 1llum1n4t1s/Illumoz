@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ mozc_server 実行ファイル相当。mozc.data をロードした EngineServer を
+       NamedPipe(Windows)/Unix socket(Linux/mac)で公開する常駐プロセス。NativeAOT 配布。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Mozc.Server.Host</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Server\Mozc.Server.csproj" />
+    <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
+    <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
+    <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
+  </ItemGroup>
+
+</Project>

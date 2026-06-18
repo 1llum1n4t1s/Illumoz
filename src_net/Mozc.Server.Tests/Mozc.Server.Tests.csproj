@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
     <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
     <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
+    <ProjectReference Include="..\Mozc.Server.Host\Mozc.Server.Host.csproj" />
   </ItemGroup>
 
 </Project>
