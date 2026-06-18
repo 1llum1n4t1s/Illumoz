@@ -89,6 +89,24 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void SelectCandidate_ByIndex()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        // 変換前は選択不可。
+        Assert.False(sc.SelectCandidate(0));
+        sc.Convert();
+        // 先頭候補を明示選択。
+        Assert.True(sc.SelectCandidate(0));
+        Assert.Equal("私", sc.GetPreedit());
+        // 範囲外は false。
+        Assert.False(sc.SelectCandidate(99));
+    }
+
+    [Fact]
     public void Cancel_ReturnsToComposition()
     {
         var sc = new SessionConverter(Engine());

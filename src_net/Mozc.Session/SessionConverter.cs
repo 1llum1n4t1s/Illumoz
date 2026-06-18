@@ -94,6 +94,22 @@ public sealed class SessionConverter
         _selected[_focusedSegment] = ((_selected[_focusedSegment] + delta) % count + count) % count;
     }
 
+    // 注目文節の候補をインデックス指定で選択(候補ウィンドウのクリック/番号キー相当)。
+    public bool SelectCandidate(int index)
+    {
+        if (CurrentState != State.Conversion)
+        {
+            return false;
+        }
+        Segment seg = _segments!.ConversionSegment(_focusedSegment);
+        if (index < 0 || index >= seg.CandidatesSize)
+        {
+            return false;
+        }
+        _selected[_focusedSegment] = index;
+        return true;
+    }
+
     // 注目文節を右/左へ。
     public void SegmentFocusRight()
     {
