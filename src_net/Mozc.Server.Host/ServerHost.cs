@@ -21,6 +21,11 @@ public static class ServerHost
         {
             merger.AddRewriter(sk);
         }
+        EmojiRewriter? emoji = BuildEmojiRewriter(dataDir);
+        if (emoji != null)
+        {
+            merger.AddRewriter(emoji);
+        }
         merger.AddRewriter(new CalculatorRewriter());
         merger.AddRewriter(new TransliterationRewriter());
         return merger;
@@ -39,6 +44,14 @@ public static class ServerHost
         string? p = ResolveData(dataDir, "single_kanji", "single_kanji.tsv");
         return p != null
             ? new SingleKanjiRewriter(SingleKanjiRewriter.LoadTable(global::System.IO.File.ReadAllText(p)))
+            : null;
+    }
+
+    private static EmojiRewriter? BuildEmojiRewriter(string? dataDir)
+    {
+        string? p = ResolveData(dataDir, "emoji", "emoji_data.tsv");
+        return p != null
+            ? new EmojiRewriter(EmojiRewriter.LoadTable(global::System.IO.File.ReadAllText(p)))
             : null;
     }
 
