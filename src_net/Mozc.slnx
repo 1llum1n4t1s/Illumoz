@@ -5,6 +5,8 @@
   <Project Path="Mozc.Composer/Mozc.Composer.csproj" />
   <Project Path="Mozc.Converter.Tests/Mozc.Converter.Tests.csproj" />
   <Project Path="Mozc.Converter/Mozc.Converter.csproj" />
+  <Project Path="Mozc.DataGen.Tests/Mozc.DataGen.Tests.csproj" />
+  <Project Path="Mozc.DataGen/Mozc.DataGen.csproj" />
   <Project Path="Mozc.Dictionary.Tests/Mozc.Dictionary.Tests.csproj" />
   <Project Path="Mozc.Dictionary/Mozc.Dictionary.csproj" />
   <Project Path="Mozc.Engine.Tests/Mozc.Engine.Tests.csproj" />

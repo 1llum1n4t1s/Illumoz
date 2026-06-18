@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src の Bazel genrule 群を代替。src/data のソースから mozc.data を C# で生成する
+       (C7: Bazel 全廃の中核)。CLI(Program)としても MSBuild Task からも呼べる。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Mozc.DataGen</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+  </ItemGroup>
+
+</Project>
