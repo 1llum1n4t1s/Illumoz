@@ -71,6 +71,29 @@ public class DictionaryFileCodecTests
     }
 
     [Fact]
+    public void GetSectionName_FindSection_RoundTrips()
+    {
+        var codec = new DictionaryFileCodec();
+        // 論理名→fingerprint で節を作り、write→read→FindSection で引けること。
+        var sections = new List<DictionaryFileSection>
+        {
+            new(codec.GetSectionName("key"), new byte[] { 1, 2, 3 }),
+            new(codec.GetSectionName("value"), new byte[] { 4, 5 }),
+            new(codec.GetSectionName("tokens"), new byte[] { 6 }),
+        };
+        byte[] image = codec.WriteSections(sections);
+
+        var reader = new DictionaryFileCodec();
+        var read = reader.ReadSections(image);
+
+        DictionaryFileSection? key = reader.FindSection(read, "key");
+        Assert.NotNull(key);
+        Assert.Equal(new byte[] { 1, 2, 3 }, key!.Image.ToArray());
+        Assert.Equal(new byte[] { 4, 5 }, reader.FindSection(read, "value")!.Image.ToArray());
+        Assert.Null(reader.FindSection(read, "nonexistent"));
+    }
+
+    [Fact]
     public void BadMagic_Throws()
     {
         byte[] bad = new byte[12];

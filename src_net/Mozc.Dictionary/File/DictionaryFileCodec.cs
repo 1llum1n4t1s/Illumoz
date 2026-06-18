@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using Mozc.Base;
 
 namespace Mozc.Dictionary.File;
 
@@ -31,6 +32,30 @@ public sealed class DictionaryFileCodec
     private const int FingerprintLength = 8;
 
     public int Seed { get; private set; } = DefaultSeed;
+
+    // C++ GetSectionName 相当。節名→8byte fingerprint(LegacyFingerprintWithSeed の
+    // uint64 を little-endian 直列化)。
+    public byte[] GetSectionName(string name)
+    {
+        ulong fp = LegacyFingerprint.FingerprintWithSeed(name, (uint)Seed);
+        byte[] b = new byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(b, fp);
+        return b;
+    }
+
+    // 論理節名で節を引く(fingerprint 照合)。
+    public DictionaryFileSection? FindSection(IEnumerable<DictionaryFileSection> sections, string name)
+    {
+        byte[] fp = GetSectionName(name);
+        foreach (DictionaryFileSection s in sections)
+        {
+            if (s.Fingerprint.AsSpan().SequenceEqual(fp))
+            {
+                return s;
+            }
+        }
+        return null;
+    }
 
     public List<DictionaryFileSection> ReadSections(byte[] image)
     {
