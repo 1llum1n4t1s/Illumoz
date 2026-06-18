@@ -109,10 +109,15 @@ public static class ServerHost
     // プロファイルディレクトリ配下の標準ファイル名。
     public const string HistoryFile = "history.db";
     public const string UserDictionaryFile = "user_dictionary.db";
+    public const string ConfigFile = "config1.db";
 
-    // プロファイル(履歴/ユーザー辞書)を dir から読み込む(無いファイルはスキップ)。
+    // プロファイル(設定/履歴/ユーザー辞書)を dir から読み込む(無いファイルはスキップ)。
     public static void LoadProfile(EngineServer server, string dir)
     {
+        if (server.Config.LoadFile(global::System.IO.Path.Combine(dir, ConfigFile)))
+        {
+            server.ApplyConfig(); // 読み込んだ設定を即反映。
+        }
         server.Handler.LoadHistory(global::System.IO.Path.Combine(dir, HistoryFile));
         server.Handler.LoadUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
     }
@@ -121,6 +126,7 @@ public static class ServerHost
     public static void SaveProfile(EngineServer server, string dir)
     {
         global::System.IO.Directory.CreateDirectory(dir);
+        server.Config.Save(global::System.IO.Path.Combine(dir, ConfigFile));
         server.Handler.SaveHistory(global::System.IO.Path.Combine(dir, HistoryFile));
         server.Handler.SaveUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
     }

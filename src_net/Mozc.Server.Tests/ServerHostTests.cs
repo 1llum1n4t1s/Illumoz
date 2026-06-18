@@ -69,12 +69,16 @@ public class ServerHostTests
             EngineServer s1 = Server();
             s1.Handler.RegisterWord("もずく", "Mozc");
             s1.Handler.History.Learn("わたし", "私");
+            Mozc.Config.Config c = s1.Config.GetConfig();
+            c.PreeditMethod = Mozc.Config.Config.Types.PreeditMethod.Kana;
+            s1.SetConfig(c);
             ServerHost.SaveProfile(s1, dir);
 
             EngineServer s2 = Server();
             ServerHost.LoadProfile(s2, dir);
             Assert.Single(s2.Handler.UserDictionary.LookupExact("もずく"));
             Assert.NotEmpty(s2.Handler.History.Predict("わたし"));
+            Assert.Equal(Mozc.Config.Config.Types.PreeditMethod.Kana, s2.Config.GetConfig().PreeditMethod);
         }
         finally
         {
