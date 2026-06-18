@@ -19,6 +19,8 @@
   <Project Path="Mozc.Rewriter/Mozc.Rewriter.csproj" />
   <Project Path="Mozc.Session.Tests/Mozc.Session.Tests.csproj" />
   <Project Path="Mozc.Session/Mozc.Session.csproj" />
+  <Project Path="Mozc.Renderer.Tests/Mozc.Renderer.Tests.csproj" />
+  <Project Path="Mozc.Renderer/Mozc.Renderer.csproj" />
   <Project Path="Mozc.Server.Tests/Mozc.Server.Tests.csproj" />
   <Project Path="Mozc.Server/Mozc.Server.csproj" />
   <Project Path="Mozc.Storage.Tests/Mozc.Storage.Tests.csproj" />
