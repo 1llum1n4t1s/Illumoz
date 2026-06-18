@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/client 相当。OS 非依存の IME クライアント(protobuf で mozc_server と会話)。
+       各 OS 統合層(TSF/IMK/ibus)はこれを共有し、native 境界だけを各々が持つ。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

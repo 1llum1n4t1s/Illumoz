@@ -1,0 +1,90 @@
+using Google.Protobuf;
+using Pb = Mozc.Commands;
+
+namespace Mozc.Client;
+
+// IME クライアント側の表示状態(全 OS 統合層が共有)。
+public sealed class ImeState
+{
+    public string Preedit { get; init; } = string.Empty;
+    public string Commit { get; init; } = string.Empty;
+    public IReadOnlyList<string> Candidates { get; init; } = global::System.Array.Empty<string>();
+    public bool Consumed { get; init; }
+}
+
+// C++ src/client/client.cc 相当(OS 非依存)。protobuf(commands.proto)で mozc_server と会話。
+// transport は Func<byte[],byte[]>(proto Input → proto Output。実体=NamedPipe/Unix client、
+// テスト=in-proc EngineServer.HandleProtoRequest)。TSF/IMK/ibus 各層が共有する。
+public sealed class ImeClient
+{
+    private readonly Func<byte[], byte[]> _transport;
+    private ulong _sessionId;
+    private bool _hasSession;
+
+    public ImeClient(Func<byte[], byte[]> transport) => _transport = transport;
+
+    private Pb.Output Send(Pb.Input input) => Pb.Output.Parser.ParseFrom(_transport(input.ToByteArray()));
+
+    public void EnsureSession()
+    {
+        if (_hasSession)
+        {
+            return;
+        }
+        _sessionId = Send(new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        _hasSession = true;
+    }
+
+    public ImeState SendCharacter(char c) => SendKey(new Pb.KeyEvent { KeyCode = c });
+
+    public ImeState SendSpecialKey(Pb.KeyEvent.Types.SpecialKey special)
+        => SendKey(new Pb.KeyEvent { SpecialKey = special });
+
+    public ImeState SendKey(Pb.KeyEvent key)
+    {
+        EnsureSession();
+        Pb.Output o = Send(new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey,
+            Id = _sessionId,
+            Key = key,
+        });
+        return ToState(o);
+    }
+
+    // 候補の明示選択+確定(SUBMIT_CANDIDATE)。
+    public ImeState SubmitCandidate(int index)
+    {
+        EnsureSession();
+        Pb.Output o = Send(new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendCommand,
+            Id = _sessionId,
+            Command = new Pb.SessionCommand
+            {
+                Type = Pb.SessionCommand.Types.CommandType.SubmitCandidate,
+                Id = index,
+            },
+        });
+        return ToState(o);
+    }
+
+    public void Shutdown()
+    {
+        if (_hasSession)
+        {
+            Send(new Pb.Input { Type = Pb.Input.Types.CommandType.DeleteSession, Id = _sessionId });
+            _hasSession = false;
+        }
+    }
+
+    private static ImeState ToState(Pb.Output o) => new()
+    {
+        Consumed = o.Consumed,
+        Commit = o.Result != null ? o.Result.Value : string.Empty,
+        Preedit = o.Preedit != null && o.Preedit.Segment.Count > 0 ? o.Preedit.Segment[0].Value : string.Empty,
+        Candidates = o.CandidateWindow != null
+            ? o.CandidateWindow.Candidate.Select(c => c.Value).ToList()
+            : global::System.Array.Empty<string>(),
+    };
+}

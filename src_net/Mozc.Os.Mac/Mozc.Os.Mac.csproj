@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/mac 相当。IMKInputController のロジックは C#(ImeClient 共有)。
+       ObjC サブクラス(handleEvent/updateComposition/commitComposition forward)は実機で native(極薄)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Os.Mac</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Client\Mozc.Client.csproj" />
+    <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,6 +1,8 @@
 <Solution>
   <Project Path="Mozc.Base.Tests/Mozc.Base.Tests.csproj" />
   <Project Path="Mozc.Base/Mozc.Base.csproj" />
+  <Project Path="Mozc.Client.Tests/Mozc.Client.Tests.csproj" />
+  <Project Path="Mozc.Client/Mozc.Client.csproj" />
   <Project Path="Mozc.Composer.Tests/Mozc.Composer.Tests.csproj" />
   <Project Path="Mozc.Composer/Mozc.Composer.csproj" />
   <Project Path="Mozc.Converter.Tests/Mozc.Converter.Tests.csproj" />
@@ -16,6 +18,8 @@
   <Project Path="Mozc.Gui/Mozc.Gui.csproj" />
   <Project Path="Mozc.Ipc.Tests/Mozc.Ipc.Tests.csproj" />
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />
+  <Project Path="Mozc.Os.Linux/Mozc.Os.Linux.csproj" />
+  <Project Path="Mozc.Os.Mac/Mozc.Os.Mac.csproj" />
   <Project Path="Mozc.Os.Windows.Tests/Mozc.Os.Windows.Tests.csproj" />
   <Project Path="Mozc.Os.Windows/Mozc.Os.Windows.csproj" />
   <Project Path="Mozc.Prediction.Tests/Mozc.Prediction.Tests.csproj" />
