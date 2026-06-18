@@ -1,55 +1,57 @@
-using System.Text;
-
 namespace Mozc.Base;
 
-// C++ src/base/strings/japanese.cc の一部相当(かな変換)。
-// 本家は double-array トライ表(japanese_rules.cc)で部分文字列変換するが、
-// ひらがな⇔カタカナの標準域はコードポイント +0x60 の 1:1 写像で表と一致する
-// (ぁ U+3041→ァ U+30A1 … ゔ U+3094→ヴ U+30F4)。
-// system 辞書の builder/reader が同一関数を使えば往復は厳密。
-// NOTE: 反復記号(ゝゞ)・半角カナ・濁点正規化など本家の表全域は未対応。
-// 実 mozc.data 読取時のバイト厳密一致が要るならば生成表の移植が必要。
+// C++ src/base/strings/japanese.cc 相当。japanese_rules.cc の double-array 表
+// (JapaneseRules)を JapaneseTextConverter で引いて部分文字列変換する。
+// 反復記号・半角カナ・濁点正規化など本家の表全域を忠実移植済(バイト厳密一致)。
 public static class JapaneseUtil
 {
-    private const int HiraganaStart = 0x3041; // ぁ
-    private const int HiraganaEnd = 0x3094;   // ゔ
-    private const int KatakanaStart = 0x30A1; // ァ
-    private const int KatakanaEnd = 0x30F4;   // ヴ
-    private const int Offset = KatakanaStart - HiraganaStart; // 0x60
+    public static string HiraganaToKatakana(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.hiragana_to_katakana_da, JapaneseRules.hiragana_to_katakana_table, input);
 
-    public static string HiraganaToKatakana(string input)
-    {
-        var sb = new StringBuilder(input.Length);
-        foreach (Rune rune in input.EnumerateRunes())
-        {
-            int c = rune.Value;
-            if (c >= HiraganaStart && c <= HiraganaEnd)
-            {
-                sb.Append((char)(c + Offset));
-            }
-            else
-            {
-                sb.Append(rune.ToString());
-            }
-        }
-        return sb.ToString();
-    }
+    public static string KatakanaToHiragana(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.katakana_to_hiragana_da, JapaneseRules.katakana_to_hiragana_table, input);
 
-    public static string KatakanaToHiragana(string input)
-    {
-        var sb = new StringBuilder(input.Length);
-        foreach (Rune rune in input.EnumerateRunes())
-        {
-            int c = rune.Value;
-            if (c >= KatakanaStart && c <= KatakanaEnd)
-            {
-                sb.Append((char)(c - Offset));
-            }
-            else
-            {
-                sb.Append(rune.ToString());
-            }
-        }
-        return sb.ToString();
-    }
+    public static string HiraganaToRomanji(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.hiragana_to_romanji_da, JapaneseRules.hiragana_to_romanji_table, input);
+
+    public static string RomanjiToHiragana(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.romanji_to_hiragana_da, JapaneseRules.romanji_to_hiragana_table, input);
+
+    public static string HalfWidthAsciiToFullWidthAscii(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.halfwidthascii_to_fullwidthascii_da,
+            JapaneseRules.halfwidthascii_to_fullwidthascii_table, input);
+
+    public static string FullWidthAsciiToHalfWidthAscii(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.fullwidthascii_to_halfwidthascii_da,
+            JapaneseRules.fullwidthascii_to_halfwidthascii_table, input);
+
+    public static string HalfWidthKatakanaToFullWidthKatakana(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.halfwidthkatakana_to_fullwidthkatakana_da,
+            JapaneseRules.halfwidthkatakana_to_fullwidthkatakana_table, input);
+
+    public static string FullWidthKatakanaToHalfWidthKatakana(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.fullwidthkatakana_to_halfwidthkatakana_da,
+            JapaneseRules.fullwidthkatakana_to_halfwidthkatakana_table, input);
+
+    public static string HiraganaToFullwidthRomanji(string input) =>
+        HalfWidthAsciiToFullWidthAscii(HiraganaToRomanji(input));
+
+    public static string NormalizeVoicedSoundMark(string input) =>
+        JapaneseTextConverter.Convert(
+            JapaneseRules.normalize_voiced_sound_da,
+            JapaneseRules.normalize_voiced_sound_table, input);
+
+    public static string FullWidthToHalfWidth(string input) =>
+        FullWidthKatakanaToHalfWidthKatakana(FullWidthAsciiToHalfWidthAscii(input));
+
+    public static string HalfWidthToFullWidth(string input) =>
+        HalfWidthKatakanaToFullWidthKatakana(HalfWidthAsciiToFullWidthAscii(input));
 }
