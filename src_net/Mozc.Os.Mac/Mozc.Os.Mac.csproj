@@ -4,6 +4,7 @@
        ObjC サブクラス(handleEvent/updateComposition/commitComposition forward)は実機で native(極薄)。 -->
   <PropertyGroup>
     <RootNamespace>Mozc.Os.Mac</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
