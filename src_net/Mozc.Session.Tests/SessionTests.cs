@@ -86,6 +86,21 @@ public class SessionTests
     }
 
     [Fact]
+    public void GetZeroQuerySuggestions_BeforeTyping()
+    {
+        var history = new Prediction.UserHistoryPredictor();
+        history.Learn("もずく", "Mozc");
+        var s = new Session(Engine(), Keymap(), rewriter: null, history: history);
+
+        // 打鍵前は履歴のゼロクエリ候補が出る。
+        Assert.Contains("Mozc", s.GetZeroQuerySuggestions());
+
+        // 打鍵後はゼロクエリは空(通常サジェストへ切替)。
+        s.SendKey("w");
+        Assert.Empty(s.GetZeroQuerySuggestions());
+    }
+
+    [Fact]
     public void FullFlow_Type_Space_Enter()
     {
         Session s = NewSession();

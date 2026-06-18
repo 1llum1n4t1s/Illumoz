@@ -219,6 +219,10 @@ public sealed class SessionConverter
         return _history.Predict(_composer.GetQueryForConversion(), maxResults);
     }
 
+    // 入力前のゼロクエリ予測(履歴の直近)。履歴が無ければ空。
+    public List<Prediction.PredictionResult> PredictZeroQuery(int maxResults = 5)
+        => _history?.PredictZeroQuery(maxResults) ?? new List<Prediction.PredictionResult>();
+
     // 履歴予測 + 辞書予測を統合(履歴を上位に、value 重複は低コスト採用、コスト昇順)。
     // C++ の predictor aggregator 相当の中核スライス。
     public List<Prediction.PredictionResult> PredictMerged(int maxResults = 10)

@@ -42,6 +42,16 @@ public sealed class Session
         return _converter.PredictMerged(maxResults).ConvertAll(p => p.Value);
     }
 
+    // 入力前(打鍵なし)のゼロクエリ候補(履歴の直近)。入力中/変換中は空。
+    public IReadOnlyList<string> GetZeroQuerySuggestions(int maxResults = 5)
+    {
+        if (_converter.CurrentState != SessionConverter.State.Composition || _typed.Count != 0)
+        {
+            return global::System.Array.Empty<string>();
+        }
+        return _converter.PredictZeroQuery(maxResults).ConvertAll(p => p.Value);
+    }
+
     private string Status() => _converter.CurrentState switch
     {
         SessionConverter.State.Conversion => "Conversion",
