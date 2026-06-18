@@ -20,6 +20,36 @@ public sealed class Session
     private readonly SessionConverter _converter;
     // Backspace 用に打鍵列を保持(Composer は編集 API 未実装のため再構築する)。
     private readonly List<string> _typed = new();
+    // Undo 用: 直前に確定した打鍵列(確定の取り消しで composition を復元)。
+    private List<string> _lastCommitted = new();
+
+    // 確定時に打鍵列を Undo 用へ退避してクリアする。
+    private void SnapshotAndClearTyped()
+    {
+        if (_typed.Count > 0)
+        {
+            _lastCommitted = new List<string>(_typed);
+        }
+        _typed.Clear();
+    }
+
+    // 直前の確定を取り消し、確定前の composition を復元する(C++ Undo 相当)。
+    public SessionResult Undo()
+    {
+        if (_lastCommitted.Count == 0)
+        {
+            return new SessionResult { Preedit = GetPreedit(), Consumed = false };
+        }
+        _converter.Reset();
+        _typed.Clear();
+        foreach (string ch in _lastCommitted)
+        {
+            _converter.InsertCharacter(ch);
+            _typed.Add(ch);
+        }
+        _lastCommitted = new List<string>();
+        return Current(true);
+    }
 
     public Session(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null,
         Prediction.UserHistoryPredictor? history = null,
@@ -93,7 +123,7 @@ public sealed class Session
                     string? sug = _converter.CommitSuggestion(id);
                     if (sug != null)
                     {
-                        _typed.Clear();
+                        SnapshotAndClearTyped();
                         return new SessionResult { Committed = sug, Preedit = "", Consumed = true };
                     }
                 }
@@ -102,7 +132,7 @@ public sealed class Session
             case SessionCommandType.Submit:
             {
                 string committed = _converter.Commit();
-                _typed.Clear();
+                SnapshotAndClearTyped();
                 return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
             }
             case SessionCommandType.Revert:
@@ -133,7 +163,7 @@ public sealed class Session
             case "Commit":
             {
                 string committed = _converter.Commit();
-                _typed.Clear();
+                SnapshotAndClearTyped();
                 return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
             }
             case "Convert":
@@ -190,7 +220,7 @@ public sealed class Session
         {
             // 変換中の入力 → SessionConverter 側で直前確定。打鍵列はリセット。
             committed = _converter.Commit();
-            _typed.Clear();
+            SnapshotAndClearTyped();
         }
         _converter.InsertCharacter(ch);
         _typed.Add(ch);

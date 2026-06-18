@@ -86,6 +86,28 @@ public class SessionTests
     }
 
     [Fact]
+    public void Undo_RestoresCompositionAfterCommit()
+    {
+        Session s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        s.SendKey("Space");          // 変換
+        SessionResult commit = s.SendKey("Enter"); // 確定
+        Assert.Equal("私", commit.Committed);
+        Assert.Equal("", s.GetPreedit());
+
+        // Undo で確定前の composition(わたし)へ戻る。
+        SessionResult undo = s.Undo();
+        Assert.True(undo.Consumed);
+        Assert.Equal("わたし", s.GetPreedit());
+
+        // 2 回目の Undo は何もしない。
+        Assert.False(s.Undo().Consumed);
+    }
+
+    [Fact]
     public void GetZeroQuerySuggestions_BeforeTyping()
     {
         var history = new Prediction.UserHistoryPredictor();
