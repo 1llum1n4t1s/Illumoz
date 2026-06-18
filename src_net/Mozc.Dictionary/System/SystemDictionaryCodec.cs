@@ -18,6 +18,40 @@ public sealed class SystemDictionaryCodec
     private const int MarkCodepointRight0 = 0x40;
     private const int MarkCodepointLeftMask = 0x1f;
 
+    // キー codec(codec.cc EncodeDecodeKeyImpl)。エンコード=デコードの対称変換。
+    // 頻出ひらがな/カタカナを 1 バイト制御域へ写し trie キーを圧縮する。自己反転。
+    public string EncodeKey(string key) => TransformKey(key);
+    public string DecodeKey(string key) => TransformKey(key);
+
+    public int GetEncodedKeyLength(string key) => Encoding.UTF8.GetByteCount(TransformKey(key));
+    public int GetDecodedKeyLength(string key) => Encoding.UTF8.GetByteCount(TransformKey(key));
+
+    private static string TransformKey(string src)
+    {
+        var sb = new StringBuilder(src.Length);
+        foreach (Rune rune in src.EnumerateRunes())
+        {
+            uint code = (uint)rune.Value;
+            int offset = 0;
+            if ((code is >= 0x0001 and <= 0x001f) || (code is >= 0x3041 and <= 0x305f))
+            {
+                offset = 0x3041 - 0x0001;
+            }
+            else if ((code is >= 0x0040 and <= 0x0075) || (code is >= 0x3060 and <= 0x3095))
+            {
+                offset = 0x3060 - 0x0040;
+            }
+            else if ((code is >= 0x0076 and <= 0x0077) || (code is >= 0x30FB and <= 0x30FC))
+            {
+                offset = 0x30FB - 0x0076;
+            }
+
+            code = code < 0x80 ? (uint)(code + offset) : (uint)(code - offset);
+            sb.Append(char.ConvertFromUtf32((int)code));
+        }
+        return sb.ToString();
+    }
+
     public byte[] EncodeValue(string value)
     {
         var dst = new List<byte>(value.Length);
