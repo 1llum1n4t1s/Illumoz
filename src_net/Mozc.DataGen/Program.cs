@@ -5,6 +5,7 @@ using Mozc.DataGen;
 //   Mozc.DataGen --out mozc.data --id-def id.def --connection conn.txt --conn-special 0 \
 //     --pos-matcher-rule pos_matcher_rule.def --segmenter-rule segmenter.def \
 //     --boundary boundary.def --special-pos special_pos.def --dict d00.txt --dict d01.txt ...
+//     [--symbol symbol.tsv --single-kanji single_kanji.tsv --emoji emoji_data.tsv]
 static class Program
 {
     static int Main(string[] args)
@@ -13,6 +14,7 @@ static class Program
         var dicts = new List<string>();
         string connection = string.Empty, idDef = string.Empty, specialPos = string.Empty;
         string posRule = string.Empty, segRule = string.Empty, boundary = string.Empty;
+        string symbol = string.Empty, singleKanji = string.Empty, emoji = string.Empty;
         int connSpecial = 0;
 
         for (int i = 0; i < args.Length; i++)
@@ -30,6 +32,9 @@ static class Program
                 case "--pos-matcher-rule": posRule = Next(); break;
                 case "--segmenter-rule": segRule = Next(); break;
                 case "--boundary": boundary = Next(); break;
+                case "--symbol": symbol = Next(); break;
+                case "--single-kanji": singleKanji = Next(); break;
+                case "--emoji": emoji = Next(); break;
                 default:
                     global::System.Console.Error.WriteLine($"unknown arg: {a}");
                     return 2;
@@ -52,6 +57,9 @@ static class Program
             PosMatcherRuleFile = posRule,
             SegmenterRuleFile = segRule,
             BoundaryDefFile = boundary,
+            SymbolFile = symbol,
+            SingleKanjiFile = singleKanji,
+            EmojiFile = emoji,
         });
         global::System.IO.File.WriteAllBytes(outPath, data);
         global::System.Console.WriteLine($"wrote {data.Length} bytes to {outPath}");
