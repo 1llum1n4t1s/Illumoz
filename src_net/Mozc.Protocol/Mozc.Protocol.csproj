@@ -26,6 +26,11 @@
               ProtoRoot="..\..\src"
               GrpcServices="None"
               CompileOutputs="true" />
+    <!-- IPC パス情報(.ipc ファイルの中身)。package mozc.ipc -->
+    <Protobuf Include="..\..\src\ipc\ipc.proto"
+              ProtoRoot="..\..\src"
+              GrpcServices="None"
+              CompileOutputs="true" />
   </ItemGroup>
 
 </Project>
