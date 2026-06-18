@@ -26,6 +26,13 @@ public sealed class EngineServer
     public SessionHandler Handler => _handler;
     public ConfigManager Config => _config;
 
+    // config.character_form_rules から構築した文字形マネージャ(preedit / conversion)。
+    // ApplyConfig で更新される。既定は C++ Preedit 既定ルール。
+    public Mozc.Base.CharacterFormManager PreeditFormManager { get; private set; }
+        = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+    public Mozc.Base.CharacterFormManager ConversionFormManager { get; private set; }
+        = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+
     // Config を session の挙動へ反映する(履歴学習レベル + keymap プリセット)。
     public void ApplyConfig()
     {
@@ -36,6 +43,9 @@ public sealed class EngineServer
         // CommandRewriter があれば config のモードフラグを反映する(C++ command_rewriter は
         // config.incognito_mode / presentation_mode / use_*_suggest を直接参照する)。
         ApplyConfigToCommandRewriter(c);
+
+        // 文字形ルールを反映する。rules が無ければ既定(Preedit 既定)を維持。
+        BuildCharacterFormManagers(c);
 
         // SessionKeymap に対応するプリセットが src/data にあれば差し替える。
         if (_dataDir != null)
@@ -77,6 +87,33 @@ public sealed class EngineServer
                 break;
         }
     }
+
+    // config.character_form_rules から preedit / conversion の文字形マネージャを構築。
+    private void BuildCharacterFormManagers(Mozc.Config.Config c)
+    {
+        if (c.CharacterFormRules.Count == 0)
+        {
+            return; // 既定を維持。
+        }
+        var preedit = new global::System.Collections.Generic.List<(string, Mozc.Base.CharacterForm)>();
+        var conversion = new global::System.Collections.Generic.List<(string, Mozc.Base.CharacterForm)>();
+        foreach (Mozc.Config.Config.Types.CharacterFormRule rule in c.CharacterFormRules)
+        {
+            preedit.Add((rule.Group, MapForm(rule.PreeditCharacterForm)));
+            conversion.Add((rule.Group, MapForm(rule.ConversionCharacterForm)));
+        }
+        PreeditFormManager = Mozc.Base.CharacterFormManager.FromRules(preedit);
+        ConversionFormManager = Mozc.Base.CharacterFormManager.FromRules(conversion);
+    }
+
+    // config の CharacterForm → Base の CharacterForm。LAST_FORM は未実装のため
+    // 既定(FullWidth)へ解決する(履歴記憶は将来対応)。
+    private static Mozc.Base.CharacterForm MapForm(Mozc.Config.Config.Types.CharacterForm f) => f switch
+    {
+        Mozc.Config.Config.Types.CharacterForm.HalfWidth => Mozc.Base.CharacterForm.HalfWidth,
+        Mozc.Config.Config.Types.CharacterForm.FullWidth => Mozc.Base.CharacterForm.FullWidth,
+        _ => Mozc.Base.CharacterForm.FullWidth, // LAST_FORM
+    };
 
     // CommandRewriter にモード状態を流し込む(pipeline 内を探索)。
     private void ApplyConfigToCommandRewriter(Mozc.Config.Config c)

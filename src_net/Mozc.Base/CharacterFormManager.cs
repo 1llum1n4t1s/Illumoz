@@ -39,6 +39,23 @@ public sealed class CharacterFormManager
         return m;
     }
 
+    // config.character_form_rules 相当(group 文字列 + form)からまとめて構築する。
+    // C++ では LAST_FORM は履歴記憶だが、未実装のため呼び出し側で FullWidth 等へ
+    // 解決した form を渡す。空 group / 空 rules はそのまま無視される。
+    public static CharacterFormManager FromRules(
+        global::System.Collections.Generic.IEnumerable<(string Group, CharacterForm Form)> rules)
+    {
+        var m = new CharacterFormManager();
+        foreach ((string group, CharacterForm form) in rules)
+        {
+            if (!string.IsNullOrEmpty(group))
+            {
+                m.AddRule(group, form);
+            }
+        }
+        return m;
+    }
+
     // input の各文字を正規化代表へ畳んで form を登録する。
     public void AddRule(string input, CharacterForm form)
     {

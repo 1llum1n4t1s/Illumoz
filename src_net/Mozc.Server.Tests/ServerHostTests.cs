@@ -117,6 +117,25 @@ public class ServerHostTests
         Assert.True(rw.PresentationMode);
     }
 
+    [Fact]
+    public void ApplyConfig_BuildsCharacterFormManagerFromRules()
+    {
+        EngineServer s = Server();
+        Mozc.Config.Config c = s.Config.GetConfig();
+        var rule = new Mozc.Config.Config.Types.CharacterFormRule
+        {
+            Group = "0",
+            ConversionCharacterForm = Mozc.Config.Config.Types.CharacterForm.HalfWidth,
+            PreeditCharacterForm = Mozc.Config.Config.Types.CharacterForm.FullWidth,
+        };
+        c.CharacterFormRules.Add(rule);
+        s.SetConfig(c);
+
+        // conversion 側は数字を半角化、preedit 側は全角化。
+        Assert.Equal("123", s.ConversionFormManager.ConvertString("１２３"));
+        Assert.Equal("１２３", s.PreeditFormManager.ConvertString("123"));
+    }
+
     private static Mozc.Rewriter.CommandRewriter? FindCommandRewriter(EngineServer s)
     {
         if (s.Handler.Rewriter is not Mozc.Rewriter.RewriterMerger merger)

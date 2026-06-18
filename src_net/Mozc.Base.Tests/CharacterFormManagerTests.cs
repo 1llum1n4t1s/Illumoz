@@ -50,6 +50,21 @@ public class CharacterFormManagerTests
     }
 
     [Fact]
+    public void FromRules_BuildsTable()
+    {
+        var m = CharacterFormManager.FromRules(new[]
+        {
+            ("0", CharacterForm.HalfWidth),
+            ("A", CharacterForm.FullWidth),
+            ("", CharacterForm.HalfWidth), // 空 group は無視
+        });
+        Assert.Equal(CharacterForm.HalfWidth, m.GetCharacterForm("7"));
+        Assert.Equal(CharacterForm.FullWidth, m.GetCharacterForm("x"));
+        Assert.Equal("0", m.ConvertString("０"));
+        Assert.Equal("Ａ", m.ConvertString("A"));
+    }
+
+    [Fact]
     public void ConvertString_MixedRuns()
     {
         var m = new CharacterFormManager();
