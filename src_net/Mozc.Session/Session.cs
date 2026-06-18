@@ -215,13 +215,14 @@ public sealed class Session
                 _converter.ConvertToTransliteration(c => c.GetFullKatakana());
                 return Current(true);
             case "ConvertToHalfKatakana":
+            case "ConvertToHalfWidth":
+                // 半角化(F8): かな読みは半角カタカナへ。
                 _converter.ConvertToTransliteration(c => c.GetHalfKatakana());
                 return Current(true);
             case "ConvertToFullAlphanumeric":
                 _converter.ConvertToTransliteration(c => c.GetFullAscii());
                 return Current(true);
             case "ConvertToHalfAlphanumeric":
-            case "ConvertToHalfWidth":
                 _converter.ConvertToTransliteration(c => c.GetHalfAscii());
                 return Current(true);
             default:

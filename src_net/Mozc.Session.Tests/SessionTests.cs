@@ -59,11 +59,38 @@ public class SessionTests
             "Composition\tBackspace\tBackspace",
             "Conversion\tEscape\tCancel",
             "Precomposition\tCtrl Backspace\tUndo",
+            "Composition\tF7\tConvertToFullKatakana",
+            "Composition\tF8\tConvertToHalfWidth",
         }));
         return km;
     }
 
     private static Session NewSession() => new(Engine(), Keymap());
+
+    [Fact]
+    public void F7_ConvertsToFullKatakana_ViaKeymap()
+    {
+        var s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        SessionResult r = s.SendKey("F7");
+        Assert.True(r.Consumed);
+        Assert.Equal("ワタシ", r.Preedit);
+        Assert.Equal("ワタシ", s.SendKey("Enter").Committed);
+    }
+
+    [Fact]
+    public void F8_ConvertsToHalfKatakana_ViaKeymap()
+    {
+        var s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        Assert.Equal("ﾜﾀｼ", s.SendKey("F8").Preedit);
+    }
 
     [Fact]
     public void GetSuggestions_DuringComposition()
