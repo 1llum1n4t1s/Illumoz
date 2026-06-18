@@ -90,6 +90,23 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void SelectByShortcut_SelectsCandidate()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+
+        // '1' → index 0 を選択(候補1件でも先頭は有効)。
+        Assert.True(sc.SelectByShortcut('1', "123456789"));
+        // 範囲外('2'→index1)・shortcuts に無い文字('x')は false。
+        Assert.False(sc.SelectByShortcut('2', "123456789"));
+        Assert.False(sc.SelectByShortcut('x', "123456789"));
+    }
+
+    [Fact]
     public void PredictMerged_HistoryRanksAboveDictionary()
     {
         var history = new Prediction.UserHistoryPredictor();

@@ -113,6 +113,14 @@ public sealed class SessionConverter
         return true;
     }
 
+    // ショートカット文字(例 "123456789" の '3')で候補を選択する。
+    // shortcuts に無い文字や範囲外は false。
+    public bool SelectByShortcut(char shortcut, string shortcuts)
+    {
+        int idx = shortcuts.IndexOf(shortcut);
+        return idx >= 0 && SelectCandidate(idx);
+    }
+
     // 注目文節を右/左へ。
     public void SegmentFocusRight()
     {
