@@ -88,7 +88,7 @@ public static class UserDictionaryImporter
         }
 
         List<string> values = type == ImeType.Kotoeri
-            ? SplitCsv(line)
+            ? Mozc.Base.CsvUtil.SplitCsv(line)
             : new List<string>(line.Split('\t'));
 
         if (values.Count < 3)
@@ -116,51 +116,5 @@ public static class UserDictionaryImporter
             return false;
         }
         return int.TryParse(s.AsSpan(0, i), out value);
-    }
-
-    // ことえり用の最小 CSV 分割(ダブルクオート対応、"" はエスケープ)。
-    private static List<string> SplitCsv(string line)
-    {
-        var result = new List<string>();
-        var sb = new global::System.Text.StringBuilder();
-        bool inQuotes = false;
-        for (int i = 0; i < line.Length; i++)
-        {
-            char c = line[i];
-            if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < line.Length && line[i + 1] == '"')
-                    {
-                        sb.Append('"');
-                        i++;
-                    }
-                    else
-                    {
-                        inQuotes = false;
-                    }
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-            else if (c == '"')
-            {
-                inQuotes = true;
-            }
-            else if (c == ',')
-            {
-                result.Add(sb.ToString());
-                sb.Clear();
-            }
-            else
-            {
-                sb.Append(c);
-            }
-        }
-        result.Add(sb.ToString());
-        return result;
     }
 }
