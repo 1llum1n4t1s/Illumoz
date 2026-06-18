@@ -12,6 +12,7 @@ public static class ImkBridge
     private static ImkController? _controller;
     private static string _preedit = string.Empty;
     private static string _commit = string.Empty;
+    private static string _candidates = string.Empty; // 改行区切りの候補列。
 
     public static void InitForTest(Func<byte[], byte[]> transport)
         => _controller = new ImkController(transport);
@@ -38,6 +39,7 @@ public static class ImkBridge
             : _controller.HandleCharacter((char)ke.KeyCode);
         _preedit = s.Preedit;
         _commit = s.Commit;
+        _candidates = string.Join('\n', s.Candidates);
         return s.Consumed ? 1 : 0;
     }
 
@@ -46,6 +48,9 @@ public static class ImkBridge
 
     [UnmanagedCallersOnly(EntryPoint = "mozc_imk_get_commit")]
     public static unsafe int GetCommit(byte* buf, int cap) => WriteUtf8(_commit, buf, cap);
+
+    [UnmanagedCallersOnly(EntryPoint = "mozc_imk_get_candidates")]
+    public static unsafe int GetCandidates(byte* buf, int cap) => WriteUtf8(_candidates, buf, cap);
 
     public static unsafe int WriteUtf8(string s, byte* buf, int cap)
     {
@@ -64,4 +69,7 @@ public static class ImkBridge
         int c = ProcessKeyCore(keyCode, chars, modifiers);
         return (_preedit, _commit, c != 0);
     }
+
+    // テスト用: 直近の候補列(改行区切り)。
+    public static string CandidatesManaged => _candidates;
 }

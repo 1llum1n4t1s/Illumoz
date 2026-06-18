@@ -46,6 +46,7 @@ public class ImkBridgeTests
             last = ImkBridge.ProcessKeyManaged(0, c.ToString(), 0);
         }
         Assert.Equal("わたし", last.Preedit);
+        Assert.Contains("私", ImkBridge.CandidatesManaged.Split('\n')); // 候補列が native へ渡せる
         ImkBridge.ProcessKeyManaged(49, " ", 0); // Space(keyCode 49)
         var committed = ImkBridge.ProcessKeyManaged(36, "", 0); // Return
         Assert.Equal("私", committed.Commit);
