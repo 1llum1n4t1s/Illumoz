@@ -21,6 +21,9 @@ public sealed partial class WordRegisterViewModel : ObservableObject
         "接頭語", "接尾一般", "顔文字", "記号", "抑制単語",
     };
 
+    // XAML compiled binding 用のインスタンス公開。
+    public IReadOnlyList<string> PosList => PosCandidates;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RegisterCommand))]
     private string _reading = string.Empty;

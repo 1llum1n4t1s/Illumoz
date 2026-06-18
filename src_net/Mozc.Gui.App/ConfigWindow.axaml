@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Mozc.Gui;assembly=Mozc.Gui"
+        x:Class="Mozc.Gui.App.ConfigWindow"
+        x:DataType="vm:ConfigViewModel"
+        Width="420" Height="280" Title="Mozc 設定"
+        WindowStartupLocation="CenterScreen">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="Auto,*">
+    <TextBlock Grid.Row="0" Grid.Column="0" Text="入力方式" VerticalAlignment="Center" Margin="0,4"/>
+    <ComboBox Grid.Row="0" Grid.Column="1" Margin="8,4" HorizontalAlignment="Stretch"
+              ItemsSource="{Binding InputModeList}" SelectedItem="{Binding InputMode}"/>
+
+    <TextBlock Grid.Row="1" Grid.Column="0" Text="句読点" VerticalAlignment="Center" Margin="0,4"/>
+    <ComboBox Grid.Row="1" Grid.Column="1" Margin="8,4" HorizontalAlignment="Stretch"
+              ItemsSource="{Binding PunctuationList}" SelectedItem="{Binding Punctuation}"/>
+
+    <TextBlock Grid.Row="2" Grid.Column="0" Text="サジェスト数" VerticalAlignment="Center" Margin="0,4"/>
+    <NumericUpDown Grid.Row="2" Grid.Column="1" Margin="8,4" Minimum="1" Maximum="9"
+                   Value="{Binding SuggestionsSize}"/>
+
+    <CheckBox Grid.Row="3" Grid.Column="1" Margin="8,4" Content="履歴サジェストを使う"
+              IsChecked="{Binding UseHistorySuggest}"/>
+
+    <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="既定に戻す" Command="{Binding ResetCommand}"/>
+      <Button Content="適用" Command="{Binding ApplyCommand}"/>
+    </StackPanel>
+  </Grid>
+</Window>

@@ -12,6 +12,7 @@
   <Project Path="Mozc.Engine.Tests/Mozc.Engine.Tests.csproj" />
   <Project Path="Mozc.Engine/Mozc.Engine.csproj" />
   <Project Path="Mozc.Gui.Tests/Mozc.Gui.Tests.csproj" />
+  <Project Path="Mozc.Gui.App/Mozc.Gui.App.csproj" />
   <Project Path="Mozc.Gui/Mozc.Gui.csproj" />
   <Project Path="Mozc.Ipc.Tests/Mozc.Ipc.Tests.csproj" />
   <Project Path="Mozc.Ipc/Mozc.Ipc.csproj" />

@@ -29,6 +29,10 @@ public sealed partial class ConfigViewModel : ObservableObject
         PunctuationSetting.CommaTouten, PunctuationSetting.KutenPeriod,
     };
 
+    // XAML compiled binding 用インスタンス公開。
+    public IReadOnlyList<InputModeSetting> InputModeList => InputModes;
+    public IReadOnlyList<PunctuationSetting> PunctuationList => Punctuations;
+
     [ObservableProperty] private InputModeSetting _inputMode = InputModeSetting.Romaji;
     [ObservableProperty] private PunctuationSetting _punctuation = PunctuationSetting.KutenTouten;
     [ObservableProperty] private SpaceCharSetting _spaceChar = SpaceCharSetting.Follow;
