@@ -11,6 +11,7 @@ internal static class Program
     {
         string data = string.Empty, roman = string.Empty, keymap = string.Empty;
         string pipe = "mozc.session";
+        string? dataDir = null;
         for (int i = 0; i < args.Length; i++)
         {
             string Next() => ++i < args.Length ? args[i] : string.Empty;
@@ -20,6 +21,7 @@ internal static class Program
                 case "--roman": roman = Next(); break;
                 case "--keymap": keymap = Next(); break;
                 case "--pipe": pipe = Next(); break;
+                case "--datadir": dataDir = Next(); break;
             }
         }
         if (data.Length == 0 || roman.Length == 0 || keymap.Length == 0)
@@ -28,7 +30,8 @@ internal static class Program
             return 2;
         }
 
-        EngineServer server = ServerHost.Create(data, roman, keymap);
+        // --datadir 指定時は symbol.tsv/single_kanji.tsv を実データ結線する。
+        EngineServer server = ServerHost.Create(data, roman, keymap, dataDir);
 
         // .ipc を公開(key/protocol/pid)。クライアントは IpcPathManager.TryLoad で実 pipe 名を得る。
         IpcPathManager pathManager = IpcPathManager.Create(
