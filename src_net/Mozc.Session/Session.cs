@@ -31,6 +31,16 @@ public sealed class Session
     public SessionConverter Converter => _converter;
     public string GetPreedit() => _converter.GetPreedit();
 
+    // 入力中(composition)のサジェスト候補(履歴+辞書統合)。確定/変換中は空。
+    public IReadOnlyList<string> GetSuggestions(int maxResults = 9)
+    {
+        if (_converter.CurrentState != SessionConverter.State.Composition || _typed.Count == 0)
+        {
+            return global::System.Array.Empty<string>();
+        }
+        return _converter.PredictMerged(maxResults).ConvertAll(p => p.Value);
+    }
+
     private string Status() => _converter.CurrentState switch
     {
         SessionConverter.State.Conversion => "Conversion",

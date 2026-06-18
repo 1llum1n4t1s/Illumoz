@@ -65,6 +65,27 @@ public class SessionTests
     private static Session NewSession() => new(Engine(), Keymap());
 
     [Fact]
+    public void GetSuggestions_DuringComposition()
+    {
+        var history = new Prediction.UserHistoryPredictor();
+        var s = new Session(Engine(), Keymap(), rewriter: null, history: history);
+        // 入力前は空。
+        Assert.Empty(s.GetSuggestions());
+
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        // わたし→私 が辞書サジェストに出る。
+        Assert.Contains("私", s.GetSuggestions());
+
+        // 確定後は composition でないので空。
+        s.SendKey("Space");
+        s.SendKey("Enter");
+        Assert.Empty(s.GetSuggestions());
+    }
+
+    [Fact]
     public void FullFlow_Type_Space_Enter()
     {
         Session s = NewSession();
