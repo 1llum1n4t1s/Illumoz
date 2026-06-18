@@ -129,10 +129,14 @@ public sealed class Composition
         return sb.ToString();
     }
 
-    // 予測用クエリ: 末尾 pending をトリムした文字列を半角ASCII化する
-    // (C++ GetQueryForPrediction の非ASCIIモード相当の中核スライス)。
+    // 予測用クエリ: 末尾 pending をトリムし、数字隣接の日本語記号を数式記号へ変換した上で
+    // 半角ASCII化する(C++ GetQueryForPrediction の非ASCIIモード相当)。
     public string GetQueryForPrediction()
-        => Mozc.Base.JapaneseUtil.FullWidthAsciiToHalfWidthAscii(GetStringWithTrimMode(TrimMode.Trim));
+    {
+        string baseQuery = GetStringWithTrimMode(TrimMode.Trim);
+        (_, string transformed) = NumberCharTransformer.Transform(baseQuery);
+        return Mozc.Base.JapaneseUtil.FullWidthAsciiToHalfWidthAscii(transformed);
+    }
 
     public string GetStringWithTrimMode(TrimMode trimMode)
     {
