@@ -22,7 +22,11 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
     if (event.type != NSEventTypeKeyDown) {
         return NO;
     }
-    const char *chars = event.characters ? event.characters.UTF8String : "";
+    /* ショートカット照合のため、修飾を適用済みの characters ではなく
+     * charactersIgnoringModifiers(Shift 以外の修飾を無視した素のキー識別)を渡す。
+     * 例: Ctrl+h は Ctrl+U+0008 ではなく 'h' として送られ、サーバが "Ctrl h" を一致できる。 */
+    NSString *keyChars = event.charactersIgnoringModifiers ?: event.characters;
+    const char *chars = keyChars ? keyChars.UTF8String : "";
     int consumed = mozc_imk_process_key((uint16_t)event.keyCode,
                                         chars, (int)strlen(chars),
                                         (uint32_t)event.modifierFlags);

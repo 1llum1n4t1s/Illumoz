@@ -8,6 +8,10 @@
   <string>org.mozc.inputmethod.Mozc</string>
   <key>CFBundleName</key>
   <string>Mozc</string>
+  <!-- macOS が実行ファイル(Contents/MacOS/Mozc)を特定するために必須。
+       欠落すると LaunchServices/IMK が bundle を起動できない。 -->
+  <key>CFBundleExecutable</key>
+  <string>Mozc</string>
   <key>CFBundleVersion</key>
   <string>1.0.0</string>
   <key>CFBundlePackageType</key>

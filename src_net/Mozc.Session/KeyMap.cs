@@ -52,10 +52,22 @@ public sealed class KeyMap
     // 指定 status・KeyEvent に対応するコマンド名(無ければ null)。
     public string? GetCommand(string status, KeyEvent keyEvent)
     {
-        return _map.TryGetValue(status, out Dictionary<string, string>? byKey)
-            && byKey.TryGetValue(keyEvent.Signature(), out string? command)
-            ? command
-            : null;
+        string sig = keyEvent.Signature();
+        if (_map.TryGetValue(status, out Dictionary<string, string>? byKey)
+            && byKey.TryGetValue(sig, out string? command))
+        {
+            return command;
+        }
+        // Suggestion 状態は Composition を継承する(keymap tsv は Suggestion 固有行のみ持ち、
+        // 通常の編集キーは Composition 行にある。フォールバックしないと入力中に backspace 等が
+        // 効かなくなる)。
+        if (status == "Suggestion"
+            && _map.TryGetValue("Composition", out Dictionary<string, string>? comp)
+            && comp.TryGetValue(sig, out string? inherited))
+        {
+            return inherited;
+        }
+        return null;
     }
 
     public string? GetCommand(string status, string keyString)

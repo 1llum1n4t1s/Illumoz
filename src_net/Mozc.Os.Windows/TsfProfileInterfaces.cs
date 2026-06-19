@@ -21,12 +21,13 @@ public partial interface ITfInputProcessorProfiles
 }
 
 // ITfCategoryMgr。IID: c3acefb5-f69d-4905-938f-fcadcf4be830
-// vtable: 1=RegisterCategory（以降省略）。
+// vtable: 1=RegisterCategory, 2=UnregisterCategory（以降省略）。
 [GeneratedComInterface]
 [Guid("c3acefb5-f69d-4905-938f-fcadcf4be830")]
 public partial interface ITfCategoryMgr
 {
     [PreserveSig] int RegisterCategory(in Guid rclsid, in Guid rcatid, in Guid rguid);
+    [PreserveSig] int UnregisterCategory(in Guid rclsid, in Guid rcatid, in Guid rguid);
 }
 
 // TSF 既知 GUID(msctf.h / ctffunc.h)。

@@ -26,6 +26,14 @@ public sealed class UserDictionaryStorage
         {
             return false;
         }
+        // 読みを正規化(全角→半角/半角カナ→全角カナ/カタカナ→ひらがな)してから格納する。
+        // 変換時の照合キー(composer のひらがな)と一致させないと、カタカナ等で登録した語が
+        // LookupExact("...") で引けず変換に出てこないため。
+        string normalized = UserDictionaryUtil.NormalizeReading(entry.Reading);
+        if (normalized != entry.Reading)
+        {
+            entry = entry with { Reading = normalized };
+        }
         if (_entries.Exists(e => e.Reading == entry.Reading && e.Word == entry.Word))
         {
             return false;

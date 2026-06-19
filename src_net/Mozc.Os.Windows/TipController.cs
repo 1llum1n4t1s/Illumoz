@@ -35,6 +35,13 @@ public sealed class TipController
             return;
         }
         Pb.Output o = Send(new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession });
+        // id=0(MaxSessions 到達等で失敗)は確立扱いにしない。確立扱いすると以降ずっと
+        // session id 0 でキーを送り続け、COM 再生成まで再試行しなくなるため(ImeClient と同じガード)。
+        if (o.Id == 0)
+        {
+            _hasSession = false;
+            return;
+        }
         _sessionId = o.Id;
         _hasSession = true;
     }

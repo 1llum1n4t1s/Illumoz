@@ -82,10 +82,19 @@ public sealed class Session
         return _converter.PredictZeroQuery(maxResults).ConvertAll(p => p.Value);
     }
 
+    // 入力中(composition)でサジェストが出ているか。Suggestion キーマップ状態の判定に使う。
+    private bool HasActiveSuggestion()
+        => _converter.CurrentState == SessionConverter.State.Composition
+            && _typed.Count > 0
+            && _converter.PredictMerged(1).Count > 0;
+
+    // keymap 照合用の状態名。サジェスト表示中は "Suggestion"(CommitFirstSuggestion 等の
+    // Suggestion 固有バインドを到達可能にする。未該当キーは Composition 行へフォールバック)。
     private string Status() => _converter.CurrentState switch
     {
         SessionConverter.State.Conversion => "Conversion",
-        _ => _typed.Count == 0 ? "Precomposition" : "Composition",
+        _ => _typed.Count == 0 ? "Precomposition"
+            : HasActiveSuggestion() ? "Suggestion" : "Composition",
     };
 
     public SessionResult SendKey(KeyEvent key)
@@ -229,6 +238,24 @@ public sealed class Session
                 return Backspace();
             case "Undo":
                 return Undo();
+            case "CommitFirstSuggestion":
+            {
+                // サジェスト表示中に先頭候補を確定する(Shift Enter / Ctrl Enter)。
+                string? sug = _converter.CommitSuggestion(0);
+                if (sug != null)
+                {
+                    SnapshotAndClearTyped();
+                    return new SessionResult { Committed = sug, Preedit = "", Consumed = true };
+                }
+                return Current(true);
+            }
+            case "InsertSpace":
+                // 設定の字形は composer のローマ字ルール(" ")側で反映済み。既定は半角。
+                return InsertSpaceCommand(" ");
+            case "InsertHalfSpace":
+                return InsertSpaceCommand(" ");
+            case "InsertFullSpace":
+                return InsertSpaceCommand("　");
             case "ConvertToHiragana":
                 _converter.ConvertToTransliteration(c => c.GetHiragana());
                 return Current(true);
@@ -250,6 +277,24 @@ public sealed class Session
                 // 未対応 command はキーを消費しない。
                 return new SessionResult { Preedit = GetPreedit(), Consumed = false };
         }
+    }
+
+    // スペース挿入コマンド。入力中(composition)なら打鍵として composer へ、
+    // 入力前(precomposition)なら空白をそのまま確定する。いずれもキーを消費する
+    // (アプリへ素のスペースを透過させない)。
+    private SessionResult InsertSpaceCommand(string space)
+    {
+        if (_converter.CurrentState == SessionConverter.State.Composition && _typed.Count > 0)
+        {
+            return InsertChar(space);
+        }
+        if (_converter.CurrentState == SessionConverter.State.Conversion)
+        {
+            string committed = _converter.Commit();
+            SnapshotAndClearTyped();
+            return new SessionResult { Committed = committed + space, Preedit = "", Consumed = true };
+        }
+        return new SessionResult { Committed = space, Preedit = "", Consumed = true };
     }
 
     private SessionResult InsertChar(string ch)

@@ -39,8 +39,10 @@ jobs:
       - name: Build
         run: dotnet build src_net/Mozc.slnx -c Release --no-restore -p:EnableWindowsTargeting=true
 
+      # test も Windows ターゲット projects を含むため、非 Windows ランナーでは
+      # EnableWindowsTargeting が要る(NETSDK1100 回避)。--no-build でも評価される。
       - name: Test
-        run: dotnet test src_net/Mozc.slnx -c Release --no-build --verbosity normal
+        run: dotnet test src_net/Mozc.slnx -c Release --no-build --verbosity normal -p:EnableWindowsTargeting=true
 
   publish-datagen-aot:
     # データ生成 CLI を NativeAOT で各 RID 向けに publish できることを検証(配布の de-risk)。

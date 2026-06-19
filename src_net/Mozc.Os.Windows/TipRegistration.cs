@@ -107,6 +107,49 @@ public static class TipRegistration
         return 0;
     }
 
+    // TSF プロファイル/カテゴリ登録の解除(アンインストール/アップグレード時)。
+    // CLSID レジストリ削除だけだと、TSF 側に存在しない CLSID を指す入力プロファイルが残り、
+    // 古い Mozc エントリやアクティベーション失敗の原因になる。CLSID 削除前に呼ぶ。
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static int UnregisterProfiles()
+    {
+        // カテゴリ登録を解除(Register と逆順)。
+        Guid iidCat = typeof(ITfCategoryMgr).GUID;
+        if (CoCreateInstance(in TsfGuids.CLSID_TF_CategoryMgr, 0,
+                CLSCTX_INPROC_SERVER, in iidCat, out nint pCat) >= 0)
+        {
+            try
+            {
+                var cat = (ITfCategoryMgr)ComInterop.Wrappers
+                    .GetOrCreateObjectForComInstance(pCat, CreateObjectFlags.None);
+                cat.UnregisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, in Clsid);
+                cat.UnregisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_TIP_KEYBOARD, in Clsid);
+            }
+            finally
+            {
+                Marshal.Release(pCat);
+            }
+        }
+
+        // プロファイル/言語プロファイルを解除(Unregister は AddLanguageProfile 分も含めて除去する)。
+        Guid iidProfiles = typeof(ITfInputProcessorProfiles).GUID;
+        if (CoCreateInstance(in TsfGuids.CLSID_TF_InputProcessorProfiles, 0,
+                CLSCTX_INPROC_SERVER, in iidProfiles, out nint pProfiles) >= 0)
+        {
+            try
+            {
+                var profiles = (ITfInputProcessorProfiles)ComInterop.Wrappers
+                    .GetOrCreateObjectForComInstance(pProfiles, CreateObjectFlags.None);
+                profiles.Unregister(in Clsid);
+            }
+            finally
+            {
+                Marshal.Release(pProfiles);
+            }
+        }
+        return 0;
+    }
+
     // regsvr32 がロードした DLL に対し呼ぶ自己登録エクスポート。
     [UnmanagedCallersOnly(EntryPoint = "DllRegisterServer")]
     public static int DllRegisterServer()
@@ -135,6 +178,9 @@ public static class TipRegistration
         {
             if (OperatingSystem.IsWindows())
             {
+                // CLSID レジストリ削除より先に TSF プロファイル/カテゴリ登録を解除する
+                // (TSF が無い環境では失敗しても続行)。
+                try { UnregisterProfiles(); } catch { /* TSF 未導入環境は無視 */ }
                 Microsoft.Win32.Registry.ClassesRoot.DeleteSubKeyTree(
                     $@"CLSID\{{{Clsid.ToString().ToUpperInvariant()}}}", throwOnMissingSubKey: false);
             }
