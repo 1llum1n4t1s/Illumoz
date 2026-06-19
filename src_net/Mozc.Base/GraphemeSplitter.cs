@@ -41,7 +41,9 @@ public static class GraphemeSplitter
             bool isEmojiFlag = prev >= 0x1F1E6 && prev <= 0x1F1FF
                 && cp >= 0x1F1E6 && cp <= 0x1F1FF;
             bool isEmojiTag = (cp >= 0xE0020 && cp <= 0xE007E) || cp == 0xE007F;
-            bool isEmojiKeycap = prev == 0xFE0F && cp == 0x20E3;
+            // キーキャップ(U+20E3)は VS16 経由だけでなく、省略形 "1⃣" のように
+            // 基底文字([0-9#*])直後も同一クラスタにする。
+            bool isEmojiKeycap = cp == 0x20E3 && (prev == 0xFE0F || IsKeycapBase(prev));
             bool isEmojiZwj = cp == 0x200D || prev == 0x200D;
 
             if (isEmojiFlag && result.Count > 0)
@@ -65,4 +67,8 @@ public static class GraphemeSplitter
         }
         return result;
     }
+
+    // キーキャップ列の基底文字(0-9 / # / *)。
+    private static bool IsKeycapBase(int cp)
+        => (cp >= '0' && cp <= '9') || cp == '#' || cp == '*';
 }

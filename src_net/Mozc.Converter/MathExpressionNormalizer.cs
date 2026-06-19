@@ -30,7 +30,8 @@ public static class MathExpressionNormalizer
                 case 0x002B:
                 case 0xFF0B: sb.Append('+'); break;          // + ＋
                 case 0x002D:
-                case 0x30FC: sb.Append('-'); break;          // - ー
+                case 0xFF0D:
+                case 0x30FC: sb.Append('-'); break;          // - － ー
                 case 0x002A:
                 case 0xFF0A:
                 case 0x00D7: sb.Append('*'); break;          // * ＊ ×

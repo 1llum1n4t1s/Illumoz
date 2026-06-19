@@ -31,10 +31,13 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
     /* commit 文字列があれば確定。 */
     char commit[1024];
     int n = mozc_ibus_get_commit(commit, sizeof(commit));
-    if (n > 0 && n < (int)sizeof(commit)) {
+    /* n<0 はエラー、null 終端の余地(<= size-1)を残す。 */
+    if (n > 0 && n <= (int)sizeof(commit) - 1) {
         commit[n] = '\0';
         IBusText *t = ibus_text_new_from_string(commit);
-        ibus_engine_commit_text(engine, t);
+        if (t != NULL) {
+            ibus_engine_commit_text(engine, t);
+        }
     }
 
     /* preedit を更新表示。 */

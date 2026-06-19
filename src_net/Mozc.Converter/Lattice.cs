@@ -71,6 +71,7 @@ public sealed class Lattice
     {
         private readonly Lattice _lattice;
         private readonly List<(int Pos, Node Node)> _inserted = new();
+        private bool _disposed;
 
         public ScopedNodeInserter(Lattice lattice) => _lattice = lattice;
         public bool IsInserted => _inserted.Count > 0;
@@ -78,10 +79,16 @@ public sealed class Lattice
 
         public void Dispose()
         {
+            if (_disposed)
+            {
+                return; // 二重 Dispose で同一ノードを再挿入しない。
+            }
             foreach ((int pos, Node node) in _inserted)
             {
                 _lattice.Insert(pos, node);
             }
+            _inserted.Clear();
+            _disposed = true;
         }
     }
 

@@ -12,6 +12,12 @@ public sealed partial class DictionaryToolViewModel : ObservableObject
 {
     public ObservableCollection<UserDictionaryEntry> Entries { get; } = new();
 
+    public DictionaryToolViewModel()
+    {
+        // Clear/Remove など Add 以外の変更でも Count を通知する。
+        Entries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(Count));
+    }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     private UserDictionaryEntry? _selectedEntry;
@@ -21,7 +27,6 @@ public sealed partial class DictionaryToolViewModel : ObservableObject
     public void Add(UserDictionaryEntry entry)
     {
         Entries.Add(entry);
-        OnPropertyChanged(nameof(Count));
     }
 
     public bool CanDeleteSelected => SelectedEntry != null;
@@ -33,7 +38,6 @@ public sealed partial class DictionaryToolViewModel : ObservableObject
         {
             Entries.Remove(SelectedEntry);
             SelectedEntry = null;
-            OnPropertyChanged(nameof(Count));
         }
     }
 

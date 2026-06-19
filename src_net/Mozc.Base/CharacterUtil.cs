@@ -8,8 +8,8 @@ public static class CharacterUtil
     // 範囲外・制御文字(C0/C1, DEL)・双方向制御文字を拒否する。
     public static bool IsAcceptableCharacterAsCandidate(int cp)
     {
-        // Unicode 範囲外。
-        if (cp > 0x10FFFF)
+        // Unicode 範囲外 / サロゲート(非スカラー値)。
+        if (cp < 0 || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
         {
             return false;
         }

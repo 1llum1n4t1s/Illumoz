@@ -65,7 +65,7 @@ public sealed class DictionaryPredictor
     // 読み query に対する予測候補(コスト昇順、value 重複排除)。
     public List<PredictionResult> Predict(string query, int maxResults = 10)
     {
-        if (string.IsNullOrEmpty(query))
+        if (maxResults <= 0 || string.IsNullOrEmpty(query))
         {
             return new List<PredictionResult>();
         }

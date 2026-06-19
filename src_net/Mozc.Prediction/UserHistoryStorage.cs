@@ -49,6 +49,13 @@ public static class UserHistoryStorage
             int pos = 4;
             int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
             pos += 4;
+            // 巨大 count による過大アロケーション(破損/悪意ファイル)を弾く。
+            // 最小エントリ = 空文字2つ(各4B)+ freq(4B)+ lastAccess(8B)= 20B。
+            const int MinEntrySize = 4 + 4 + 4 + 8;
+            if (count < 0 || count > (data.Length - pos) / MinEntrySize)
+            {
+                return false;
+            }
             var entries = new List<UserHistoryPredictor.Entry>(count);
             for (int i = 0; i < count; i++)
             {

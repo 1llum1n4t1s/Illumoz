@@ -146,6 +146,12 @@ public sealed class UserDictionaryStorage
             int pos = 4;
             int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
             pos += 4;
+            // 巨大 count による過大アロケーション(破損/悪意ファイル)を弾く。
+            // 最小エントリ = 空文字列4つ(各長さ4B)= 16B。
+            if (count < 0 || count > (data.Length - pos) / 16)
+            {
+                return false;
+            }
             for (int i = 0; i < count; i++)
             {
                 string reading = ReadStr(data, ref pos);

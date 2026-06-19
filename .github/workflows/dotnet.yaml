@@ -11,6 +11,11 @@ on:
     paths: ["src_net/**", "src/data/**", ".github/workflows/dotnet.yaml"]
   workflow_dispatch:
 
+# 最小権限の原則: コードチェックアウト(read)とアーティファクト操作(write)のみ。
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   build-test:
     strategy:

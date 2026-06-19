@@ -88,7 +88,9 @@ public sealed class SystemDictionary : DictionaryBase
     {
         foreach (string entry in HiraganaExpansionTable)
         {
-            byte[] encoded = Encoding.ASCII.GetBytes(_codec.EncodeKey(entry));
+            // EncodeKey は変換テーブル外の文字を UTF-8 マルチバイトで返し得るため
+            // ASCII では破損する。UTF-8 で取得する(ASCII 域はそのまま一致)。
+            byte[] encoded = Encoding.UTF8.GetBytes(_codec.EncodeKey(entry));
             if (encoded.Length <= 1)
             {
                 continue;

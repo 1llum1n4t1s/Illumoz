@@ -41,9 +41,9 @@ public class RealDataSmokeTests
         var engine = new MozcEngine(data, global::System.IO.File.ReadAllText(romanPath));
 
         var composer = engine.CreateComposer();
-        composer.InsertCharacters("わたし"); // 直接かな投入も可
-        // 実辞書で「わたし」の変換候補が得られること(値は環境の辞書に依存)。
-        Segments segs = engine.Convert("わたし");
+        composer.InsertCharacters("わたし");
+        // Composer 経路で実辞書の変換候補が得られること(値は環境の辞書に依存)。
+        Segments segs = engine.ConvertFromComposer(composer);
         Assert.True(segs.ConversionSegmentsSize >= 1);
         Assert.True(segs.ConversionSegment(0).CandidatesSize >= 1);
     }

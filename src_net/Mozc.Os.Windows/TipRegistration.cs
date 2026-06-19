@@ -89,8 +89,16 @@ public static class TipRegistration
         {
             var cat = (ITfCategoryMgr)ComInterop.Wrappers
                 .GetOrCreateObjectForComInstance(pCat, CreateObjectFlags.None);
-            cat.RegisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_TIP_KEYBOARD, in Clsid);
-            cat.RegisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, in Clsid);
+            hr = cat.RegisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_TIP_KEYBOARD, in Clsid);
+            if (hr < 0)
+            {
+                return hr;
+            }
+            hr = cat.RegisterCategory(in Clsid, in TsfGuids.GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, in Clsid);
+            if (hr < 0)
+            {
+                return hr;
+            }
         }
         finally
         {

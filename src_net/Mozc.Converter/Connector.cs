@@ -86,7 +86,19 @@ public sealed class Connector
         }
     }
 
-    public int GetTransitionCost(int rid, int lid) => LookupCost(rid, lid);
+    public int GetTransitionCost(int rid, int lid)
+    {
+        // ushort へのキャストで負値が折り返るのを防ぐため公開入口で範囲検証する。
+        if ((uint)rid >= (uint)_rsize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rid));
+        }
+        if ((uint)lid >= (uint)_rsize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lid));
+        }
+        return LookupCost(rid, lid);
+    }
 
     private int LookupCost(int rid, int lid)
     {

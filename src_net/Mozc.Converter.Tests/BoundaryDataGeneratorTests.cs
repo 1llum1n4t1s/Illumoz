@@ -36,6 +36,7 @@ public class BoundaryDataGeneratorTests
         Assert.Equal(1000, U16(data, 2));   // id1 prefix
         Assert.Equal(0, U16(data, 3));      // id1 suffix
         Assert.Equal(3000, U16(data, 4));   // id2 prefix
+        Assert.Equal(0, U16(data, 5));      // id2 suffix
         Assert.Equal(0, U16(data, 6));      // id3 prefix
         Assert.Equal(300, U16(data, 7));    // id3 suffix
         // special pos(id4)は 0,0

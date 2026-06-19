@@ -17,7 +17,11 @@ public static class LatticeBuilder
         int charIdx = 0;
         while (charIdx < key.Length)
         {
-            int runeLen = char.IsHighSurrogate(key[charIdx]) && charIdx + 1 < key.Length ? 2 : 1;
+            // 妥当なサロゲート対(高位+低位)のみ 2 文字として扱う。
+            bool validSurrogatePair = char.IsHighSurrogate(key[charIdx])
+                && charIdx + 1 < key.Length
+                && char.IsLowSurrogate(key[charIdx + 1]);
+            int runeLen = validSurrogatePair ? 2 : 1;
             int pos = byteOffset;
             string sub = key.Substring(charIdx);
 

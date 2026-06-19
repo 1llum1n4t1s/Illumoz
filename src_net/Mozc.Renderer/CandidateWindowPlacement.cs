@@ -18,6 +18,16 @@ public static class CandidateWindowPlacement
             top = above >= screen.Top ? above
                 : global::System.Math.Max(screen.Top, screen.Bottom - windowSize.Height);
         }
+        // キャレットが画面外でも縦方向を最終クランプ(screen.Top 未満を防ぐ)。
+        int maxTop = global::System.Math.Max(screen.Top, screen.Bottom - windowSize.Height);
+        if (top < screen.Top)
+        {
+            top = screen.Top;
+        }
+        else if (top > maxTop)
+        {
+            top = maxTop;
+        }
 
         // 横: キャレット左に揃え、右へはみ出すなら左へ寄せ、最後に左端でクランプ。
         int left = caret.Left;
