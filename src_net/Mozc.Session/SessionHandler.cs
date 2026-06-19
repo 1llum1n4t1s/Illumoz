@@ -36,8 +36,16 @@ public sealed class SessionHandler
     public MozcEngine Engine => _engine;
     public IRewriter? Rewriter => _rewriter;
 
-    // keymap を差し替える(以降の新規セッションに反映。設定変更時に EngineServer から呼ぶ)。
-    public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;
+    // keymap を差し替える。新規セッションだけでなく、生成済みの全セッションへも反映する
+    // (クライアントはセッションを使い回すため、既存に伝播しないと設定変更が効かない)。
+    public void SetKeyMap(KeyMap keyMap)
+    {
+        _keyMap = keyMap;
+        foreach (Session s in _sessions.Values)
+        {
+            s.SetKeyMap(keyMap);
+        }
+    }
     public KeyMap KeyMap => _keyMap;
 
     // 起動時に履歴 db を読み込む(無ければ何もしない)。
@@ -133,19 +141,29 @@ public sealed class SessionHandler
         {
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
-        // key_string が付いた直接入力(かな入力/ソフトキーボード)は、特殊キーや修飾キーを
-        // 伴わない限り key_string をそのまま挿入する。key_code は ASCII フォールバックに過ぎず、
-        // 優先すると "ぱ" 等の合成文字を取りこぼすため(C++ session の key_string 優先と整合)。
-        // TEXT_INPUT は「key_string に実テキストを載せた直接入力」を表す特殊キーなので、
-        // 通常の特殊キーとして dispatch せず key_string を挿入する(ソフトキーボードの取りこぼし防止)。
+        // key_string が付いた直接入力(かな入力/ソフトキーボード/TEXT_INPUT)は、特殊キーや
+        // 修飾キーを伴わない限り key_string をそのまま「生テキスト」として composer へ入れる。
+        // key_code は ASCII フォールバックに過ぎず、優先すると "ぱ" 等の合成文字を取りこぼすため。
+        // ただし Key 自体が無い(KeyString だけ渡された)入力は、KeyString を keymap 構文
+        // (例 "Space" / "Ctrl a")として解釈する従来パスを使う(protobuf では key_string は
+        // 必ず Key の一部として届くため、この分岐に来るのは文字列キー指定の経路)。
         bool isTextInput = input.Key?.Special == SpecialKey.TextInput;
-        bool preferKeyString = input.KeyString.Length > 0
-            && (input.Key == null
-                || isTextInput
-                || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
-        SessionResult r = !preferKeyString && input.Key != null
-            ? session.SendKey(input.Key)
-            : session.SendKey(input.KeyString);
+        bool preferKeyString = input.KeyString.Length > 0 && input.Key != null
+            && (isTextInput || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
+        SessionResult r;
+        if (preferKeyString)
+        {
+            // key_string は keymap 構文として再解釈せず、生テキストとして composer へ入れる。
+            r = session.InsertText(input.KeyString);
+        }
+        else if (input.Key != null)
+        {
+            r = session.SendKey(input.Key);
+        }
+        else
+        {
+            r = session.SendKey(input.KeyString);
+        }
         return ToOutput(input.SessionId, session, r);
     }
 
@@ -163,6 +181,7 @@ public sealed class SessionHandler
             FocusedIndex = session.Converter.FocusedCandidateIndex,
             FocusedPosition = session.Converter.FocusedPosition,
             ConverterCommand = session.Converter.TakeLastCommand(),
+            Activated = session.Activated,
         };
     }
 }

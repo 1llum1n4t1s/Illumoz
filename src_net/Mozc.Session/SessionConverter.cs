@@ -358,13 +358,16 @@ public sealed class SessionConverter
 
     // 入力中(composition)にサジェスト候補を直接確定する。index 無効なら null。
     // 確定値を履歴学習しリセットする(C++ の suggestion commit 相当)。
-    public string? CommitSuggestion(int index)
+    public string? CommitSuggestion(int index, bool includeHistory = true)
     {
         if (CurrentState != State.Composition)
         {
             return null;
         }
-        List<Prediction.PredictionResult> preds = PredictMerged();
+        // 表示時と同じ includeHistory で再計算する。シークレットで履歴非表示だったのに
+        // 確定時に履歴込みリストの同 index を引くと、表示されていない履歴候補を確定して
+        // しまうため(プライバシー漏れ)。
+        List<Prediction.PredictionResult> preds = PredictMerged(includeHistory: includeHistory);
         if (index < 0 || index >= preds.Count)
         {
             return null;

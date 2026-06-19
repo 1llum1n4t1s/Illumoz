@@ -77,6 +77,8 @@ public static class ProtoBridge
         {
             Id = output.SessionId,
             Consumed = output.Consumed,
+            // IME 有効/直接入力状態をクライアントへ返す(モード表示・キー素通し判定に使う)。
+            Status = new Pb.Status { Activated = output.Activated },
         };
         // 失敗した EvalCommand は error_code=SESSION_FAILURE を返す(commands.proto)。
         // 既定の成功値のままだとクライアントが不正セッションを成功と誤認する。

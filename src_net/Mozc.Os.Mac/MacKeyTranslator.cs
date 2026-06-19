@@ -32,6 +32,20 @@ public static class MacKeyTranslator
         [121] = Pb.KeyEvent.Types.SpecialKey.PageDown,
         [102] = Pb.KeyEvent.Types.SpecialKey.Eisu, // kVK_JIS_Eisu(英数キー)
         [104] = Pb.KeyEvent.Types.SpecialKey.Kana, // kVK_JIS_Kana(かなキー)
+        // ファンクションキー(kVK_F1..F12)。printable characters を持たないため keyCode で判定。
+        // bundled keymap が F6-F10 をひらがな/カタカナ/英数変換に使うので必須。
+        [122] = Pb.KeyEvent.Types.SpecialKey.F1,
+        [120] = Pb.KeyEvent.Types.SpecialKey.F2,
+        [99] = Pb.KeyEvent.Types.SpecialKey.F3,
+        [118] = Pb.KeyEvent.Types.SpecialKey.F4,
+        [96] = Pb.KeyEvent.Types.SpecialKey.F5,
+        [97] = Pb.KeyEvent.Types.SpecialKey.F6,
+        [98] = Pb.KeyEvent.Types.SpecialKey.F7,
+        [100] = Pb.KeyEvent.Types.SpecialKey.F8,
+        [101] = Pb.KeyEvent.Types.SpecialKey.F9,
+        [109] = Pb.KeyEvent.Types.SpecialKey.F10,
+        [103] = Pb.KeyEvent.Types.SpecialKey.F11,
+        [111] = Pb.KeyEvent.Types.SpecialKey.F12,
     };
 
     public static Pb.KeyEvent Translate(ushort keyCode, string characters, uint modifierFlags)

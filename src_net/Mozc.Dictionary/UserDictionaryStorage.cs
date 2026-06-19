@@ -149,6 +149,9 @@ public sealed class UserDictionaryStorage
         {
             return false;
         }
+        // 一旦ローカルへ全件読み切ってから _entries へ反映する。途中で破損していても
+        // 部分的に読み込んだエントリが live 辞書に残らないようにする(変換へ影響させない)。
+        var parsed = new List<UserEntry>();
         try
         {
             int pos = 4;
@@ -166,15 +169,21 @@ public sealed class UserDictionaryStorage
                 string word = ReadStr(data, ref pos);
                 string posTag = ReadStr(data, ref pos);
                 string comment = ReadStr(data, ref pos);
-                Add(new UserEntry(reading, word, posTag, comment));
+                parsed.Add(new UserEntry(reading, word, posTag, comment));
             }
-            return true;
         }
         catch (global::System.Exception)
         {
-            // 破損ファイル(境界外/長さ不正)で落とさず空辞書として継続。
+            // 破損ファイル(境界外/長さ不正)で落とさず、既存 live 辞書も変えない。
             return false;
         }
+        // 全件読めたので live 辞書を置き換える(Add で検証/正規化/重複排除を通す)。
+        _entries.Clear();
+        foreach (UserEntry e in parsed)
+        {
+            Add(e);
+        }
+        return true;
     }
 
     public bool LoadFile(string path)

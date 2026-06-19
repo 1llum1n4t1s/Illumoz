@@ -75,4 +75,6 @@ public sealed class Output
     // 確定したコマンド候補のコマンド(EngineServer が incognito/presentation を実行する)。
     public Mozc.Converter.Candidate.CommandType ConverterCommand { get; init; }
         = Mozc.Converter.Candidate.CommandType.DefaultCommand;
+    // IME 有効状態(Status.activated として返す。false=直接入力)。
+    public bool Activated { get; init; } = true;
 }

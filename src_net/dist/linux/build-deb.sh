@@ -12,6 +12,9 @@ MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
 cp "$MOZC_DATA" "$STAGE/usr/lib/mozc/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$STAGE/usr/lib/mozc/roman.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$STAGE/usr/lib/mozc/keymap.tsv"
+# 設定 GUI(mozc.xml の <setup> が /usr/lib/mozc/mozc_tool を参照する)。同梱しないと
+# IBus の「設定」から存在しないファイルを起動してしまう。
+cp ../../Mozc.Gui.App/bin/Release/net10.0/linux-x64/publish/Mozc.Gui.App "$STAGE/usr/lib/mozc/mozc_tool"
 # ibus-engine-mozc は NativeAOT 共有ライブラリ Mozc.Os.Linux.so にリンクされるため、
 # 実行ファイルと .so の両方を同梱する(欠けるとクリーン環境でローダが失敗する)。
 cp ../../Mozc.Os.Linux/native/ibus-engine-mozc "$STAGE/usr/lib/ibus-mozc/"

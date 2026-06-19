@@ -19,8 +19,10 @@ public sealed class SessionResult
 // commands.proto(Output/Candidates)生成・全 command 網羅は後続。
 public sealed class Session
 {
-    private readonly KeyMap _keyMap;
+    private KeyMap _keyMap;
     private readonly SessionConverter _converter;
+    // IME が有効(変換受付)か。false は直接入力(DirectInput)状態。
+    private bool _activated = true;
     // Backspace 用に打鍵列を保持(Composer は編集 API 未実装のため再構築する)。
     private readonly List<string> _typed = new();
     // Undo 用: 直前に確定した打鍵列(確定の取り消しで composition を復元)。
@@ -69,6 +71,12 @@ public sealed class Session
     public SessionConverter Converter => _converter;
     public string GetPreedit() => _converter.GetPreedit();
 
+    // IME 有効状態(クライアントへ Status.activated として返す)。
+    public bool Activated => _activated;
+
+    // keymap を差し替える(SET_CONFIG で keymap が変わったとき既存セッションへ反映する)。
+    public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;
+
     // 入力中(composition)のサジェスト候補(履歴+辞書統合)。確定/変換中は空。
     public IReadOnlyList<string> GetSuggestions(int maxResults = 9)
     {
@@ -110,12 +118,19 @@ public sealed class Session
 
     // keymap 照合用の状態名。サジェスト表示中は "Suggestion"(CommitFirstSuggestion 等の
     // Suggestion 固有バインドを到達可能にする。未該当キーは Composition 行へフォールバック)。
-    private string Status() => _converter.CurrentState switch
+    private string Status()
     {
-        SessionConverter.State.Conversion => "Conversion",
-        _ => _typed.Count == 0 ? "Precomposition"
-            : HasActiveSuggestion() ? "Suggestion" : "Composition",
-    };
+        if (!_activated)
+        {
+            return "DirectInput"; // IME off。IMEOn 以外は素通し。
+        }
+        return _converter.CurrentState switch
+        {
+            SessionConverter.State.Conversion => "Conversion",
+            _ => _typed.Count == 0 ? "Precomposition"
+                : HasActiveSuggestion() ? "Suggestion" : "Composition",
+        };
+    }
 
     public SessionResult SendKey(KeyEvent key)
     {
@@ -125,6 +140,12 @@ public sealed class Session
         if (command != null)
         {
             return Dispatch(command, key);
+        }
+
+        // 直接入力(IME off)中は IMEOn 以外を一切消費しない(アプリへ素通し)。
+        if (!_activated)
+        {
+            return new SessionResult { Preedit = string.Empty, Consumed = false };
         }
 
         // command 未定義: 印字可能な文字なら入力として扱う。
@@ -166,7 +187,7 @@ public sealed class Session
                 // 入力中(サジェスト)はサジェスト候補を直接確定する。
                 if (_converter.CurrentState == SessionConverter.State.Composition)
                 {
-                    string? sug = _converter.CommitSuggestion(id);
+                    string? sug = _converter.CommitSuggestion(id, includeHistory: !_settings.IncognitoMode);
                     if (sug != null)
                     {
                         SnapshotAndClearTyped();
@@ -205,6 +226,23 @@ public sealed class Session
         => KeyParser.TryParse(keyString, out KeyEvent ke)
             ? SendKey(ke)
             : new SessionResult { Preedit = GetPreedit(), Consumed = false };
+
+    // key_string の直接入力(ソフトキーボード/TEXT_INPUT)。keymap 構文として再解釈せず、
+    // 文字列をコードポイント単位でそのまま composer へ入れる。空白や複数コードポイントの
+    // テキストが「解釈不能キー」として落ちるのを防ぐ。
+    public SessionResult InsertText(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return new SessionResult { Preedit = GetPreedit(), Consumed = false };
+        }
+        SessionResult last = Current(true);
+        foreach (global::System.Text.Rune rune in text.EnumerateRunes())
+        {
+            last = InsertChar(rune.ToString());
+        }
+        return last;
+    }
 
     private SessionResult Dispatch(string command, KeyEvent key)
     {
@@ -272,7 +310,7 @@ public sealed class Session
             case "CommitFirstSuggestion":
             {
                 // サジェスト表示中に先頭候補を確定する(Shift Enter / Ctrl Enter)。
-                string? sug = _converter.CommitSuggestion(0);
+                string? sug = _converter.CommitSuggestion(0, includeHistory: !_settings.IncognitoMode);
                 if (sug != null)
                 {
                     SnapshotAndClearTyped();
@@ -304,6 +342,45 @@ public sealed class Session
             case "ConvertToHalfAlphanumeric":
                 _converter.ConvertToTransliteration(c => c.GetHalfAscii());
                 return Current(true);
+            case "PredictAndConvert":
+                // サジェスト表示中の Down/Ctrl+Down。予測を変換候補として開く。
+                if (_converter.CurrentState == SessionConverter.State.Composition)
+                {
+                    _converter.Convert();
+                }
+                else
+                {
+                    _converter.ConvertNext();
+                }
+                return Current(true);
+            case "MoveCursorLeft":
+            case "MoveCursorRight":
+            case "MoveCursorToBeginning":
+            case "MoveCursorToEnd":
+            case "MoveCursorLeftByWord":
+            case "MoveCursorRightByWord":
+                // composer のカーソル編集は未実装。preedit がある間は消費して、
+                // アプリ側のキャレットが composition の外へ動くのを防ぐ(no-op)。
+                return _typed.Count > 0 || _converter.CurrentState == SessionConverter.State.Conversion
+                    ? Current(true)
+                    : new SessionResult { Preedit = string.Empty, Consumed = false };
+            case "IMEOn":
+                _activated = true;
+                return Current(true);
+            case "IMEOff":
+            case "CancelAndIMEOff":
+            {
+                // 入力中なら確定/取消してから IME を無効化する。
+                string committed = string.Empty;
+                if (command == "IMEOff" && _converter.CurrentState != SessionConverter.State.Composition)
+                {
+                    committed = _converter.Commit();
+                }
+                _converter.Reset();
+                _typed.Clear();
+                _activated = false;
+                return new SessionResult { Committed = committed, Preedit = string.Empty, Consumed = true };
+            }
             default:
                 // 未対応 command はキーを消費しない。
                 return new SessionResult { Preedit = GetPreedit(), Consumed = false };

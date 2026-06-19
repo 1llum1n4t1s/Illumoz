@@ -13,6 +13,18 @@
     <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
     <ProjectReference Include="..\Mozc.Rewriter\Mozc.Rewriter.csproj" />
     <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
+    <!-- mozc.data 生成 CLI。リンクはしないが、GenerateMozcData が dll を呼ぶ前に
+         必ずビルドされるよう参照だけ張る(ReferenceOutputAssembly=false)。 -->
+    <ProjectReference Include="..\Mozc.DataGen\Mozc.DataGen.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- publish 時に src/data から mozc.data を生成し、サーバ直下へ出力する。
+       build-deb.sh 等のパッケージングはこの出力(../../Mozc.Server.Host/mozc.data)を同梱する。
+       通常ビルド/テストでは生成しない(DataGen 実行と出力コピーのロック競合を避けるため、
+       BeforeBuild ではなく Publish をトリガにする)。 -->
+  <PropertyGroup>
+    <MozcDataGenTrigger>Publish</MozcDataGenTrigger>
+  </PropertyGroup>
+  <Import Project="..\build\GenerateMozcData.targets" />
 
 </Project>

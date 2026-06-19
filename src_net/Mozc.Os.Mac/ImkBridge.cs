@@ -96,6 +96,11 @@ public static class ImkBridge
         catch
         {
             _controller = null;
+            // キャッシュ済み commit/preedit/candidates を消す。残すと native が直後に
+            // mozc_imk_get_commit を読み、前回の確定文字列を二重挿入する恐れがある(ibus 側と同様)。
+            _commit = string.Empty;
+            _preedit = string.Empty;
+            _candidates = string.Empty;
             return 0;
         }
     }

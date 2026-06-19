@@ -43,8 +43,9 @@ public sealed class EngineServer
         _handler.History.LearningEnabled = learn;
 
         // セッション共有の挙動設定(サジェスト可否/件数/シークレット)を反映する。
-        _handler.Settings.SuggestionEnabled =
-            c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion;
+        // presentation_mode はサジェストを一時停止する(use_*_suggest が有効でも抑止)。
+        _handler.Settings.SuggestionEnabled = !c.PresentationMode
+            && (c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion);
         _handler.Settings.SuggestionSize = (int)c.SuggestionsSize;
         _handler.Settings.IncognitoMode = c.IncognitoMode;
 
