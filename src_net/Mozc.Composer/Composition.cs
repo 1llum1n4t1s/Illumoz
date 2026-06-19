@@ -34,7 +34,8 @@ public sealed class Composition
         }
 
         int leftIndex = GetInsertionChunkAtEnd();
-        CombinePendingChunks(leftIndex, input);
+        // 結合で左チャンクが削除されると index が詰まるため、調整後の index を受け取る。
+        leftIndex = CombinePendingChunks(leftIndex, input);
         CharChunk left = _chunks[leftIndex];
 
         while (true)
@@ -75,11 +76,12 @@ public sealed class Composition
         return _chunks.Count - 1;
     }
 
-    private void CombinePendingChunks(int index, CompositionInput input)
+    // 結合後の挿入先 index を返す(左チャンク削除で詰まった分を反映)。
+    private int CombinePendingChunks(int index, CompositionInput input)
     {
         if (input.IsAsis)
         {
-            return;
+            return index;
         }
         string nextInput = input.Conversion.Length == 0 ? input.Raw : input.Conversion;
 
@@ -89,12 +91,13 @@ public sealed class Composition
             CharChunk left = _chunks[index - 1];
             if (!left.IsConvertible(_table, cur.Pending + nextInput))
             {
-                return;
+                return index;
             }
             cur.Combine(left);
             _chunks.RemoveAt(index - 1);
             index--;
         }
+        return index;
     }
 
     public string GetString()

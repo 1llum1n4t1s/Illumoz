@@ -34,7 +34,18 @@ public sealed class UnixSocketIpcClient : IIpcClient
         {
             await socket.ConnectAsync(new AbstractUnixEndPoint(_abstractName), cts.Token).ConfigureAwait(false);
 
-            await socket.SendAsync(request, SocketFlags.None, cts.Token).ConfigureAwait(false);
+            // SendAsync は部分送信し得るため全バイト送るまでループする。
+            int sent = 0;
+            while (sent < request.Length)
+            {
+                int n = await socket.SendAsync(
+                    request.AsMemory(sent), SocketFlags.None, cts.Token).ConfigureAwait(false);
+                if (n <= 0)
+                {
+                    throw new SocketException((int)SocketError.ConnectionReset);
+                }
+                sent += n;
+            }
 
             // C++: shutdown(SHUT_WR)。これがないとサーバが request 長を判定できずタイムアウトする。
             socket.Shutdown(SocketShutdown.Send);

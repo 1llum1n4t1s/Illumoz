@@ -48,7 +48,18 @@ public sealed class UnixSocketIpcServer : IDisposable
                 if (request.Length > 0)
                 {
                     byte[] response = _handler(request);
-                    await conn.SendAsync(response, SocketFlags.None, token).ConfigureAwait(false);
+                    // SendAsync は部分送信し得るため全バイト送るまでループする。
+                    int sent = 0;
+                    while (sent < response.Length)
+                    {
+                        int n = await conn.SendAsync(
+                            response.AsMemory(sent), SocketFlags.None, token).ConfigureAwait(false);
+                        if (n <= 0)
+                        {
+                            throw new SocketException((int)SocketError.ConnectionReset);
+                        }
+                        sent += n;
+                    }
                     conn.Shutdown(SocketShutdown.Send);
                 }
             }

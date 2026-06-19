@@ -23,7 +23,8 @@ public sealed class UserHistoryPredictor
 
     public UserHistoryPredictor(int capacity = DefaultCapacity, Func<long>? clock = null)
     {
-        _capacity = capacity;
+        // 負の容量は Evict ループが停止しなくなるため 0 以上に丸める。
+        _capacity = global::System.Math.Max(0, capacity);
         _now = clock ?? (() => global::System.DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 

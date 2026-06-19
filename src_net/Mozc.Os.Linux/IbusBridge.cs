@@ -42,10 +42,16 @@ public static class IbusBridge
     // controller 未初期化なら実トランスポートで遅延初期化する(init 呼び忘れの保険)。
     private static void EnsureController()
     {
-        _controller ??= new IbusEngineController(BuildServerTransport(DefaultServerName));
+        if (_controller != null || !global::System.OperatingSystem.IsLinux())
+        {
+            return;
+        }
+        _controller = new IbusEngineController(BuildServerTransport(DefaultServerName));
     }
 
     // mozc_server へ connect-per-call する Unix abstract socket トランスポート。
+    // ibus は Linux 専用パスのため abstract socket(Linux 限定 API)を使う。
+    [global::System.Runtime.Versioning.SupportedOSPlatform("linux")]
     private static Func<byte[], byte[]> BuildServerTransport(string name)
         => request =>
         {
