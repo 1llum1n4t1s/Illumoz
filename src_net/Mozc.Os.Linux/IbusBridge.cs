@@ -17,6 +17,7 @@ public static class IbusBridge
     private static string _preedit = string.Empty;
     private static string _commit = string.Empty;
     private static string _candidates = string.Empty; // 改行区切りの候補列。
+    private static int _focusedIndex = -1; // 注目候補(lookup table のカーソル。-1=未注目)。
 
     // mozc_server の既定 IPC 名(Mozc.Server.Host の --pipe 既定と一致)。
     private const string DefaultServerName = "mozc.session";
@@ -90,6 +91,7 @@ public static class IbusBridge
             _preedit = st.Preedit;
             _commit = st.Commit;
             _candidates = st.Candidates;
+            _focusedIndex = st.FocusedIndex;
             return st.Consumed ? 1 : 0;
         }
         catch
@@ -100,12 +102,13 @@ public static class IbusBridge
             _commit = string.Empty;
             _preedit = string.Empty;
             _candidates = string.Empty;
+            _focusedIndex = -1;
             return 0;
         }
     }
 
     private readonly record struct ImeStateForBridge(
-        string Preedit, string Commit, string Candidates, bool Consumed);
+        string Preedit, string Commit, string Candidates, bool Consumed, int FocusedIndex);
 
     private static ImeStateForBridge ProcessInternal(Pb.KeyEvent ke)
     {
@@ -113,8 +116,13 @@ public static class IbusBridge
         // Ctrl+h backspace 等のショートカットが正しく届くようにする。
         Client.ImeState s = _controller!.ProcessKeyEvent(ke);
         return new ImeStateForBridge(
-            s.Preedit, s.Commit, string.Join('\n', s.Candidates), s.Consumed);
+            s.Preedit, s.Commit, string.Join('\n', s.Candidates), s.Consumed, s.FocusedIndex);
     }
+
+    // native: int mozc_ibus_get_focused_index() -> 注目候補の行(lookup table のカーソル位置)。
+    // -1 は未注目(サジェスト等)。native は >=0 のとき ibus_lookup_table_set_cursor_pos する。
+    [UnmanagedCallersOnly(EntryPoint = "mozc_ibus_get_focused_index")]
+    public static int GetFocusedIndex() => _focusedIndex;
 
     // native: int mozc_ibus_get_preedit(byte* buf, int cap) -> 書込みバイト数(cap 不足時は必要長)
     [UnmanagedCallersOnly(EntryPoint = "mozc_ibus_get_preedit")]

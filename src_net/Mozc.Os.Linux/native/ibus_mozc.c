@@ -14,6 +14,7 @@
 /* C# (NativeAOT) エクスポート。 */
 extern int  mozc_ibus_init(void);                         /* controller 初期化(IPC 結線) */
 extern int  mozc_ibus_process_key(uint32_t keyval, uint32_t state);
+extern int  mozc_ibus_get_focused_index(void);
 extern int  mozc_ibus_get_preedit(char *buf, int cap);
 extern int  mozc_ibus_get_commit(char *buf, int cap);
 extern int  mozc_ibus_get_candidates(char *buf, int cap); /* 改行区切り候補列 */
@@ -61,6 +62,12 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
         char *save = NULL;
         for (char *tok = strtok_r(cands, "\n", &save); tok; tok = strtok_r(NULL, "\n", &save)) {
             ibus_lookup_table_append_candidate(table, ibus_text_new_from_string(tok));
+        }
+        /* 注目候補(サーバの focused_index)を lookup table のカーソルに反映する。
+           -1(未注目)のときは既定の先頭のままにする。 */
+        int focused = mozc_ibus_get_focused_index();
+        if (focused >= 0) {
+            ibus_lookup_table_set_cursor_pos(table, (guint)focused);
         }
         ibus_engine_update_lookup_table(engine, table, TRUE);
     } else {

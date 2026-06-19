@@ -48,6 +48,15 @@ public sealed class SessionHandler
     }
     public KeyMap KeyMap => _keyMap;
 
+    // ローマ字表変更後、idle な既存セッションの composer を最新表で作り直す。
+    public void RefreshIdleComposers()
+    {
+        foreach (Session s in _sessions.Values)
+        {
+            s.RefreshComposerIfIdle();
+        }
+    }
+
     // 起動時に履歴 db を読み込む(無ければ何もしない)。
     public bool LoadHistory(string path) => Prediction.UserHistoryStorage.LoadFile(_history, path);
 
@@ -148,7 +157,9 @@ public sealed class SessionHandler
         // (例 "Space" / "Ctrl a")として解釈する従来パスを使う(protobuf では key_string は
         // 必ず Key の一部として届くため、この分岐に来るのは文字列キー指定の経路)。
         bool isTextInput = input.Key?.Special == SpecialKey.TextInput;
-        bool preferKeyString = input.KeyString.Length > 0 && input.Key != null
+        // 直接入力(IME off)中は生テキスト挿入経路を使わず、アプリへ素通しさせる
+        // (SendKey の _activated ガードと一致させる)。
+        bool preferKeyString = input.KeyString.Length > 0 && input.Key != null && session.Activated
             && (isTextInput || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
         SessionResult r;
         if (preferKeyString)

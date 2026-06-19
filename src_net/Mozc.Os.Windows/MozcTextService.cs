@@ -49,7 +49,16 @@ public partial class MozcTextService : ITfTextInputProcessorEx
         // (COM 生成された実機 TIP が transport 無しで controller を持てない不具合の修正)。
         Func<byte[], byte[]> transport = Transport ?? BuildServerTransport(DefaultServerName);
         _controller = new TipController(transport);
-        _controller.EnsureSession();
+        // サーバ未起動(.ipc 未公開)でも COM アクティベーションを失敗させない。接続は遅延し、
+        // 最初のキー入力時に EnsureSession が再試行する(クリーンインストール直後の救済)。
+        try
+        {
+            _controller.EnsureSession();
+        }
+        catch (Mozc.Ipc.IpcException)
+        {
+            // サーバ未起動。controller は保持し、後続入力で再接続を試みる。
+        }
         // TODO(実機): ITfThreadMgr から ITfKeyEventSink を AdviseSink、表示属性登録等。
         return S_OK;
     }

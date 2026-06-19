@@ -34,6 +34,16 @@ public sealed class SessionConverter
     public State CurrentState { get; private set; } = State.Composition;
     public int FocusedSegment => _focusedSegment;
 
+    // idle(入力中でも変換中でもない)なら engine の最新ローマ字表で composer を作り直す。
+    // custom_roman_table 等の設定変更を、既存セッションの次の入力から反映させる。
+    public void RefreshComposerIfIdle()
+    {
+        if (CurrentState == State.Composition && _composer.GetStringForPreedit().Length == 0)
+        {
+            _composer = _engine.CreateComposer();
+        }
+    }
+
     // 入力(ローマ字 1 打鍵)。変換中なら一旦確定してから新規入力。
     // F6-F10 等で確定する表記変換(T13N)結果。null 以外なら preedit/commit に優先。
     private string? _t13n;

@@ -10,5 +10,11 @@ cp ../../Mozc.Os.Mac/Mozc "$APP/Contents/MacOS/"
 # IMK stub は NativeAOT 共有ライブラリ Mozc.Os.Mac.dylib にリンクされるため同梱必須。
 cp ../../Mozc.Os.Mac/bin/Release/net10.0/osx-arm64/publish/Mozc.Os.Mac.dylib "$APP/Contents/MacOS/"
 cp ../../Mozc.Server.Host/bin/Release/net10.0/osx-arm64/publish/Mozc.Server.Host "$APP/Contents/MacOS/mozc_server"
+# mozc_server は --data/--roman/--keymap が必須(Program.cs)。Linux パッケージと同様に
+# 変換データ・ローマ字表・キーマップを bundle に同梱する(launcher がこのパスで起動できるように)。
+MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
+cp "$MOZC_DATA" "$APP/Contents/Resources/mozc.data"
+cp ../../../src/data/preedit/romanji-hiragana.tsv "$APP/Contents/Resources/roman.tsv"
+cp ../../../src/data/keymap/ms-ime.tsv "$APP/Contents/Resources/keymap.tsv"
 pkgbuild --root "$APP" --identifier org.mozc.inputmethod.Mozc \
   --version 1.0.0 --install-location "/Library/Input Methods/$APP" Mozc.pkg

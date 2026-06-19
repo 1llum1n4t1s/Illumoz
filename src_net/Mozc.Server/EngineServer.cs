@@ -107,11 +107,17 @@ public sealed class EngineServer
         {
             case Mozc.Config.Config.Types.FundamentalCharacterForm.FundamentalFullWidth:
                 _engine.AddRomanRule(" ", "　");
+                _handler.Settings.SpaceForm = SpaceForm.Full;
                 break;
             case Mozc.Config.Config.Types.FundamentalCharacterForm.FundamentalHalfWidth:
                 _engine.AddRomanRule(" ", " ");
+                _handler.Settings.SpaceForm = SpaceForm.Half;
                 break;
         }
+
+        // ローマ字表/ルールが変わったので、idle な既存セッションの composer を作り直して
+        // 設定変更を次の入力から反映する(セッション使い回しでも設定が効くように)。
+        _handler.RefreshIdleComposers();
     }
 
     // config.character_form_rules から preedit / conversion の文字形マネージャを構築。

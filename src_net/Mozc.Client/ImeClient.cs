@@ -15,6 +15,8 @@ public sealed class ImeState
     public IReadOnlyList<string> Descriptions { get; init; } = global::System.Array.Empty<string>();
     // 候補窓が変換候補ではなく入力中サジェストか(C++ category=SUGGESTION)。
     public bool IsSuggestion { get; init; }
+    // 注目候補のインデックス(候補ウィンドウのハイライト。-1=未注目/サジェスト)。
+    public int FocusedIndex { get; init; } = -1;
     public bool Consumed { get; init; }
 }
 
@@ -56,11 +58,10 @@ public sealed class ImeClient
 
     public ImeState SendKey(Pb.KeyEvent key)
     {
-        EnsureSession();
-        Pb.Output o = Send(new Pb.Input
+        Pb.Output o = SendWithRetry(id => new Pb.Input
         {
             Type = Pb.Input.Types.CommandType.SendKey,
-            Id = _sessionId,
+            Id = id,
             Key = key,
         });
         return LastState = ToState(o);
@@ -69,11 +70,10 @@ public sealed class ImeClient
     // 候補の明示選択+確定(SUBMIT_CANDIDATE)。
     public ImeState SubmitCandidate(int index)
     {
-        EnsureSession();
-        Pb.Output o = Send(new Pb.Input
+        Pb.Output o = SendWithRetry(id => new Pb.Input
         {
             Type = Pb.Input.Types.CommandType.SendCommand,
-            Id = _sessionId,
+            Id = id,
             Command = new Pb.SessionCommand
             {
                 Type = Pb.SessionCommand.Types.CommandType.SubmitCandidate,
@@ -122,5 +122,31 @@ public sealed class ImeClient
             : global::System.Array.Empty<string>(),
         IsSuggestion = o.CandidateWindow != null
             && o.CandidateWindow.Category == Pb.Category.Suggestion,
+        FocusedIndex = o.CandidateWindow != null && o.CandidateWindow.HasFocusedIndex
+            ? (int)o.CandidateWindow.FocusedIndex
+            : -1,
     };
+
+    // サーバがセッション失敗(SESSION_FAILURE)を返したか。サーバ再起動やセッション破棄で
+    // 手元の id が無効になった状態。
+    private static bool IsSessionFailure(Pb.Output o)
+        => o.HasErrorCode && o.ErrorCode == Pb.Output.Types.ErrorCode.SessionFailure;
+
+    // セッション失敗なら id を捨てて CreateSession からやり直し、同じ入力を 1 回だけ再送する。
+    private Pb.Output SendWithRetry(Func<ulong, Pb.Input> build)
+    {
+        EnsureSession();
+        Pb.Output o = Send(build(_sessionId));
+        if (IsSessionFailure(o))
+        {
+            _hasSession = false;
+            _sessionId = 0;
+            EnsureSession();
+            if (_hasSession)
+            {
+                o = Send(build(_sessionId));
+            }
+        }
+        return o;
+    }
 }

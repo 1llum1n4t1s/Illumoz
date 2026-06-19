@@ -28,7 +28,12 @@ public sealed class SessionSettings
     public int SuggestionSize = 9;
     // シークレットモード。履歴学習と履歴由来サジェストを抑止する。
     public bool IncognitoMode = false;
+    // InsertSpace コマンドが挿入する空白の字形(config.space_character_form 由来)。
+    public SpaceForm SpaceForm = SpaceForm.Half;
 }
+
+// スペース字形(InsertSpace コマンド用)。Default は半角扱い。
+public enum SpaceForm { Half, Full }
 
 // C++ SessionCommand.CommandType の主要部(候補選択/確定/取消)。
 public enum SessionCommandType

@@ -57,6 +57,12 @@ public static class UserDictionaryUtil
         {
             return ValidationResult.ReadingContainsInvalidChar;
         }
+        // 正規化後の読みが許容文字種(ひらがな/許可記号)かを検査する。漢字等の読みは
+        // composer のひらがなキーで引けず変換に出ないため、格納前に弾く。
+        if (!IsValidReading(reading))
+        {
+            return ValidationResult.ReadingContainsInvalidChar;
+        }
 
         if (string.IsNullOrEmpty(word))
         {

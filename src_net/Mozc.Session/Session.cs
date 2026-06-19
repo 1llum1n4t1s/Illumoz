@@ -77,6 +77,9 @@ public sealed class Session
     // keymap を差し替える(SET_CONFIG で keymap が変わったとき既存セッションへ反映する)。
     public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;
 
+    // idle なら engine の最新ローマ字表で composer を作り直す(roman_table 設定変更の反映)。
+    public void RefreshComposerIfIdle() => _converter.RefreshComposerIfIdle();
+
     // 入力中(composition)のサジェスト候補(履歴+辞書統合)。確定/変換中は空。
     public IReadOnlyList<string> GetSuggestions(int maxResults = 9)
     {
@@ -162,8 +165,10 @@ public sealed class Session
     public SessionResult TestSendKey(KeyEvent key)
     {
         string status = Status();
+        // 直接入力(IME off)中は印字キーを消費しない。SendKey 側のガードと一致させ、
+        // クライアントが横取り判定を誤らないようにする(IMEOn 等のコマンドのみ消費)。
         bool consumed = _keyMap.GetCommand(status, key) != null
-            || (key.Special == null && key.KeyCode is int code && code >= 0x20
+            || (_activated && key.Special == null && key.KeyCode is int code && code >= 0x20
                 && !key.Modifiers.Contains(ModifierKey.Ctrl)
                 && !key.Modifiers.Contains(ModifierKey.Alt));
         return new SessionResult { Preedit = GetPreedit(), Consumed = consumed };
@@ -319,8 +324,8 @@ public sealed class Session
                 return Current(true);
             }
             case "InsertSpace":
-                // 設定の字形は composer のローマ字ルール(" ")側で反映済み。既定は半角。
-                return InsertSpaceCommand(" ");
+                // 設定の space_character_form に従う(precomposition の直接確定でも全角を尊重)。
+                return InsertSpaceCommand(_settings.SpaceForm == SpaceForm.Full ? "　" : " ");
             case "InsertHalfSpace":
                 return InsertSpaceCommand(" ");
             case "InsertFullSpace":
@@ -364,15 +369,24 @@ public sealed class Session
                 return _typed.Count > 0 || _converter.CurrentState == SessionConverter.State.Conversion
                     ? Current(true)
                     : new SessionResult { Preedit = string.Empty, Consumed = false };
+            case "SegmentWidthShrink":
+            case "SegmentWidthExpand":
+                // 文節幅の伸縮は未実装。変換中は消費して、Shift+Left/Right 等がアプリへ抜けて
+                // 周辺文書を選択/移動するのを防ぐ(no-op。実装は文節境界編集の follow-up)。
+                return _converter.CurrentState == SessionConverter.State.Conversion
+                    ? Current(true)
+                    : new SessionResult { Preedit = GetPreedit(), Consumed = false };
             case "IMEOn":
                 _activated = true;
                 return Current(true);
             case "IMEOff":
             case "CancelAndIMEOff":
             {
-                // 入力中なら確定/取消してから IME を無効化する。
+                // IMEOff: 入力中の preedit を確定してから無効化(かな入力後に OFF しても
+                // 打鍵が失われないようにする)。CancelAndIMEOff: 確定せず破棄して無効化。
                 string committed = string.Empty;
-                if (command == "IMEOff" && _converter.CurrentState != SessionConverter.State.Composition)
+                if (command == "IMEOff"
+                    && (_converter.CurrentState == SessionConverter.State.Conversion || _typed.Count > 0))
                 {
                     committed = _converter.Commit();
                 }
