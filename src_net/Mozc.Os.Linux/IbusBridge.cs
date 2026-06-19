@@ -8,6 +8,9 @@ namespace Mozc.Os.Linux;
 // [UnmanagedCallersOnly] エクスポートし、native 側 process-key-event handler が叩く。
 // 文字列は「呼び出し側が用意したバッファに UTF-8 を書き、必要長を返す」標準 C ABI で受け渡す。
 // 本体ロジックは IbusEngineController(=ImeClient 共有)。
+// クラス全体を SupportedOSPlatform("linux") にするとクロスプラットフォームな
+// テスト/エクスポート呼び出しが CA1416 になるため、Linux 限定 API を使う
+// BuildServerTransport にのみ属性を付け、EnsureController で IsLinux ガードする。
 public static class IbusBridge
 {
     private static IbusEngineController? _controller;
@@ -50,7 +53,6 @@ public static class IbusBridge
     }
 
     // mozc_server へ connect-per-call する Unix abstract socket トランスポート。
-    // ibus は Linux 専用パスのため abstract socket(Linux 限定 API)を使う。
     [global::System.Runtime.Versioning.SupportedOSPlatform("linux")]
     private static Func<byte[], byte[]> BuildServerTransport(string name)
         => request =>
@@ -69,29 +71,32 @@ public static class IbusBridge
     public static int ProcessKey(uint keyval, uint state) => ProcessKeyCore(keyval, state);
 
     // managed 実体(UnmanagedCallersOnly からも managed テストからも呼べる)。
+    // [UnmanagedCallersOnly] 境界を越えて例外が native に伝播するとプロセスが落ちるため、
+    // IPC 例外を含む全例外を捕捉し、controller をリセットして 0(未消費)を返す。
     private static int ProcessKeyCore(uint keyval, uint state)
     {
-        if (_controller == null)
+        try
         {
-            try
-            {
-                EnsureController();
-            }
-            catch
-            {
-                return 0;
-            }
             if (_controller == null)
             {
-                return 0;
+                EnsureController();
+                if (_controller == null)
+                {
+                    return 0;
+                }
             }
+            Pb.KeyEvent ke = X11Keysym.Translate(keyval, state);
+            ImeStateForBridge st = ProcessInternal(ke);
+            _preedit = st.Preedit;
+            _commit = st.Commit;
+            _candidates = st.Candidates;
+            return st.Consumed ? 1 : 0;
         }
-        Pb.KeyEvent ke = X11Keysym.Translate(keyval, state);
-        ImeStateForBridge st = ProcessInternal(ke);
-        _preedit = st.Preedit;
-        _commit = st.Commit;
-        _candidates = st.Candidates;
-        return st.Consumed ? 1 : 0;
+        catch
+        {
+            _controller = null; // 壊れた接続は破棄し次回再初期化させる。
+            return 0;
+        }
     }
 
     private readonly record struct ImeStateForBridge(

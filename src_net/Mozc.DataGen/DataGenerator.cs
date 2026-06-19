@@ -61,10 +61,10 @@ public static class DataGenerator
         int count = 0;
         foreach (string raw in lines)
         {
-            string t = raw.TrimEnd('\r', '\n');
-            if (t.TrimStart().StartsWith('#') || t.Length == 0)
+            string t = raw.Trim();
+            if (t.Length == 0 || t.StartsWith('#'))
             {
-                continue; // 行頭コメント / 空行はスキップ(StripComment と同一判定)。
+                continue; // 行頭コメント / 空行 / 空白のみ行をスキップ(ParsePosDatabase と一致)。
             }
             count++;
         }

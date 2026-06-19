@@ -115,7 +115,11 @@ int main(int argc, char **argv)
 
     /* component XML 経由(ibus --ibus)で起動された場合は名前要求、
      * 単体起動時はコンポーネント登録のフォールバック。 */
-    ibus_bus_request_name(bus, "org.freedesktop.IBus.Mozc", 0);
+    /* ibus_bus_request_name は guint32 を返し、失敗時 0。失敗ならメインループに入らない。 */
+    if (!ibus_bus_request_name(bus, "org.freedesktop.IBus.Mozc", 0)) {
+        g_warning("cannot request ibus service name");
+        return 1;
+    }
 
     ibus_main();
     return 0;

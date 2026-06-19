@@ -39,9 +39,9 @@ public static class PosMatcherDataGenerator
             foreach (string raw in specialPosLines)
             {
                 string line = StripComment(raw);
-                if (line.Length == 0)
+                if (line.Trim().Length == 0)
                 {
-                    continue;
+                    continue; // コメント / 空行 / 空白のみ行はスキップ。
                 }
                 list.Add((line.Trim(), next));
                 next++;
