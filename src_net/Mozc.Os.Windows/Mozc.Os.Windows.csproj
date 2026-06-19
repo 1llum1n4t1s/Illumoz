@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
     <ProjectReference Include="..\Mozc.Server\Mozc.Server.csproj" />
+    <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
     <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
   </ItemGroup>
 

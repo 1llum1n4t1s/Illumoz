@@ -13,22 +13,38 @@ public partial class MozcTextService : ITfTextInputProcessorEx
 {
     private const int S_OK = 0;
 
+    // mozc_server の既定 IPC 名(Mozc.Server.Host の --pipe 既定と一致)。
+    private const string DefaultServerName = "mozc.session";
+
     private nint _threadMgr;
     private uint _clientId;
     private TipController? _controller;
 
-    // 実機ではここで NamedPipe client を transport にする。テスト/未結線時は差し替え可能。
+    // テスト/未結線時に差し替え可能。null なら Activate で既定 NamedPipe を生成する。
     public Func<byte[], byte[]>? Transport { get; set; }
+
+    // mozc_server へ connect-per-call する NamedPipe トランスポート。
+    private static Func<byte[], byte[]> BuildServerTransport(string name)
+        => request =>
+        {
+            var pm = new Mozc.Ipc.IpcPathManager();
+            if (!pm.TryLoad(name))
+            {
+                throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+            }
+            using var client = new Mozc.Ipc.NamedPipeIpcClient(pm.GetWindowsPipeName());
+            return client.Call(request, global::System.TimeSpan.FromSeconds(30));
+        };
 
     public int Activate(nint threadMgr, uint clientId)
     {
         _threadMgr = threadMgr;
         _clientId = clientId;
-        if (Transport != null)
-        {
-            _controller = new TipController(Transport);
-            _controller.EnsureSession();
-        }
+        // テスト未注入時は既定の NamedPipe トランスポートを生成する
+        // (COM 生成された実機 TIP が transport 無しで controller を持てない不具合の修正)。
+        Func<byte[], byte[]> transport = Transport ?? BuildServerTransport(DefaultServerName);
+        _controller = new TipController(transport);
+        _controller.EnsureSession();
         // TODO(実機): ITfThreadMgr から ITfKeyEventSink を AdviseSink、表示属性登録等。
         return S_OK;
     }

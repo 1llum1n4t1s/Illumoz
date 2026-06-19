@@ -32,6 +32,12 @@ public static class X11Keysym
         [0xff21] = Pb.KeyEvent.Types.SpecialKey.Kanji,    // Kanji
         [0xff2d] = Pb.KeyEvent.Types.SpecialKey.Kana,     // Kana_Lock approx
         [0xff7e] = Pb.KeyEvent.Types.SpecialKey.Hankaku,  // Mode_switch approx
+        // 日本語キーボードの変換系キー(keysymdef.h)。
+        [0xff22] = Pb.KeyEvent.Types.SpecialKey.Muhenkan, // Muhenkan
+        [0xff23] = Pb.KeyEvent.Types.SpecialKey.Henkan,   // Henkan_Mode
+        [0xff27] = Pb.KeyEvent.Types.SpecialKey.Katakana, // Hiragana_Katakana
+        [0xff2a] = Pb.KeyEvent.Types.SpecialKey.Hankaku,  // Zenkaku_Hankaku toggle
+        [0xff30] = Pb.KeyEvent.Types.SpecialKey.Eisu,     // Eisu_toggle
     };
 
     public static Pb.KeyEvent Translate(uint keyval, uint state)

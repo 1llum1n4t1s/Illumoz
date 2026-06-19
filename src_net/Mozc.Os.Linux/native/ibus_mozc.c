@@ -111,12 +111,13 @@ int main(int argc, char **argv)
 
     IBusFactory *factory = ibus_factory_new(ibus_bus_get_connection(bus));
     g_object_ref_sink(factory);
-    ibus_factory_add_engine(factory, "mozc", ibus_mozc_engine_get_type());
+    /* エンジン名は component XML(dist/ibus/mozc.xml)の <engine><name> と一致させる。 */
+    ibus_factory_add_engine(factory, "mozc-jp", ibus_mozc_engine_get_type());
 
-    /* component XML 経由(ibus --ibus)で起動された場合は名前要求、
-     * 単体起動時はコンポーネント登録のフォールバック。 */
+    /* コンポーネント名も XML の <name> と一致させる。一致しないと ibus-daemon が
+     * 広告コンポーネントとプロセスを結び付けられず、起動できてもアクティブ化に失敗する。 */
     /* ibus_bus_request_name は guint32 を返し、失敗時 0。失敗ならメインループに入らない。 */
-    if (!ibus_bus_request_name(bus, "org.freedesktop.IBus.Mozc", 0)) {
+    if (!ibus_bus_request_name(bus, "com.google.IBus.Mozc", 0)) {
         g_warning("cannot request ibus service name");
         return 1;
     }

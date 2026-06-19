@@ -5,7 +5,10 @@ STAGE="${1:-stage}"
 mkdir -p "$STAGE/usr/lib/ibus-mozc" "$STAGE/usr/lib/mozc" \
          "$STAGE/usr/share/ibus/component" "$STAGE/DEBIAN"
 cp ../../Mozc.Server.Host/bin/Release/net10.0/linux-x64/publish/Mozc.Server.Host "$STAGE/usr/lib/mozc/mozc_server"
-cp ../../Mozc.Os.Linux/native/ibus-engine-mozc "$STAGE/usr/lib/ibus-mozc/" 2>/dev/null || true
+# ibus-engine-mozc は NativeAOT 共有ライブラリ Mozc.Os.Linux.so にリンクされるため、
+# 実行ファイルと .so の両方を同梱する(欠けるとクリーン環境でローダが失敗する)。
+cp ../../Mozc.Os.Linux/native/ibus-engine-mozc "$STAGE/usr/lib/ibus-mozc/"
+cp ../../Mozc.Os.Linux/bin/Release/net10.0/linux-x64/publish/Mozc.Os.Linux.so "$STAGE/usr/lib/ibus-mozc/"
 cp ../ibus/mozc.xml "$STAGE/usr/share/ibus/component/"
 cat > "$STAGE/DEBIAN/control" <<CTRL
 Package: mozc-dotnet

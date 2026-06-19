@@ -31,5 +31,22 @@
       <ComponentRef Id="MozcTool" />
       <ComponentRef Id="MozcData" />
     </Feature>
+
+    <!-- TIP の CLSID/TSF 言語プロファイルを登録する。これが無いと Windows は
+         テキストサービスを一覧/インスタンス化できない(手動登録が必要になる)。
+         regsvr32 で Mozc.Os.Windows.dll の DllRegisterServer/DllUnregisterServer を呼ぶ。 -->
+    <SetProperty Id="RegisterTip" Value="&quot;[SystemFolder]regsvr32.exe&quot; /s &quot;[INSTALLFOLDER]Mozc.Os.Windows.dll&quot;"
+                 Before="RegisterTip" Sequence="execute" />
+    <SetProperty Id="UnregisterTip" Value="&quot;[SystemFolder]regsvr32.exe&quot; /s /u &quot;[INSTALLFOLDER]Mozc.Os.Windows.dll&quot;"
+                 Before="UnregisterTip" Sequence="execute" />
+    <CustomAction Id="RegisterTip" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="UnregisterTip" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="RegisterTip" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="UnregisterTip" Before="RemoveFiles" Condition="Installed AND (REMOVE=&quot;ALL&quot;)" />
+    </InstallExecuteSequence>
   </Package>
 </Wix>

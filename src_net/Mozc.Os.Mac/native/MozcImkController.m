@@ -40,7 +40,9 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
     if (p >= 0 && p < (int)sizeof(preedit)) {
         preedit[p] = '\0';
         NSString *s = [NSString stringWithUTF8String:preedit];
-        [sender setMarkedText:s selectionRange:NSMakeRange(p, 0)
+        /* selectionRange は NSString(UTF-16)インデックス。UTF-8 バイト数 p ではなく
+         * s.length を使う(かな等で 1 文字=複数 UTF-8 バイトのとき位置がずれる)。 */
+        [sender setMarkedText:s selectionRange:NSMakeRange(s.length, 0)
              replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
     }
 
@@ -62,3 +64,30 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
 }
 
 @end
+
+/* C# 側 controller(IPC トランスポート)初期化。 */
+extern int mozc_imk_init(void);
+
+/* 入力メソッドサーバのエントリポイント。
+ * IMKServer を生成して接続名(Info.plist の InputMethodConnectionName)を待ち受け、
+ * NSApplication のランループに入る。bundle として起動される。 */
+int main(int argc, const char *argv[]) {
+    (void)argc;
+    (void)argv;
+    @autoreleasepool {
+        if (!mozc_imk_init()) {
+            NSLog(@"mozc_imk_init failed; aborting");
+            return 1;
+        }
+        NSString *connectionName =
+            [[NSBundle mainBundle].infoDictionary objectForKey:@"InputMethodConnectionName"];
+        if (connectionName == nil) {
+            connectionName = @"Mozc_Connection";
+        }
+        IMKServer *server __attribute__((unused)) =
+            [[IMKServer alloc] initWithName:connectionName
+                           bundleIdentifier:[NSBundle mainBundle].bundleIdentifier];
+        [[NSApplication sharedApplication] run];
+    }
+    return 0;
+}

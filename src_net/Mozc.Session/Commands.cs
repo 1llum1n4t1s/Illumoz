@@ -11,6 +11,11 @@ public enum CommandType
     NoOperation,
     GetConfig,
     SetConfig,
+    ClearUserHistory,
+    ClearUserPrediction,
+    ClearUnusedUserPrediction,
+    Reload,
+    SyncData,
 }
 
 // C++ SessionCommand.CommandType の主要部(候補選択/確定/取消)。

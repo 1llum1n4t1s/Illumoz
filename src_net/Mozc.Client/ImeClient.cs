@@ -37,8 +37,13 @@ public sealed class ImeClient
         {
             return;
         }
-        _sessionId = Send(new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
-        _hasSession = true;
+        // session id=0 はサーバの作成失敗(上限到達等)。確立扱いにせず次回再試行する。
+        ulong id = Send(new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        if (id != 0)
+        {
+            _sessionId = id;
+            _hasSession = true;
+        }
     }
 
     public ImeState SendCharacter(char c) => SendKey(new Pb.KeyEvent { KeyCode = c });

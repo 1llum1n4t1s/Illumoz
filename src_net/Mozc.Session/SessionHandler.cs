@@ -66,6 +66,16 @@ public sealed class SessionHandler
                 return SendCommand(input);
             case CommandType.NoOperation:
                 return new Output { SessionId = input.SessionId, Consumed = true };
+            case CommandType.ClearUserHistory:
+            case CommandType.ClearUserPrediction:
+                // 履歴/予測の学習を実際に消去する(黙って成功扱いにしない)。
+                _history.Clear();
+                return new Output { SessionId = input.SessionId, Consumed = true };
+            case CommandType.ClearUnusedUserPrediction:
+            case CommandType.Reload:
+            case CommandType.SyncData:
+                // 受理(永続化のフラッシュ/設定リロードはプロファイル層が担う)。
+                return new Output { SessionId = input.SessionId, Consumed = true };
             default:
                 return new Output { ErrorOccured = true };
         }

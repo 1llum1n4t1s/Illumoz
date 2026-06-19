@@ -127,7 +127,11 @@ public sealed class Session
                         return new SessionResult { Committed = sug, Preedit = "", Consumed = true };
                     }
                 }
-                _converter.SelectCandidate(id);
+                // 範囲外の候補 id では確定せずセッションを変えない(誤テキスト挿入の防止)。
+                if (!_converter.SelectCandidate(id))
+                {
+                    return Current(false);
+                }
                 goto case SessionCommandType.Submit;
             case SessionCommandType.Submit:
             {

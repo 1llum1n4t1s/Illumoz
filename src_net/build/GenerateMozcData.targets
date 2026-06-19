@@ -27,7 +27,7 @@
 
   <Target Name="GenerateMozcData"
           BeforeTargets="BeforeBuild"
-          Inputs="@(MozcDictFile);$(MozcSrcDataDir)\dictionary_oss\connection_single_column.txt;$(MozcSrcDataDir)\dictionary_oss\id.def"
+          Inputs="@(MozcDictFile);$(MozcSrcDataDir)\dictionary_oss\connection_single_column.txt;$(MozcSrcDataDir)\dictionary_oss\id.def;$(MozcSrcDataDir)\rules\pos_matcher_rule.def;$(MozcSrcDataDir)\rules\segmenter.def;$(MozcSrcDataDir)\rules\boundary.def;$(MozcSrcDataDir)\rules\special_pos.def;$(MozcSrcDataDir)\symbol\symbol.tsv;$(MozcSrcDataDir)\single_kanji\single_kanji.tsv;$(MozcSrcDataDir)\emoji\emoji_data.tsv"
           Outputs="$(MozcDataOutput)">
     <PropertyGroup>
       <_MozcDictArgs>@(MozcDictFile->'--dict &quot;%(FullPath)&quot;', ' ')</_MozcDictArgs>

@@ -60,6 +60,12 @@ public sealed class IpcPathManager
             Directory.CreateDirectory(dir);
         }
         File.WriteAllBytes(path, info.ToByteArray());
+        // .ipc は pipe/socket 名を導出する鍵を含むため所有者のみ読取可にする
+        // (POSIX の既定 umask だと world-readable になり、他ユーザに鍵が漏れる)。
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
         return new IpcPathManager { _name = name, _info = info };
     }
 

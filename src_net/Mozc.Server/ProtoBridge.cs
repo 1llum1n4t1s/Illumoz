@@ -20,6 +20,13 @@ public static class ProtoBridge
             Pb.Input.Types.CommandType.SendCommand => CommandType.SendCommand,
             Pb.Input.Types.CommandType.GetConfig => CommandType.GetConfig,
             Pb.Input.Types.CommandType.SetConfig => CommandType.SetConfig,
+            // 保守コマンドを no-op に潰さず本来の処理へ回す(履歴クリア等が黙って成功扱い
+            // になる不具合の修正)。
+            Pb.Input.Types.CommandType.ClearUserHistory => CommandType.ClearUserHistory,
+            Pb.Input.Types.CommandType.ClearUserPrediction => CommandType.ClearUserPrediction,
+            Pb.Input.Types.CommandType.ClearUnusedUserPrediction => CommandType.ClearUnusedUserPrediction,
+            Pb.Input.Types.CommandType.Reload => CommandType.Reload,
+            Pb.Input.Types.CommandType.SyncData => CommandType.SyncData,
             _ => CommandType.NoOperation,
         };
         // SET_CONFIG の Config を内部 Input へ引き渡す(設定が反映されない不具合の修正)。
@@ -49,6 +56,8 @@ public static class ProtoBridge
             Type = type,
             SessionId = proto.Id,
             Key = key,
+            // key_code が無く key_string のみのソフトキーボード/かな入力を取りこぼさない。
+            KeyString = proto.Key != null && proto.Key.HasKeyString ? proto.Key.KeyString : string.Empty,
             SessionCommand = sessionCommand,
             CommandId = commandId,
             ConfigBytes = configBytes,
@@ -66,6 +75,12 @@ public static class ProtoBridge
             Id = output.SessionId,
             Consumed = output.Consumed,
         };
+        // 失敗した EvalCommand は error_code=SESSION_FAILURE を返す(commands.proto)。
+        // 既定の成功値のままだとクライアントが不正セッションを成功と誤認する。
+        if (output.ErrorOccured)
+        {
+            proto.ErrorCode = Pb.Output.Types.ErrorCode.SessionFailure;
+        }
         // GET_CONFIG/SET_CONFIG の応答 Config を protobuf に書き戻す(設定 UI が既定値を
         // 読んでしまう不具合の修正)。
         if (output.ConfigBytes.Length != 0)
