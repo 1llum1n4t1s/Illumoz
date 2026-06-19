@@ -18,8 +18,14 @@ public static class ProtoBridge
             Pb.Input.Types.CommandType.DeleteSession => CommandType.DeleteSession,
             Pb.Input.Types.CommandType.SendKey => CommandType.SendKey,
             Pb.Input.Types.CommandType.SendCommand => CommandType.SendCommand,
+            Pb.Input.Types.CommandType.GetConfig => CommandType.GetConfig,
+            Pb.Input.Types.CommandType.SetConfig => CommandType.SetConfig,
             _ => CommandType.NoOperation,
         };
+        // SET_CONFIG の Config を内部 Input へ引き渡す(設定が反映されない不具合の修正)。
+        byte[] configBytes = proto.Config != null
+            ? proto.Config.ToByteArray()
+            : global::System.Array.Empty<byte>();
         KeyEvent? key = proto.Key != null ? DecodeKey(proto.Key) : null;
 
         var sessionCommand = SessionCommandType.None;
@@ -45,6 +51,7 @@ public static class ProtoBridge
             Key = key,
             SessionCommand = sessionCommand,
             CommandId = commandId,
+            ConfigBytes = configBytes,
         };
     }
 
@@ -59,6 +66,12 @@ public static class ProtoBridge
             Id = output.SessionId,
             Consumed = output.Consumed,
         };
+        // GET_CONFIG/SET_CONFIG の応答 Config を protobuf に書き戻す(設定 UI が既定値を
+        // 読んでしまう不具合の修正)。
+        if (output.ConfigBytes.Length != 0)
+        {
+            proto.Config = Mozc.Config.Config.Parser.ParseFrom(output.ConfigBytes);
+        }
         if (output.Preedit.Length != 0)
         {
             int len = new global::System.Globalization.StringInfo(output.Preedit).LengthInTextElements;
@@ -160,13 +173,19 @@ public static class ProtoBridge
         return ke;
     }
 
+    // commands.proto の SpecialKey を内部 SpecialKey に対応付ける。
+    // F6-F10 等の変換ショートカットや PageUp/PageDown の候補ページングが
+    // protobuf 境界を越えて機能するよう、全特殊キーを網羅的にマップする。
     private static SpecialKey? MapSpecial(Pb.KeyEvent.Types.SpecialKey s) => s switch
     {
+        Pb.KeyEvent.Types.SpecialKey.On => SpecialKey.On,
+        Pb.KeyEvent.Types.SpecialKey.Off => SpecialKey.Off,
         Pb.KeyEvent.Types.SpecialKey.Space => SpecialKey.Space,
         Pb.KeyEvent.Types.SpecialKey.Enter => SpecialKey.Enter,
         Pb.KeyEvent.Types.SpecialKey.Backspace => SpecialKey.Backspace,
         Pb.KeyEvent.Types.SpecialKey.Escape => SpecialKey.Escape,
         Pb.KeyEvent.Types.SpecialKey.Del => SpecialKey.Del,
+        Pb.KeyEvent.Types.SpecialKey.Insert => SpecialKey.Insert,
         Pb.KeyEvent.Types.SpecialKey.Tab => SpecialKey.Tab,
         Pb.KeyEvent.Types.SpecialKey.Left => SpecialKey.Left,
         Pb.KeyEvent.Types.SpecialKey.Right => SpecialKey.Right,
@@ -174,6 +193,59 @@ public static class ProtoBridge
         Pb.KeyEvent.Types.SpecialKey.Down => SpecialKey.Down,
         Pb.KeyEvent.Types.SpecialKey.Home => SpecialKey.Home,
         Pb.KeyEvent.Types.SpecialKey.End => SpecialKey.End,
+        Pb.KeyEvent.Types.SpecialKey.PageUp => SpecialKey.PageUp,
+        Pb.KeyEvent.Types.SpecialKey.PageDown => SpecialKey.PageDown,
+        Pb.KeyEvent.Types.SpecialKey.Henkan => SpecialKey.Henkan,
+        Pb.KeyEvent.Types.SpecialKey.Muhenkan => SpecialKey.Muhenkan,
+        Pb.KeyEvent.Types.SpecialKey.Kana => SpecialKey.Kana,
+        Pb.KeyEvent.Types.SpecialKey.Katakana => SpecialKey.Katakana,
+        Pb.KeyEvent.Types.SpecialKey.Eisu => SpecialKey.Eisu,
+        Pb.KeyEvent.Types.SpecialKey.Hankaku => SpecialKey.Hankaku,
+        Pb.KeyEvent.Types.SpecialKey.Kanji => SpecialKey.Kanji,
+        Pb.KeyEvent.Types.SpecialKey.TextInput => SpecialKey.TextInput,
+        Pb.KeyEvent.Types.SpecialKey.F1 => SpecialKey.F1,
+        Pb.KeyEvent.Types.SpecialKey.F2 => SpecialKey.F2,
+        Pb.KeyEvent.Types.SpecialKey.F3 => SpecialKey.F3,
+        Pb.KeyEvent.Types.SpecialKey.F4 => SpecialKey.F4,
+        Pb.KeyEvent.Types.SpecialKey.F5 => SpecialKey.F5,
+        Pb.KeyEvent.Types.SpecialKey.F6 => SpecialKey.F6,
+        Pb.KeyEvent.Types.SpecialKey.F7 => SpecialKey.F7,
+        Pb.KeyEvent.Types.SpecialKey.F8 => SpecialKey.F8,
+        Pb.KeyEvent.Types.SpecialKey.F9 => SpecialKey.F9,
+        Pb.KeyEvent.Types.SpecialKey.F10 => SpecialKey.F10,
+        Pb.KeyEvent.Types.SpecialKey.F11 => SpecialKey.F11,
+        Pb.KeyEvent.Types.SpecialKey.F12 => SpecialKey.F12,
+        Pb.KeyEvent.Types.SpecialKey.F13 => SpecialKey.F13,
+        Pb.KeyEvent.Types.SpecialKey.F14 => SpecialKey.F14,
+        Pb.KeyEvent.Types.SpecialKey.F15 => SpecialKey.F15,
+        Pb.KeyEvent.Types.SpecialKey.F16 => SpecialKey.F16,
+        Pb.KeyEvent.Types.SpecialKey.F17 => SpecialKey.F17,
+        Pb.KeyEvent.Types.SpecialKey.F18 => SpecialKey.F18,
+        Pb.KeyEvent.Types.SpecialKey.F19 => SpecialKey.F19,
+        Pb.KeyEvent.Types.SpecialKey.F20 => SpecialKey.F20,
+        Pb.KeyEvent.Types.SpecialKey.F21 => SpecialKey.F21,
+        Pb.KeyEvent.Types.SpecialKey.F22 => SpecialKey.F22,
+        Pb.KeyEvent.Types.SpecialKey.F23 => SpecialKey.F23,
+        Pb.KeyEvent.Types.SpecialKey.F24 => SpecialKey.F24,
+        Pb.KeyEvent.Types.SpecialKey.Numpad0 => SpecialKey.Numpad0,
+        Pb.KeyEvent.Types.SpecialKey.Numpad1 => SpecialKey.Numpad1,
+        Pb.KeyEvent.Types.SpecialKey.Numpad2 => SpecialKey.Numpad2,
+        Pb.KeyEvent.Types.SpecialKey.Numpad3 => SpecialKey.Numpad3,
+        Pb.KeyEvent.Types.SpecialKey.Numpad4 => SpecialKey.Numpad4,
+        Pb.KeyEvent.Types.SpecialKey.Numpad5 => SpecialKey.Numpad5,
+        Pb.KeyEvent.Types.SpecialKey.Numpad6 => SpecialKey.Numpad6,
+        Pb.KeyEvent.Types.SpecialKey.Numpad7 => SpecialKey.Numpad7,
+        Pb.KeyEvent.Types.SpecialKey.Numpad8 => SpecialKey.Numpad8,
+        Pb.KeyEvent.Types.SpecialKey.Numpad9 => SpecialKey.Numpad9,
+        Pb.KeyEvent.Types.SpecialKey.Multiply => SpecialKey.Multiply,
+        Pb.KeyEvent.Types.SpecialKey.Add => SpecialKey.Add,
+        Pb.KeyEvent.Types.SpecialKey.Separator => SpecialKey.Separator,
+        Pb.KeyEvent.Types.SpecialKey.Subtract => SpecialKey.Subtract,
+        Pb.KeyEvent.Types.SpecialKey.Decimal => SpecialKey.Decimal,
+        Pb.KeyEvent.Types.SpecialKey.Divide => SpecialKey.Divide,
+        Pb.KeyEvent.Types.SpecialKey.Equals => SpecialKey.Equals,
+        Pb.KeyEvent.Types.SpecialKey.Comma => SpecialKey.Comma,
+        Pb.KeyEvent.Types.SpecialKey.Clear => SpecialKey.Clear,
         _ => SpecialKey.UndefinedKey,
     };
 }

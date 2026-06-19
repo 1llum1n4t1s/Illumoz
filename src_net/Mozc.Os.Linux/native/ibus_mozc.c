@@ -12,6 +12,7 @@
 #include <string.h>
 
 /* C# (NativeAOT) エクスポート。 */
+extern int  mozc_ibus_init(void);                         /* controller 初期化(IPC 結線) */
 extern int  mozc_ibus_process_key(uint32_t keyval, uint32_t state);
 extern int  mozc_ibus_get_preedit(char *buf, int cap);
 extern int  mozc_ibus_get_commit(char *buf, int cap);
@@ -67,4 +68,52 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
 void mozc_ibus_install(IBusEngineClass *klass)
 {
     klass->process_key_event = mozc_process_key_event;
+}
+
+/* --- IBusEngine サブタイプ(GObject)定義 --- */
+typedef struct _IBusMozcEngine      { IBusEngine parent; }      IBusMozcEngine;
+typedef struct _IBusMozcEngineClass { IBusEngineClass parent; } IBusMozcEngineClass;
+
+G_DEFINE_TYPE(IBusMozcEngine, ibus_mozc_engine, IBUS_TYPE_ENGINE)
+
+static void ibus_mozc_engine_class_init(IBusMozcEngineClass *klass)
+{
+    mozc_ibus_install(IBUS_ENGINE_CLASS(klass));
+}
+
+static void ibus_mozc_engine_init(IBusMozcEngine *engine) { (void)engine; }
+
+/* ibus-engine-mozc 実行ファイルのエントリポイント。
+ * ibus に接続し、mozc エンジンの factory を登録してメインループを回す。
+ * --ibus 付きで ibus デーモンから起動される(mozc.xml component の exec)。 */
+int main(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    ibus_init();
+
+    /* C# 側 controller(IPC トランスポート)を初期化。失敗時は起動を中止。 */
+    if (!mozc_ibus_init()) {
+        g_warning("mozc_ibus_init failed; aborting");
+        return 1;
+    }
+
+    IBusBus *bus = ibus_bus_new();
+    g_object_ref_sink(bus);
+    if (!ibus_bus_is_connected(bus)) {
+        g_warning("cannot connect to ibus daemon");
+        return 1;
+    }
+
+    IBusFactory *factory = ibus_factory_new(ibus_bus_get_connection(bus));
+    g_object_ref_sink(factory);
+    ibus_factory_add_engine(factory, "mozc", ibus_mozc_engine_get_type());
+
+    /* component XML 経由(ibus --ibus)で起動された場合は名前要求、
+     * 単体起動時はコンポーネント登録のフォールバック。 */
+    ibus_bus_request_name(bus, "org.freedesktop.IBus.Mozc", 0);
+
+    ibus_main();
+    return 0;
 }

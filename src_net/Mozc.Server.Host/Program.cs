@@ -58,7 +58,9 @@ internal static class Program
         }
         else if (global::System.OperatingSystem.IsLinux())
         {
-            byte[] name = global::System.Text.Encoding.ASCII.GetBytes("\0" + pipe);
+            // .ipc に広告した鍵入りの abstract socket 名にバインドする
+            // (クライアントは IpcPathManager から同じ名前を導出して接続する)。
+            byte[] name = pathManager.GetLinuxAbstractSocketName();
             using var ipc = new UnixSocketIpcServer(name, server.HandleProtoRequest);
             ipc.Start();
             global::System.Console.WriteLine($"mozc_server (C#) listening on abstract socket '{pipe}'. Ctrl+C to stop.");
@@ -66,9 +68,12 @@ internal static class Program
         }
         else
         {
-            // macOS は abstract socket 非対応 → Mach OOL or filesystem UDS transport を別途(後続)。
-            global::System.Console.Error.WriteLine("unsupported platform for IPC server transport");
-            return 3;
+            // macOS は abstract socket 非対応 → ファイルシステム UDS にバインドする。
+            string socketPath = pathManager.GetFileSocketPath();
+            using var ipc = new FileSocketIpcServer(socketPath, server.HandleProtoRequest);
+            ipc.Start();
+            global::System.Console.WriteLine($"mozc_server (C#) listening on file socket '{socketPath}'. Ctrl+C to stop.");
+            WaitForever();
         }
         return 0;
     }

@@ -138,9 +138,33 @@ public static class TipRegistration
         }
     }
 
-    private static string GetModulePath()
+    private const uint GetModuleHandleExFlagFromAddress = 0x4;
+    private const uint GetModuleHandleExFlagUnchangedRefcount = 0x2;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetModuleHandleExW(uint flags, IntPtr address, out IntPtr module);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern uint GetModuleFileNameW(IntPtr module, [Out] char[] buffer, uint size);
+
+    // regsvr32/インストーラのカスタムアクションから DllRegisterServer が呼ばれると
+    // Environment.ProcessPath は host プロセス(regsvr32 等)を指すため、InprocServer32 に
+    // 誤ったパスを書いてしまう。ロード中の TIP DLL 自身のモジュールパスを解決する。
+    private static unsafe string GetModulePath()
     {
-        // NativeAOT 共有ライブラリ自身のパス。
+        IntPtr addr = (IntPtr)(delegate* unmanaged<int>)&ComExports.DllCanUnloadNow;
+        if (GetModuleHandleExW(
+                GetModuleHandleExFlagFromAddress | GetModuleHandleExFlagUnchangedRefcount,
+                addr, out IntPtr module) && module != IntPtr.Zero)
+        {
+            var buf = new char[1024];
+            uint len = GetModuleFileNameW(module, buf, (uint)buf.Length);
+            if (len > 0 && len < buf.Length)
+            {
+                return new string(buf, 0, (int)len);
+            }
+        }
         return Environment.ProcessPath ?? "Mozc.Os.Windows.dll";
     }
 }

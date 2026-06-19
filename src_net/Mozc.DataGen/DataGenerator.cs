@@ -30,13 +30,20 @@ public static class DataGenerator
             dict.AddRange(ReadLines(f));
         }
 
+        IReadOnlyList<string> specialPosLines = ReadLinesOrEmpty(sources.SpecialPosFile);
+        // --conn-special 未指定(0)時は special_pos.def の実エントリ数から導出する。
+        // (連接/境界テーブルを pos_size + special_pos_size で正しくサイズするため)。
+        int connectionSpecialPosSize = sources.ConnectionSpecialPosSize > 0
+            ? sources.ConnectionSpecialPosSize
+            : CountSpecialPos(specialPosLines);
+
         var builderSources = new DataSetBuilder.Sources
         {
             DictionaryLines = dict,
             ConnectionLines = ReadLines(sources.ConnectionFile),
-            ConnectionSpecialPosSize = sources.ConnectionSpecialPosSize,
+            ConnectionSpecialPosSize = connectionSpecialPosSize,
             IdDefLines = ReadLines(sources.IdDefFile),
-            SpecialPosLines = ReadLinesOrEmpty(sources.SpecialPosFile),
+            SpecialPosLines = specialPosLines,
             PosMatcherRuleLines = ReadLines(sources.PosMatcherRuleFile),
             SegmenterRuleLines = ReadLinesOrEmpty(sources.SegmenterRuleFile),
             BoundaryDefLines = ReadLinesOrEmpty(sources.BoundaryDefFile),
@@ -45,6 +52,23 @@ public static class DataGenerator
             EmojiTsv = ReadTextOrEmpty(sources.EmojiFile),
         };
         return new DataSetBuilder().Build(builderSources);
+    }
+
+    // special_pos.def の実エントリ数(空行/'#' コメント行を除く)。
+    // PosMatcherDataGenerator.ParsePosDatabase の付番ロジックと一致させる。
+    private static int CountSpecialPos(IReadOnlyList<string> lines)
+    {
+        int count = 0;
+        foreach (string raw in lines)
+        {
+            string t = raw.TrimEnd('\r', '\n');
+            if (t.TrimStart().StartsWith('#') || t.Length == 0)
+            {
+                continue; // 行頭コメント / 空行はスキップ(StripComment と同一判定)。
+            }
+            count++;
+        }
+        return count;
     }
 
     private static IReadOnlyList<string> ReadLines(string path)

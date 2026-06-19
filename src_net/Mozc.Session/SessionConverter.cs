@@ -199,12 +199,33 @@ public sealed class SessionConverter
     }
 
     // 確定文字列を返し、状態を初期化する。確定時は履歴予測へ学習する。
+    // CommandRewriter 由来のコマンド候補(設定トグル等)は、ラベル文字列を
+    // 確定テキストとして挿入せず空文字を返す(誤ってラベルが入力される不具合の修正)。
     public string Commit()
     {
-        string result = GetPreedit();
+        string result = SelectedCandidateIsCommand() ? string.Empty : GetPreedit();
         LearnHistory();
         Reset();
         return result;
+    }
+
+    // 注目文節の選択候補がコマンド候補(CommandCandidate 属性)か。
+    private bool SelectedCandidateIsCommand()
+    {
+        if (CurrentState != State.Conversion || _segments == null)
+        {
+            return false;
+        }
+        for (int i = 0; i < _segments.ConversionSegmentsSize; i++)
+        {
+            Segment seg = _segments.ConversionSegment(i);
+            if (seg.CandidatesSize > 0 &&
+                (seg.Get(_selected[i]).Attributes & Candidate.Attribute.CommandCandidate) != 0)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // 変換中の各文節について (読み, 選択中の表記) を履歴学習する。
@@ -220,6 +241,11 @@ public sealed class SessionConverter
             if (seg.CandidatesSize > 0)
             {
                 Candidate c = seg.Get(_selected[i]);
+                // NoLearning 属性(ダイス/おみくじ/コマンド候補等)は学習しない。
+                if ((c.Attributes & Candidate.Attribute.NoLearning) != 0)
+                {
+                    continue;
+                }
                 _history.Learn(seg.Key, c.Value);
             }
         }

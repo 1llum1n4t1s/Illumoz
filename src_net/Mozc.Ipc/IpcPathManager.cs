@@ -160,6 +160,15 @@ public sealed class IpcPathManager
         return bytes;
     }
 
+    // macOS 等 abstract socket 非対応プラットフォーム用のファイルシステム UDS パス。
+    // "/tmp/.mozc.<key>.<name>"(先頭 '/' を残す通常のパス)。サーバ/クライアントが
+    // 同じ .ipc メタデータから同一パスを導出できる。
+    public string GetFileSocketPath()
+    {
+        EnsureKey();
+        return $"{MozcConstants.PosixIpcPrefix}{Key}.{_name}";
+    }
+
     private void EnsureKey()
     {
         if (string.IsNullOrEmpty(Key))

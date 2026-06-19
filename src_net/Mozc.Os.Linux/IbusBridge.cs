@@ -15,9 +15,48 @@ public static class IbusBridge
     private static string _commit = string.Empty;
     private static string _candidates = string.Empty; // 改行区切りの候補列。
 
+    // mozc_server の既定 IPC 名(Mozc.Server.Host の --pipe 既定と一致)。
+    private const string DefaultServerName = "mozc.session";
+
     // テスト/結線用: transport を差し替えて初期化(実機は NamedPipe/Unix client)。
     public static void InitForTest(Func<byte[], byte[]> transport)
         => _controller = new IbusEngineController(transport);
+
+    // native: int mozc_ibus_init() -> 1=成功/0=失敗。
+    // 実機の ibus-engine-mozc 起動時(main)に呼ばれ、mozc_server への
+    // Unix abstract socket トランスポートで controller を初期化する。
+    [UnmanagedCallersOnly(EntryPoint = "mozc_ibus_init")]
+    public static int Init()
+    {
+        try
+        {
+            EnsureController();
+            return _controller != null ? 1 : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    // controller 未初期化なら実トランスポートで遅延初期化する(init 呼び忘れの保険)。
+    private static void EnsureController()
+    {
+        _controller ??= new IbusEngineController(BuildServerTransport(DefaultServerName));
+    }
+
+    // mozc_server へ connect-per-call する Unix abstract socket トランスポート。
+    private static Func<byte[], byte[]> BuildServerTransport(string name)
+        => request =>
+        {
+            var pm = new Mozc.Ipc.IpcPathManager();
+            if (!pm.TryLoad(name))
+            {
+                throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+            }
+            using var client = new Mozc.Ipc.UnixSocketIpcClient(pm.GetLinuxAbstractSocketName());
+            return client.Call(request, TimeSpan.FromSeconds(30));
+        };
 
     // native: int mozc_ibus_process_key(uint keyval, uint state) -> consumed(0/1)
     [UnmanagedCallersOnly(EntryPoint = "mozc_ibus_process_key")]
@@ -28,7 +67,18 @@ public static class IbusBridge
     {
         if (_controller == null)
         {
-            return 0;
+            try
+            {
+                EnsureController();
+            }
+            catch
+            {
+                return 0;
+            }
+            if (_controller == null)
+            {
+                return 0;
+            }
         }
         Pb.KeyEvent ke = X11Keysym.Translate(keyval, state);
         ImeStateForBridge st = ProcessInternal(ke);

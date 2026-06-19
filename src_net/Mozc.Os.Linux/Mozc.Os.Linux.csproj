@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Mozc.Client\Mozc.Client.csproj" />
+    <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
     <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
   </ItemGroup>
 
