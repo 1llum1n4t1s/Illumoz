@@ -183,18 +183,31 @@ public sealed class CharacterFormManager
                 return false;
             }
         }
-        using var ms = new global::System.IO.MemoryStream(data);
-        using var r = new global::System.IO.BinaryReader(ms);
-        r.ReadBytes(Magic.Length);
-        uint count = r.ReadUInt32();
-        _lastFormStorage.Clear();
-        for (uint i = 0; i < count; i++)
+        try
         {
-            char k = (char)r.ReadUInt16();
-            var form = (CharacterForm)r.ReadByte();
-            _lastFormStorage[k] = form;
+            using var ms = new global::System.IO.MemoryStream(data);
+            using var r = new global::System.IO.BinaryReader(ms);
+            r.ReadBytes(Magic.Length);
+            uint count = r.ReadUInt32();
+            // 1エントリ=3バイト(UInt16+Byte)。残量不足の破損データを早期に弾く。
+            if (ms.Length - ms.Position < (long)count * 3)
+            {
+                return false;
+            }
+            _lastFormStorage.Clear();
+            for (uint i = 0; i < count; i++)
+            {
+                char k = (char)r.ReadUInt16();
+                var form = (CharacterForm)r.ReadByte();
+                _lastFormStorage[k] = form;
+            }
+            return true;
         }
-        return true;
+        catch (global::System.IO.EndOfStreamException)
+        {
+            // 破損履歴で落とさず学習なしとして継続。
+            return false;
+        }
     }
 
     public void SaveHistory(string path)

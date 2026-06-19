@@ -18,9 +18,10 @@ public static class SymbolDataParser
     public static IReadOnlyDictionary<string, string[]> ParseSingleKanji(string tsv)
     {
         var dict = new Dictionary<string, string[]>();
-        foreach (string line in tsv.Split('\n'))
+        using var reader = new global::System.IO.StringReader(tsv);
+        string? row;
+        while ((row = reader.ReadLine()) != null)
         {
-            string row = line.TrimEnd('\r');
             if (row.Length == 0 || row[0] == '#')
             {
                 continue;
@@ -51,9 +52,10 @@ public static class SymbolDataParser
     {
         var acc = new Dictionary<string, List<string>>();
         bool first = true;
-        foreach (string line in tsv.Split('\n'))
+        using var reader = new global::System.IO.StringReader(tsv);
+        string? row;
+        while ((row = reader.ReadLine()) != null)
         {
-            string row = line.TrimEnd('\r');
             if (skipFirstLine && first)
             {
                 first = false;

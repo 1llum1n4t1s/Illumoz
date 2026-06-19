@@ -44,28 +44,36 @@ public static class UserHistoryStorage
         {
             return false;
         }
-        int pos = 4;
-        int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
-        pos += 4;
-        var entries = new List<UserHistoryPredictor.Entry>(count);
-        for (int i = 0; i < count; i++)
+        try
         {
-            string key = ReadStr(data, ref pos);
-            string value = ReadStr(data, ref pos);
-            int freq = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(pos, 4));
+            int pos = 4;
+            int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
             pos += 4;
-            long last = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(pos, 8));
-            pos += 8;
-            entries.Add(new UserHistoryPredictor.Entry
+            var entries = new List<UserHistoryPredictor.Entry>(count);
+            for (int i = 0; i < count; i++)
             {
-                Key = key,
-                Value = value,
-                Frequency = freq,
-                LastAccess = last,
-            });
+                string key = ReadStr(data, ref pos);
+                string value = ReadStr(data, ref pos);
+                int freq = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(pos, 4));
+                pos += 4;
+                long last = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(pos, 8));
+                pos += 8;
+                entries.Add(new UserHistoryPredictor.Entry
+                {
+                    Key = key,
+                    Value = value,
+                    Frequency = freq,
+                    LastAccess = last,
+                });
+            }
+            predictor.Restore(entries);
+            return true;
         }
-        predictor.Restore(entries);
-        return true;
+        catch (global::System.Exception)
+        {
+            // 破損ファイル(境界外/長さ不正)で落とさず空履歴として継続。
+            return false;
+        }
     }
 
     public static bool LoadFile(UserHistoryPredictor predictor, string path)

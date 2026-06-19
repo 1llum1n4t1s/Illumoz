@@ -31,9 +31,14 @@ public static class NumberUtil
         var sb = new StringBuilder(input.Length);
         foreach (Rune rune in input.EnumerateRunes())
         {
-            sb.Append(KanjiToArabic.TryGetValue(rune.Value, out string? mapped)
-                ? mapped
-                : rune.ToString());
+            if (KanjiToArabic.TryGetValue(rune.Value, out string? mapped))
+            {
+                sb.Append(mapped);
+            }
+            else
+            {
+                sb.Append(rune);
+            }
         }
         return sb.ToString();
     }
@@ -59,11 +64,11 @@ public static class NumberUtil
         suffix = string.Empty;
         var numbers = new List<ulong>();
         int byteOrCharPos = 0;
-        bool suffixFound = false;
         foreach (Rune rune in input.EnumerateRunes())
         {
-            string mapped = KanjiNumberToArabicNumber(rune.ToString());
-            if (!ulong.TryParse(mapped, out ulong n))
+            // 数値文字(漢数字/全半角アラビア)は KanjiToArabic に単一桁文字列として
+            // 登録済みなので rune.Value で直接引ける(文字列アロケーションを排除)。
+            if (!KanjiToArabic.TryGetValue(rune.Value, out string? mapped) || !ulong.TryParse(mapped, out ulong n))
             {
                 if (!allowSuffix)
                 {
@@ -75,13 +80,11 @@ public static class NumberUtil
                 {
                     return false;
                 }
-                suffixFound = true;
                 break;
             }
             numbers.Add(n);
             byteOrCharPos += rune.Utf16SequenceLength;
         }
-        _ = suffixFound;
         if (numbers.Count == 0)
         {
             return false;

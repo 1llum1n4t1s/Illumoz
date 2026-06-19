@@ -37,14 +37,19 @@ public static class ScriptClassifier
 
     private static ScriptType GetScriptTypeInternal(string str, bool ignoreSymbols)
     {
-        var all = new[] { ScriptType.Unknown, ScriptType.Hiragana, ScriptType.Katakana,
-            ScriptType.Kanji, ScriptType.Numeric, ScriptType.Alphabet, ScriptType.Other };
-        var bs = new HashSet<ScriptType>(all);
-        var kana = new HashSet<ScriptType> { ScriptType.Hiragana, ScriptType.Katakana };
+        // 文字種は少数なので uint ビットマスクで候補集合を表現し、HashSet の
+        // アロケーションを排除する(GC プレッシャー削減)。
+        uint bs = (1u << (int)ScriptType.Hiragana) |
+                  (1u << (int)ScriptType.Katakana) |
+                  (1u << (int)ScriptType.Kanji) |
+                  (1u << (int)ScriptType.Numeric) |
+                  (1u << (int)ScriptType.Alphabet) |
+                  (1u << (int)ScriptType.Other);
+        const uint kanaMask = (1u << (int)ScriptType.Hiragana) | (1u << (int)ScriptType.Katakana);
 
         foreach (Rune rune in str.EnumerateRunes())
         {
-            if (bs.Count == 0)
+            if (bs == 0)
             {
                 return ScriptType.Unknown;
             }
@@ -52,11 +57,11 @@ public static class ScriptClassifier
             // 長音/中点/濁点・半濁点はひらがな・カタカナ両方に属する。
             if (c == 0x30FC || c == 0x30FB || (c >= 0x3099 && c <= 0x309C))
             {
-                bs.IntersectWith(kana);
+                bs &= kanaMask;
                 continue;
             }
             // 先頭以外の「.」「．」は数字の一部。
-            if ((c == 0xFF0E || c == '.') && bs.Count == 1 && bs.Contains(ScriptType.Numeric))
+            if ((c == 0xFF0E || c == '.') && bs == (1u << (int)ScriptType.Numeric))
             {
                 continue;
             }
@@ -66,10 +71,14 @@ public static class ScriptClassifier
             {
                 continue;
             }
-            bs.IntersectWith(new[] { type });
+            bs &= 1u << (int)type;
         }
 
-        return bs.Count == 1 ? bs.Single() : ScriptType.Unknown;
+        if (bs != 0 && (bs & (bs - 1)) == 0)
+        {
+            return (ScriptType)global::System.Numerics.BitOperations.TrailingZeroCount(bs);
+        }
+        return ScriptType.Unknown;
     }
 
     // C++ Util::IsEnglishTransliteration 相当。空白/!/'/- と A-Z/a-z のみなら true。

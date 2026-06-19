@@ -51,7 +51,7 @@ public sealed class ImmutableConverter
     }
 
     // 各セグメントのキー(バイト位置)→所属セグメント index の表(末尾に番兵)。
-    private static ushort[] MakeGroup(Segments segments, string key)
+    private static ushort[] MakeGroup(Segments segments)
     {
         var group = new List<ushort>();
         for (int i = 0; i < segments.SegmentsSize; i++)
@@ -68,10 +68,12 @@ public sealed class ImmutableConverter
 
     private void MakeSegments(Lattice lattice, Segments segments, string key, int maxCandidatesSize)
     {
-        ushort[] group = MakeGroup(segments, key);
+        ushort[] group = MakeGroup(segments);
         int oldConversionSize = segments.ConversionSegmentsSize;
 
-        InsertCandidates(lattice, segments, group, key, maxCandidatesSize);
+        // key の UTF-8 エンコードはセグメント毎に再実行せず一度だけ行い引き回す。
+        byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+        InsertCandidates(lattice, segments, group, keyBytes, maxCandidatesSize);
 
         // 既存(変換前)セグメントを削除し、新規セグメントのみ残す。
         if (oldConversionSize > 0)
@@ -81,7 +83,7 @@ public sealed class ImmutableConverter
     }
 
     private void InsertCandidates(Lattice lattice, Segments segments, ushort[] group,
-        string key, int maxCandidatesSize)
+        byte[] keyBytes, int maxCandidatesSize)
     {
         // 履歴ノードは無いので prev = BOS から開始。
         Node prev = lattice.BosNode;
@@ -114,7 +116,7 @@ public sealed class ImmutableConverter
             // 新セグメント生成(キーはバイト範囲 [beginPos, node.EndPos))。
             Segment segment = segments.AddSegment();
             segment.ClearCandidates();
-            segment.SetKey(SubstringByBytes(key, beginPos, node.EndPos - beginPos));
+            segment.SetKey(SubstringByBytes(keyBytes, beginPos, node.EndPos - beginPos));
             segment.Type = segments.GetSegment(group[node.BeginPos]).Type;
 
             nbest.Reset(prev, node.Next, NBestGenerator.BoundaryCheckMode.Strict, options, originalKey);
@@ -148,10 +150,9 @@ public sealed class ImmutableConverter
         return _segmenter.IsBoundary(node, node.Next, false);
     }
 
-    // key の UTF-8 バイト範囲 [startByte, startByte+lenBytes) を文字列で返す。
-    private static string SubstringByBytes(string key, int startByte, int lenBytes)
+    // keyBytes の UTF-8 バイト範囲 [startByte, startByte+lenBytes) を文字列で返す。
+    private static string SubstringByBytes(byte[] keyBytes, int startByte, int lenBytes)
     {
-        byte[] bytes = Encoding.UTF8.GetBytes(key);
-        return Encoding.UTF8.GetString(bytes, startByte, lenBytes);
+        return Encoding.UTF8.GetString(keyBytes, startByte, lenBytes);
     }
 }

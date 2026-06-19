@@ -55,6 +55,10 @@ public sealed class NamedPipeIpcServer : IDisposable
             {
                 // クライアント切断等。次の接続へ。
             }
+            catch (Exception)
+            {
+                // ハンドラ等の予期せぬ例外で受付ループが死ぬのを防ぐ。
+            }
             finally
             {
                 pipe?.Dispose();

@@ -36,7 +36,26 @@ public sealed class NBestGenerator
     private readonly Func<ushort, bool> _isFunctional;
     private readonly CandidateFilter _filter;
 
-    private readonly PriorityQueue<QueueElement, int> _agenda = new();
+    // .NET の PriorityQueue は同値優先度で取り出し順が非安定。C++ 側ヒープと
+    // 決定的に候補順を一致させるため、コスト＋挿入連番の複合キーで安定化する。
+    private readonly struct StablePriority : global::System.IComparable<StablePriority>
+    {
+        public int Cost { get; }
+        public long Sequence { get; }
+        public StablePriority(int cost, long sequence)
+        {
+            Cost = cost;
+            Sequence = sequence;
+        }
+        public int CompareTo(StablePriority other)
+        {
+            int c = Cost.CompareTo(other.Cost);
+            return c != 0 ? c : Sequence.CompareTo(other.Sequence);
+        }
+    }
+
+    private readonly PriorityQueue<QueueElement, StablePriority> _agenda = new();
+    private long _sequence;
     private readonly List<Node> _topNodes = new();
     private Node _beginNode = null!;
     private Node _endNode = null!;
@@ -59,6 +78,7 @@ public sealed class NBestGenerator
         CandidateFilter.Options? options = null, string originalKey = "")
     {
         _agenda.Clear();
+        _sequence = 0;
         _topNodes.Clear();
         _filter.Reset();
         _viterbiResultChecked = false;
@@ -225,7 +245,7 @@ public sealed class NBestGenerator
         return false;
     }
 
-    private void Push(QueueElement elm) => _agenda.Enqueue(elm, elm.Fx);
+    private void Push(QueueElement elm) => _agenda.Enqueue(elm, new StablePriority(elm.Fx, _sequence++));
 
     private CandidateFilter.ResultType InsertTopResult(Candidate candidate)
     {

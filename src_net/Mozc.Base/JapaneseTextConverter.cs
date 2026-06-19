@@ -19,12 +19,20 @@ internal static class JapaneseTextConverter
     private static (int Seekto, int Index) Lookup(
         (short Base, ushort Check)[] array, byte[] key, int start)
     {
+        if (array.Length == 0)
+        {
+            return (0, 0);
+        }
         int b = array[0].Base;
         int seekto = 0;
         int index = 0;
         for (int i = start; i < key.Length; i++)
         {
             int p = b;
+            if (p < 0 || p >= array.Length)
+            {
+                return (seekto, index);
+            }
             int n = array[p].Base;
             if ((uint)b == array[p].Check && n < 0)
             {
@@ -32,7 +40,7 @@ internal static class JapaneseTextConverter
                 index = -n - 1;
             }
             p = b + key[i] + 1;
-            if ((uint)b == array[p].Check)
+            if (p >= 0 && p < array.Length && (uint)b == array[p].Check)
             {
                 b = array[p].Base;
             }
@@ -43,11 +51,14 @@ internal static class JapaneseTextConverter
         }
         {
             int p = b;
-            int n = array[p].Base;
-            if ((uint)b == array[p].Check && n < 0)
+            if (p >= 0 && p < array.Length)
             {
-                seekto = key.Length - start;
-                index = -n - 1;
+                int n = array[p].Base;
+                if ((uint)b == array[p].Check && n < 0)
+                {
+                    seekto = key.Length - start;
+                    index = -n - 1;
+                }
             }
         }
         return (seekto, index);

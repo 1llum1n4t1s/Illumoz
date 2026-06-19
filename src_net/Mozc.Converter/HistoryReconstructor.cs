@@ -105,7 +105,7 @@ public sealed class HistoryReconstructor
         var sb = new StringBuilder();
         for (int i = reverse.Count - 1; i >= 0; i--)
         {
-            sb.Append(char.ConvertFromUtf32(reverse[i]));
+            sb.Append(new Rune(reverse[i]));
         }
         lastToken = sb.ToString();
         return true;

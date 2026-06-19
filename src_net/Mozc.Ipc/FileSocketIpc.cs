@@ -59,6 +59,11 @@ public sealed class FileSocketIpcServer : IDisposable
             }
             catch (SocketException)
             {
+                // 接続エラー。次へ。
+            }
+            catch (Exception)
+            {
+                // ハンドラ等の予期せぬ例外で受付ループが死ぬのを防ぐ。
             }
             finally
             {

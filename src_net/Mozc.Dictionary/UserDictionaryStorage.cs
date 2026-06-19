@@ -141,18 +141,26 @@ public sealed class UserDictionaryStorage
         {
             return false;
         }
-        int pos = 4;
-        int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
-        pos += 4;
-        for (int i = 0; i < count; i++)
+        try
         {
-            string reading = ReadStr(data, ref pos);
-            string word = ReadStr(data, ref pos);
-            string posTag = ReadStr(data, ref pos);
-            string comment = ReadStr(data, ref pos);
-            Add(new UserEntry(reading, word, posTag, comment));
+            int pos = 4;
+            int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(pos, 4));
+            pos += 4;
+            for (int i = 0; i < count; i++)
+            {
+                string reading = ReadStr(data, ref pos);
+                string word = ReadStr(data, ref pos);
+                string posTag = ReadStr(data, ref pos);
+                string comment = ReadStr(data, ref pos);
+                Add(new UserEntry(reading, word, posTag, comment));
+            }
+            return true;
         }
-        return true;
+        catch (global::System.Exception)
+        {
+            // 破損ファイル(境界外/長さ不正)で落とさず空辞書として継続。
+            return false;
+        }
     }
 
     public bool LoadFile(string path)
