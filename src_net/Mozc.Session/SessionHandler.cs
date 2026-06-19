@@ -152,6 +152,8 @@ public sealed class SessionHandler
             Candidates = session.Converter.GetCandidates(),
             CandidateDescriptions = session.Converter.GetCandidateDescriptions(),
             Suggestions = session.GetSuggestions(),
+            FocusedIndex = session.Converter.FocusedCandidateIndex,
+            FocusedPosition = session.Converter.FocusedPosition,
         };
     }
 }

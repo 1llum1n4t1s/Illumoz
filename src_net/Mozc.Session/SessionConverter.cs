@@ -373,6 +373,31 @@ public sealed class SessionConverter
         return list;
     }
 
+    // 注目文節で選択中の候補インデックス(候補ウィンドウのハイライト用)。
+    // 変換中でなければ -1(サジェスト等の「未注目」を表す)。
+    public int FocusedCandidateIndex
+        => CurrentState == State.Conversion ? _selected[_focusedSegment] : -1;
+
+    // 注目文節の先頭が preedit 上で始まる文字位置(候補ウィンドウのアンカー = position)。
+    // 先行文節の選択候補表記の文字数(書記素単位)を合算する。変換中でなければ 0。
+    public int FocusedPosition
+    {
+        get
+        {
+            if (CurrentState != State.Conversion || _segments == null)
+            {
+                return 0;
+            }
+            int pos = 0;
+            for (int i = 0; i < _focusedSegment && i < _segments.ConversionSegmentsSize; i++)
+            {
+                string v = _segments.ConversionSegment(i).Get(_selected[i]).Value;
+                pos += new global::System.Globalization.StringInfo(v).LengthInTextElements;
+            }
+            return pos;
+        }
+    }
+
     // 注目文節の候補の説明(記号/全角/単漢字 等。候補と同数、無ければ空文字)。
     public IReadOnlyList<string> GetCandidateDescriptions()
     {

@@ -113,6 +113,13 @@ public static class ProtoBridge
         if (output.Candidates.Count > 0)
         {
             var cw = new Pb.CandidateWindow { Size = (uint)output.Candidates.Count };
+            // 変換候補は選択中インデックス(focused_index)と注目文節のアンカー(position)を
+            // 設定する。renderer がハイライト位置とウィンドウ位置を正しく描けるようにする。
+            if (output.FocusedIndex >= 0)
+            {
+                cw.FocusedIndex = (uint)output.FocusedIndex;
+                cw.Position = (uint)output.FocusedPosition;
+            }
             for (int i = 0; i < output.Candidates.Count; i++)
             {
                 var cand = new Pb.CandidateWindow.Types.Candidate

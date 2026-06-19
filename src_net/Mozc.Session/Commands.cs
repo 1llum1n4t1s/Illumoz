@@ -54,6 +54,10 @@ public sealed class Output
     public IReadOnlyList<string> CandidateDescriptions { get; init; } = global::System.Array.Empty<string>();
     // 入力中サジェスト(変換前の予測候補)。
     public IReadOnlyList<string> Suggestions { get; init; } = global::System.Array.Empty<string>();
+    // 変換候補ウィンドウで選択中の候補インデックス(-1=未注目/サジェスト)。
+    public int FocusedIndex { get; init; } = -1;
+    // 注目文節が preedit 上で始まる文字位置(候補ウィンドウのアンカー)。
+    public int FocusedPosition { get; init; }
     public bool ErrorOccured { get; init; }
     // GET_CONFIG の応答 protobuf Config バイト列。
     public byte[] ConfigBytes { get; init; } = global::System.Array.Empty<byte>();
