@@ -104,9 +104,9 @@ public static class IbusBridge
 
     private static ImeStateForBridge ProcessInternal(Pb.KeyEvent ke)
     {
-        Client.ImeState s = ke.HasSpecialKey
-            ? _controller!.ProcessSpecial(ke.SpecialKey)
-            : _controller!.ProcessCharacter((char)ke.KeyCode);
+        // 修飾キー(Ctrl/Shift/Alt)込みの完全なイベントを送る。Shift+Space 変換や
+        // Ctrl+h backspace 等のショートカットが正しく届くようにする。
+        Client.ImeState s = _controller!.ProcessKeyEvent(ke);
         return new ImeStateForBridge(
             s.Preedit, s.Commit, string.Join('\n', s.Candidates), s.Consumed);
     }

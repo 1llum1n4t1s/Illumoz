@@ -22,5 +22,8 @@ public sealed class IbusEngineController
 
     public ImeState ProcessSpecial(Pb.KeyEvent.Types.SpecialKey s) => _client.SendSpecialKey(s);
 
+    // 修飾キー(Ctrl/Shift/Alt)を含む完全なキーイベントをそのまま送る。
+    public ImeState ProcessKeyEvent(Pb.KeyEvent key) => _client.SendKey(key);
+
     public void Disable() => _client.Shutdown();
 }

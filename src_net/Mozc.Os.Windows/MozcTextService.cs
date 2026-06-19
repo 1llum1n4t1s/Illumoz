@@ -23,6 +23,11 @@ public partial class MozcTextService : ITfTextInputProcessorEx
     // テスト/未結線時に差し替え可能。null なら Activate で既定 NamedPipe を生成する。
     public Func<byte[], byte[]>? Transport { get; set; }
 
+    // 生存中はモジュール参照カウントを上げ、DllCanUnloadNow が S_FALSE を返すようにする。
+    public MozcTextService() => ComExports.AddRef();
+
+    ~MozcTextService() => ComExports.Release();
+
     // mozc_server へ connect-per-call する NamedPipe トランスポート。
     private static Func<byte[], byte[]> BuildServerTransport(string name)
         => request =>

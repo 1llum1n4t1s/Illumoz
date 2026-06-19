@@ -54,11 +54,16 @@ internal static class ComExports
         }
     }
 
-    // DllCanUnloadNow: ロード中オブジェクトが無ければ S_OK。
+    // 生存中の COM オブジェクト数 + LockServer ロック数。0 になるまで DLL を
+    // アンロードさせない(C++ src/win32/tip の TipDllModule 参照カウント相当)。
+    private static int _objectCount;
+
+    internal static void AddRef() => System.Threading.Interlocked.Increment(ref _objectCount);
+
+    internal static void Release() => System.Threading.Interlocked.Decrement(ref _objectCount);
+
+    // DllCanUnloadNow: 生存オブジェクトが残っていればアンロード不可(S_FALSE)。
     [UnmanagedCallersOnly(EntryPoint = "DllCanUnloadNow")]
     public static int DllCanUnloadNow()
-    {
-        // TODO(実機): アクティブな COM オブジェクト数を見て判定。骨格では常にアンロード可。
-        return S_OK;
-    }
+        => System.Threading.Volatile.Read(ref _objectCount) == 0 ? S_OK : S_FALSE;
 }

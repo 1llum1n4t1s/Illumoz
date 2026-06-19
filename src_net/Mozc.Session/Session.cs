@@ -107,6 +107,23 @@ public sealed class Session
         return new SessionResult { Preedit = GetPreedit(), Consumed = false };
     }
 
+    // TEST_SEND_KEY: セッション状態を変えずに「このキーを消費するか」だけを判定する。
+    // IME 側が前処理でキーを横取りすべきか決めるために使う(C++ session TestSendKey 相当)。
+    public SessionResult TestSendKey(KeyEvent key)
+    {
+        string status = Status();
+        bool consumed = _keyMap.GetCommand(status, key) != null
+            || (key.Special == null && key.KeyCode is int code && code >= 0x20
+                && !key.Modifiers.Contains(ModifierKey.Ctrl)
+                && !key.Modifiers.Contains(ModifierKey.Alt));
+        return new SessionResult { Preedit = GetPreedit(), Consumed = consumed };
+    }
+
+    public SessionResult TestSendKey(string keyString)
+        => KeyParser.TryParse(keyString, out KeyEvent ke)
+            ? TestSendKey(ke)
+            : new SessionResult { Preedit = GetPreedit(), Consumed = false };
+
     // SEND_COMMAND: 候補の明示選択・確定・取消。
     public SessionResult SendCommand(SessionCommandType type, int id)
     {

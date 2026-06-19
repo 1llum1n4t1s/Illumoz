@@ -17,6 +17,9 @@ public static class ProtoBridge
             Pb.Input.Types.CommandType.CreateSession => CommandType.CreateSession,
             Pb.Input.Types.CommandType.DeleteSession => CommandType.DeleteSession,
             Pb.Input.Types.CommandType.SendKey => CommandType.SendKey,
+            // TEST_SEND_KEY を NoOperation に潰さない(IME のキー横取り判定が常に未消費に
+            // なる不具合の修正)。状態を変えずに消費可否だけ返す。
+            Pb.Input.Types.CommandType.TestSendKey => CommandType.TestSendKey,
             Pb.Input.Types.CommandType.SendCommand => CommandType.SendCommand,
             Pb.Input.Types.CommandType.GetConfig => CommandType.GetConfig,
             Pb.Input.Types.CommandType.SetConfig => CommandType.SetConfig,

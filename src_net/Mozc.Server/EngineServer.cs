@@ -59,9 +59,14 @@ public sealed class EngineServer
         }
 
         // カスタムローマ字表(bytes=TSV)が設定されていれば composer に反映する。
+        // 空になった(カスタム解除)なら既定のローマ字表へ戻す。
         if (c.CustomRomanTable.Length > 0)
         {
             _engine.SetRomanTable(c.CustomRomanTable.ToStringUtf8());
+        }
+        else
+        {
+            _engine.ResetRomanTable();
         }
 
         // 句読点方式を composer のローマ字ルールへ反映する(C++ punctuation_method)。

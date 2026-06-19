@@ -47,7 +47,19 @@ public partial class MozcClassFactory : IClassFactory
         }
     }
 
-    public int LockServer(bool fLock) => S_OK;
+    // LockServer はモジュールをメモリに保持する。ロック中は DllCanUnloadNow を S_FALSE にする。
+    public int LockServer(bool fLock)
+    {
+        if (fLock)
+        {
+            ComExports.AddRef();
+        }
+        else
+        {
+            ComExports.Release();
+        }
+        return S_OK;
+    }
 }
 
 // NativeAOT COM の ComWrappers 戦略(GeneratedComInterface/Class 用)。

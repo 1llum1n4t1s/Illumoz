@@ -17,6 +17,9 @@ public sealed class ImkController
 
     public ImeState HandleSpecialKey(Pb.KeyEvent.Types.SpecialKey s) => _client.SendSpecialKey(s);
 
+    // 修飾キー(Ctrl/Shift/Alt)を含む完全なキーイベントをそのまま送る。
+    public ImeState HandleKeyEvent(Pb.KeyEvent key) => _client.SendKey(key);
+
     public ImeState SelectCandidate(int index) => _client.SubmitCandidate(index);
 
     public void CommitComposition() => _client.SendSpecialKey(Pb.KeyEvent.Types.SpecialKey.Enter);

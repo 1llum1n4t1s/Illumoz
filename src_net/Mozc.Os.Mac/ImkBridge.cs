@@ -85,9 +85,9 @@ public static class ImkBridge
                 }
             }
             Pb.KeyEvent ke = MacKeyTranslator.Translate(keyCode, chars, modifiers);
-            Client.ImeState s = ke.HasSpecialKey
-                ? _controller.HandleSpecialKey(ke.SpecialKey)
-                : _controller.HandleCharacter((char)ke.KeyCode);
+            // 修飾キー(Ctrl/Shift/Alt)込みの完全なイベントを送る。Shift+Space 変換や
+            // Ctrl+h backspace 等のショートカットが正しく届くようにする。
+            Client.ImeState s = _controller.HandleKeyEvent(ke);
             _preedit = s.Preedit;
             _commit = s.Commit;
             _candidates = string.Join('\n', s.Candidates);

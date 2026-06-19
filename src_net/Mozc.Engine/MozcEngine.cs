@@ -15,6 +15,7 @@ public sealed class MozcEngine
     private readonly PosMatcher _posMatcher;
     private readonly DictionaryPredictor _predictor;
     private Table _composerTable;
+    private readonly string _defaultRomanTableTsv; // 既定ローマ字表(カスタム解除時に復元)。
 
     public MozcEngine(byte[] mozcData, string romanTableTsv)
     {
@@ -40,6 +41,7 @@ public sealed class MozcEngine
 
         _composerTable = new Table();
         _composerTable.LoadFromString(romanTableTsv);
+        _defaultRomanTableTsv = romanTableTsv;
     }
 
     public PosMatcher PosMatcher => _posMatcher;
@@ -52,6 +54,9 @@ public sealed class MozcEngine
         table.LoadFromString(romanTableTsv);
         _composerTable = table;
     }
+
+    // カスタムローマ字表が解除されたとき既定表へ戻す(Config.CustomRomanTable が空になった経路)。
+    public void ResetRomanTable() => SetRomanTable(_defaultRomanTableTsv);
 
     // ローマ字ルールを 1 件追加/上書きする(句読点方式の反映等)。
     public void AddRomanRule(string input, string output)

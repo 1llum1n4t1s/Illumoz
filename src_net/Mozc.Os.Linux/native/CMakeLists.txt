@@ -9,4 +9,9 @@ add_executable(ibus-engine-mozc ibus_mozc.c)
 target_include_directories(ibus-engine-mozc PRIVATE ${IBUS_INCLUDE_DIRS})
 target_link_libraries(ibus-engine-mozc PRIVATE ${IBUS_LIBRARIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../bin/Release/net10.0/linux-x64/publish/Mozc.Os.Linux.so)
+# 実行時は Mozc.Os.Linux.so を実行ファイルと同じディレクトリに同梱して配置するため、
+# RPATH を $ORIGIN にして隣接 .so を解決させる(絶対 build パスに依存させない)。
+set_target_properties(ibus-engine-mozc PROPERTIES
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "$ORIGIN")
 # 配置: /usr/lib/ibus-mozc/ + /usr/share/ibus/component/mozc.xml(dist/ibus/mozc.xml)

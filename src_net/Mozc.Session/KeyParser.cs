@@ -47,6 +47,10 @@ public static class KeyParser
         ["subtract"] = SpecialKey.Subtract, ["decimal"] = SpecialKey.Decimal, ["divide"] = SpecialKey.Divide,
         ["equals"] = SpecialKey.Equals, ["comma"] = SpecialKey.Comma, ["clear"] = SpecialKey.Clear,
         ["undefinedkey"] = SpecialKey.UndefinedKey,
+        // 仮想キー(keymap 専用。物理イベントは持たない)。
+        ["virtualleft"] = SpecialKey.VirtualLeft, ["virtualright"] = SpecialKey.VirtualRight,
+        ["virtualenter"] = SpecialKey.VirtualEnter, ["virtualup"] = SpecialKey.VirtualUp,
+        ["virtualdown"] = SpecialKey.VirtualDown,
     };
 
     public static bool TryParse(string keyString, out KeyEvent keyEvent)

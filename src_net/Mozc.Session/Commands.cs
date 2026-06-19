@@ -7,6 +7,7 @@ public enum CommandType
     CreateSession,
     DeleteSession,
     SendKey,
+    TestSendKey,
     SendCommand,
     NoOperation,
     GetConfig,

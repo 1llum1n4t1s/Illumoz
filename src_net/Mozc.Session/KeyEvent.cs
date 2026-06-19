@@ -13,6 +13,8 @@ public enum SpecialKey
     Numpad0, Numpad1, Numpad2, Numpad3, Numpad4,
     Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
     Multiply, Add, Separator, Subtract, Decimal, Divide, Equals, Comma, Clear,
+    // 仮想キー(物理キーを持たず keymap だけで使う。C++ key_parser.cc の VIRTUAL_* 相当)。
+    VirtualLeft, VirtualRight, VirtualEnter, VirtualUp, VirtualDown,
     UndefinedKey,
 }
 

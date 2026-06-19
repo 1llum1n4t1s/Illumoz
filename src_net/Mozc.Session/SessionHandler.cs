@@ -62,6 +62,8 @@ public sealed class SessionHandler
                 return DeleteSession(input.SessionId);
             case CommandType.SendKey:
                 return SendKey(input);
+            case CommandType.TestSendKey:
+                return TestSendKey(input);
             case CommandType.SendCommand:
                 return SendCommand(input);
             case CommandType.NoOperation:
@@ -108,13 +110,32 @@ public sealed class SessionHandler
         return ToOutput(input.SessionId, session, r);
     }
 
-    private Output SendKey(Input input)
+    // TEST_SEND_KEY: 状態を変えず消費可否のみ判定する。
+    private Output TestSendKey(Input input)
     {
         if (!_sessions.TryGetValue(input.SessionId, out Session? session))
         {
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
         SessionResult r = input.Key != null
+            ? session.TestSendKey(input.Key)
+            : session.TestSendKey(input.KeyString);
+        return ToOutput(input.SessionId, session, r);
+    }
+
+    private Output SendKey(Input input)
+    {
+        if (!_sessions.TryGetValue(input.SessionId, out Session? session))
+        {
+            return new Output { SessionId = input.SessionId, ErrorOccured = true };
+        }
+        // key_string が付いた直接入力(かな入力/ソフトキーボード)は、特殊キーや修飾キーを
+        // 伴わない限り key_string をそのまま挿入する。key_code は ASCII フォールバックに過ぎず、
+        // 優先すると "ぱ" 等の合成文字を取りこぼすため(C++ session の key_string 優先と整合)。
+        bool preferKeyString = input.KeyString.Length > 0
+            && (input.Key == null
+                || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
+        SessionResult r = !preferKeyString && input.Key != null
             ? session.SendKey(input.Key)
             : session.SendKey(input.KeyString);
         return ToOutput(input.SessionId, session, r);

@@ -30,6 +30,8 @@ public static class MacKeyTranslator
         [119] = Pb.KeyEvent.Types.SpecialKey.End,
         [116] = Pb.KeyEvent.Types.SpecialKey.PageUp,
         [121] = Pb.KeyEvent.Types.SpecialKey.PageDown,
+        [102] = Pb.KeyEvent.Types.SpecialKey.Eisu, // kVK_JIS_Eisu(英数キー)
+        [104] = Pb.KeyEvent.Types.SpecialKey.Kana, // kVK_JIS_Kana(かなキー)
     };
 
     public static Pb.KeyEvent Translate(ushort keyCode, string characters, uint modifierFlags)

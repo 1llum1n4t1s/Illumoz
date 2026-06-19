@@ -46,7 +46,10 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
     if (p >= 0 && p < (int)sizeof(preedit)) {
         preedit[p] = '\0';
         IBusText *pt = ibus_text_new_from_string(preedit);
-        ibus_engine_update_preedit_text(engine, pt, p, p > 0);
+        /* cursor は「文字数」で渡す。バイト数(p)を渡すと日本語等の多バイト文字で
+           カーソル位置がずれるため g_utf8_strlen で文字数に換算する。 */
+        guint cursor = (guint)g_utf8_strlen(preedit, p);
+        ibus_engine_update_preedit_text(engine, pt, cursor, p > 0);
     }
 
     /* 候補列(改行区切り)を lookup table として表示。 */
