@@ -95,6 +95,11 @@ public static class IbusBridge
         catch
         {
             _controller = null; // 壊れた接続は破棄し次回再初期化させる。
+            // キャッシュ済みの commit/preedit/candidates を消す。残すと native が直後に
+            // mozc_ibus_get_commit を読み、前回の確定文字列を二重挿入する恐れがある。
+            _commit = string.Empty;
+            _preedit = string.Empty;
+            _candidates = string.Empty;
             return 0;
         }
     }

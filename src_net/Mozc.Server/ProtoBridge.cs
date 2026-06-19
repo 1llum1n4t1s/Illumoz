@@ -179,15 +179,23 @@ public static class ProtoBridge
         }
         foreach (Pb.KeyEvent.Types.ModifierKey m in proto.ModifierKeys)
         {
+            // Windows/Mac クライアントは LEFT_CTRL/RIGHT_CTRL 等の左右別修飾を送ることがある。
+            // keymap 照合は基本修飾(Ctrl/Alt/Shift)で行うため、左右変種を基本修飾へ畳む。
             switch (m)
             {
                 case Pb.KeyEvent.Types.ModifierKey.Ctrl:
+                case Pb.KeyEvent.Types.ModifierKey.LeftCtrl:
+                case Pb.KeyEvent.Types.ModifierKey.RightCtrl:
                     ke.Modifiers.Add(ModifierKey.Ctrl);
                     break;
                 case Pb.KeyEvent.Types.ModifierKey.Shift:
+                case Pb.KeyEvent.Types.ModifierKey.LeftShift:
+                case Pb.KeyEvent.Types.ModifierKey.RightShift:
                     ke.Modifiers.Add(ModifierKey.Shift);
                     break;
                 case Pb.KeyEvent.Types.ModifierKey.Alt:
+                case Pb.KeyEvent.Types.ModifierKey.LeftAlt:
+                case Pb.KeyEvent.Types.ModifierKey.RightAlt:
                     ke.Modifiers.Add(ModifierKey.Alt);
                     break;
                 case Pb.KeyEvent.Types.ModifierKey.Caps:
@@ -271,6 +279,12 @@ public static class ProtoBridge
         Pb.KeyEvent.Types.SpecialKey.Equals => SpecialKey.Equals,
         Pb.KeyEvent.Types.SpecialKey.Comma => SpecialKey.Comma,
         Pb.KeyEvent.Types.SpecialKey.Clear => SpecialKey.Clear,
+        // 仮想キー(モバイル/ソフトキーボードが直接送る。keymap の VirtualLeft 等と一致させる)。
+        Pb.KeyEvent.Types.SpecialKey.VirtualLeft => SpecialKey.VirtualLeft,
+        Pb.KeyEvent.Types.SpecialKey.VirtualRight => SpecialKey.VirtualRight,
+        Pb.KeyEvent.Types.SpecialKey.VirtualEnter => SpecialKey.VirtualEnter,
+        Pb.KeyEvent.Types.SpecialKey.VirtualUp => SpecialKey.VirtualUp,
+        Pb.KeyEvent.Types.SpecialKey.VirtualDown => SpecialKey.VirtualDown,
         _ => SpecialKey.UndefinedKey,
     };
 }

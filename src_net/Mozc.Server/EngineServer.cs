@@ -37,8 +37,16 @@ public sealed class EngineServer
     public void ApplyConfig()
     {
         Mozc.Config.Config c = _config.GetConfig();
-        bool learn = c.HistoryLearningLevel == Mozc.Config.Config.Types.HistoryLearningLevel.DefaultHistory;
+        // シークレットモードでは履歴学習を止める(プライバシー)。学習レベルとの AND。
+        bool learn = c.HistoryLearningLevel == Mozc.Config.Config.Types.HistoryLearningLevel.DefaultHistory
+            && !c.IncognitoMode;
         _handler.History.LearningEnabled = learn;
+
+        // セッション共有の挙動設定(サジェスト可否/件数/シークレット)を反映する。
+        _handler.Settings.SuggestionEnabled =
+            c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion;
+        _handler.Settings.SuggestionSize = (int)c.SuggestionsSize;
+        _handler.Settings.IncognitoMode = c.IncognitoMode;
 
         // CommandRewriter があれば config のモードフラグを反映する(C++ command_rewriter は
         // config.incognito_mode / presentation_mode / use_*_suggest を直接参照する)。
@@ -47,8 +55,20 @@ public sealed class EngineServer
         // 文字形ルールを反映する。rules が無ければ既定(Preedit 既定)を維持。
         BuildCharacterFormManagers(c);
 
-        // SessionKeymap に対応するプリセットが src/data にあれば差し替える。
-        if (_dataDir != null)
+        // キーマップを反映する。custom_keymap_table(または session_keymap=CUSTOM)が
+        // あれば最優先で適用し、無ければ session_keymap のプリセットを src/data から読む。
+        if (c.CustomKeymapTable.Length > 0)
+        {
+            var km = new KeyMap();
+            km.LoadFromString(c.CustomKeymapTable.ToStringUtf8());
+            if (km.EntryCount > 0)
+            {
+                _handler.SetKeyMap(km);
+            }
+        }
+        else if (_dataDir != null
+            && c.SessionKeymap != Mozc.Config.Config.Types.SessionKeymap.Custom
+            && c.SessionKeymap != Mozc.Config.Config.Types.SessionKeymap.None)
         {
             string name = KeymapName(c.SessionKeymap);
             KeyMap? km = KeymapPresets.Load(_dataDir, name);
@@ -98,7 +118,12 @@ public sealed class EngineServer
     {
         if (c.CharacterFormRules.Count == 0)
         {
-            return; // 既定を維持。
+            // ルールが空(初期化 or 後から解除)なら既定マネージャへ戻す。前の config の
+            // 幅設定が残り続ける不具合を防ぐため、解除時も必ず再構築・伝播する。
+            PreeditFormManager = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+            ConversionFormManager = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+            PropagateConversionFormManager();
+            return;
         }
         var preedit = new global::System.Collections.Generic.List<(string, Mozc.Base.CharacterForm)>();
         var conversion = new global::System.Collections.Generic.List<(string, Mozc.Base.CharacterForm)>();
@@ -109,8 +134,12 @@ public sealed class EngineServer
         }
         PreeditFormManager = Mozc.Base.CharacterFormManager.FromRules(preedit);
         ConversionFormManager = Mozc.Base.CharacterFormManager.FromRules(conversion);
+        PropagateConversionFormManager();
+    }
 
-        // pipeline 内の CharacterFormRewriter に conversion 用マネージャを反映。
+    // pipeline 内の CharacterFormRewriter に conversion 用マネージャを反映する。
+    private void PropagateConversionFormManager()
+    {
         if (_handler.Rewriter is RewriterMerger merger)
         {
             foreach (IRewriter r in merger.Rewriters)
@@ -222,8 +251,40 @@ public sealed class EngineServer
                     return new Output { ErrorOccured = true };
                 }
             default:
-                return _handler.EvalCommand(input);
+            {
+                Output output = _handler.EvalCommand(input);
+                ApplyConverterCommand(output.ConverterCommand);
+                return output;
+            }
         }
+    }
+
+    // 確定したコマンド候補(incognito/presentation トグル)を config に反映し即時適用する。
+    private void ApplyConverterCommand(Mozc.Converter.Candidate.CommandType command)
+    {
+        if (command == Mozc.Converter.Candidate.CommandType.DefaultCommand)
+        {
+            return;
+        }
+        Mozc.Config.Config c = _config.GetConfig().Clone();
+        switch (command)
+        {
+            case Mozc.Converter.Candidate.CommandType.EnableIncognitoMode:
+                c.IncognitoMode = true;
+                break;
+            case Mozc.Converter.Candidate.CommandType.DisableIncognitoMode:
+                c.IncognitoMode = false;
+                break;
+            case Mozc.Converter.Candidate.CommandType.EnablePresentationMode:
+                c.PresentationMode = true;
+                break;
+            case Mozc.Converter.Candidate.CommandType.DisablePresentationMode:
+                c.PresentationMode = false;
+                break;
+            default:
+                return;
+        }
+        SetConfig(c);
     }
 
     // C++ ワイヤー互換(protobuf)経路。commands.proto の Input/Output を直接やり取りする。

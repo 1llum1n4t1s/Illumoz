@@ -17,8 +17,12 @@ public sealed class SessionHandler
     private readonly Dictionary.UserDictionaryStorage _userDict = new();
     private readonly Dictionary<ulong, Session> _sessions = new();
     private ulong _nextId = 1;
+    // 全セッション共有の挙動設定(EngineServer.ApplyConfig が更新)。
+    private readonly SessionSettings _settings = new();
 
     public const int MaxSessions = 64;
+
+    public SessionSettings Settings => _settings;
 
     public SessionHandler(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null)
     {
@@ -90,7 +94,7 @@ public sealed class SessionHandler
             return new Output { ErrorOccured = true };
         }
         ulong id = _nextId++;
-        _sessions[id] = new Session(_engine, _keyMap, _rewriter, _history, _userDict);
+        _sessions[id] = new Session(_engine, _keyMap, _rewriter, _history, _userDict, _settings);
         return new Output { SessionId = id, Consumed = true };
     }
 
@@ -132,8 +136,12 @@ public sealed class SessionHandler
         // key_string が付いた直接入力(かな入力/ソフトキーボード)は、特殊キーや修飾キーを
         // 伴わない限り key_string をそのまま挿入する。key_code は ASCII フォールバックに過ぎず、
         // 優先すると "ぱ" 等の合成文字を取りこぼすため(C++ session の key_string 優先と整合)。
+        // TEXT_INPUT は「key_string に実テキストを載せた直接入力」を表す特殊キーなので、
+        // 通常の特殊キーとして dispatch せず key_string を挿入する(ソフトキーボードの取りこぼし防止)。
+        bool isTextInput = input.Key?.Special == SpecialKey.TextInput;
         bool preferKeyString = input.KeyString.Length > 0
             && (input.Key == null
+                || isTextInput
                 || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
         SessionResult r = !preferKeyString && input.Key != null
             ? session.SendKey(input.Key)
@@ -154,6 +162,7 @@ public sealed class SessionHandler
             Suggestions = session.GetSuggestions(),
             FocusedIndex = session.Converter.FocusedCandidateIndex,
             FocusedPosition = session.Converter.FocusedPosition,
+            ConverterCommand = session.Converter.TakeLastCommand(),
         };
     }
 }

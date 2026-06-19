@@ -19,6 +19,17 @@ public enum CommandType
     SyncData,
 }
 
+// 全セッション共有の挙動設定(config 由来。EngineServer.ApplyConfig が更新する)。
+public sealed class SessionSettings
+{
+    // サジェスト(入力中予測)を出すか。use_history/dictionary/realtime のいずれか有効で true。
+    public bool SuggestionEnabled = true;
+    // サジェスト最大件数(config.suggestions_size)。
+    public int SuggestionSize = 9;
+    // シークレットモード。履歴学習と履歴由来サジェストを抑止する。
+    public bool IncognitoMode = false;
+}
+
 // C++ SessionCommand.CommandType の主要部(候補選択/確定/取消)。
 public enum SessionCommandType
 {
@@ -61,4 +72,7 @@ public sealed class Output
     public bool ErrorOccured { get; init; }
     // GET_CONFIG の応答 protobuf Config バイト列。
     public byte[] ConfigBytes { get; init; } = global::System.Array.Empty<byte>();
+    // 確定したコマンド候補のコマンド(EngineServer が incognito/presentation を実行する)。
+    public Mozc.Converter.Candidate.CommandType ConverterCommand { get; init; }
+        = Mozc.Converter.Candidate.CommandType.DefaultCommand;
 }

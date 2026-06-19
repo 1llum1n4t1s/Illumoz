@@ -59,12 +59,31 @@ public sealed class IpcPathManager
         {
             Directory.CreateDirectory(dir);
         }
-        File.WriteAllBytes(path, info.ToByteArray());
-        // .ipc は pipe/socket 名を導出する鍵を含むため所有者のみ読取可にする
-        // (POSIX の既定 umask だと world-readable になり、他ユーザに鍵が漏れる)。
-        if (!OperatingSystem.IsWindows())
+        byte[] payload = info.ToByteArray();
+        // .ipc は pipe/socket 名を導出する鍵を含むため、書き込み「前」から所有者のみ
+        // 読取可で作成する。WriteAllBytes 後に chmod すると、その隙に他ユーザが
+        // world-readable な鍵を読める競合があるため、UnixCreateMode で原子的に 0600 にする。
+        if (OperatingSystem.IsWindows())
         {
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.WriteAllBytes(path, payload);
+        }
+        else
+        {
+            // 既存ファイルは UnixCreateMode が効かない(作成時のみ適用)ため、
+            // 緩い権限のまま残らないよう一旦削除してから作り直す。
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+            var opts = new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+                UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
+            };
+            using var fs = new FileStream(path, opts);
+            fs.Write(payload, 0, payload.Length);
         }
         return new IpcPathManager { _name = name, _info = info };
     }

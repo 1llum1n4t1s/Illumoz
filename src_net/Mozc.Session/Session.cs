@@ -9,6 +9,9 @@ public sealed class SessionResult
     public string Committed { get; init; } = string.Empty; // この入力で確定した文字列
     public string Preedit { get; init; } = string.Empty;   // 現在の未確定文字列
     public bool Consumed { get; init; }                     // IME がキーを消費したか
+    // 確定したコマンド候補のコマンド(incognito/presentation トグル等。無ければ Default)。
+    public Mozc.Converter.Candidate.CommandType Command { get; init; }
+        = Mozc.Converter.Candidate.CommandType.DefaultCommand;
 }
 
 // C++ src/session/session.cc の中核スライス。KeyMap で KeyEvent→command を引き、
@@ -51,12 +54,16 @@ public sealed class Session
         return Current(true);
     }
 
+    private readonly SessionSettings _settings;
+
     public Session(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null,
         Prediction.UserHistoryPredictor? history = null,
-        Dictionary.UserDictionaryStorage? userDict = null)
+        Dictionary.UserDictionaryStorage? userDict = null,
+        SessionSettings? settings = null)
     {
         _keyMap = keyMap;
         _converter = new SessionConverter(engine, rewriter, history, userDict);
+        _settings = settings ?? new SessionSettings();
     }
 
     public SessionConverter Converter => _converter;
@@ -65,17 +72,29 @@ public sealed class Session
     // 入力中(composition)のサジェスト候補(履歴+辞書統合)。確定/変換中は空。
     public IReadOnlyList<string> GetSuggestions(int maxResults = 9)
     {
-        if (_converter.CurrentState != SessionConverter.State.Composition || _typed.Count == 0)
+        // サジェスト無効(use_history/dictionary/realtime 全 off)なら出さない。
+        if (!_settings.SuggestionEnabled
+            || _converter.CurrentState != SessionConverter.State.Composition || _typed.Count == 0)
         {
             return global::System.Array.Empty<string>();
         }
-        return _converter.PredictMerged(maxResults).ConvertAll(p => p.Value);
+        // config.suggestions_size でクランプ(0 なら出さない)。
+        int limit = global::System.Math.Min(maxResults, _settings.SuggestionSize);
+        if (limit <= 0)
+        {
+            return global::System.Array.Empty<string>();
+        }
+        // シークレットモードでは履歴由来の候補を出さない(プライバシー)。
+        return _converter.PredictMerged(limit, includeHistory: !_settings.IncognitoMode)
+            .ConvertAll(p => p.Value);
     }
 
     // 入力前(打鍵なし)のゼロクエリ候補(履歴の直近)。入力中/変換中は空。
     public IReadOnlyList<string> GetZeroQuerySuggestions(int maxResults = 5)
     {
-        if (_converter.CurrentState != SessionConverter.State.Composition || _typed.Count != 0)
+        // ゼロクエリは履歴由来。サジェスト無効/シークレットでは出さない。
+        if (!_settings.SuggestionEnabled || _settings.IncognitoMode
+            || _converter.CurrentState != SessionConverter.State.Composition || _typed.Count != 0)
         {
             return global::System.Array.Empty<string>();
         }
@@ -84,9 +103,10 @@ public sealed class Session
 
     // 入力中(composition)でサジェストが出ているか。Suggestion キーマップ状態の判定に使う。
     private bool HasActiveSuggestion()
-        => _converter.CurrentState == SessionConverter.State.Composition
+        => _settings.SuggestionEnabled
+            && _converter.CurrentState == SessionConverter.State.Composition
             && _typed.Count > 0
-            && _converter.PredictMerged(1).Count > 0;
+            && _converter.PredictMerged(1, includeHistory: !_settings.IncognitoMode).Count > 0;
 
     // keymap 照合用の状態名。サジェスト表示中は "Suggestion"(CommitFirstSuggestion 等の
     // Suggestion 固有バインドを到達可能にする。未該当キーは Composition 行へフォールバック)。
@@ -236,6 +256,17 @@ public sealed class Session
                 return Current(true);
             case "Backspace":
                 return Backspace();
+            case "Delete":
+                // preedit がある間は前方削除コマンドを消費する(末尾カーソルでは no-op)。
+                // 消費しないとアプリ側へ Delete が抜けて変換中に周辺文書が削れる。
+                if (_converter.CurrentState == SessionConverter.State.Conversion)
+                {
+                    _converter.Cancel();
+                    return Current(true);
+                }
+                return _typed.Count > 0
+                    ? Current(true)
+                    : new SessionResult { Preedit = "", Consumed = false };
             case "Undo":
                 return Undo();
             case "CommitFirstSuggestion":

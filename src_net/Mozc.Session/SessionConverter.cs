@@ -201,12 +201,47 @@ public sealed class SessionConverter
     // 確定文字列を返し、状態を初期化する。確定時は履歴予測へ学習する。
     // CommandRewriter 由来のコマンド候補(設定トグル等)は、ラベル文字列を
     // 確定テキストとして挿入せず空文字を返す(誤ってラベルが入力される不具合の修正)。
+    // 直近の Commit で確定したコマンド候補のコマンド(無ければ DefaultCommand)。
+    // EngineServer が incognito/presentation トグル等を実行するために読む。
+    public Candidate.CommandType LastCommand { get; private set; } = Candidate.CommandType.DefaultCommand;
+
+    // LastCommand を取り出して既定へ戻す(EngineServer が 1 回だけ実行するため)。
+    public Candidate.CommandType TakeLastCommand()
+    {
+        Candidate.CommandType c = LastCommand;
+        LastCommand = Candidate.CommandType.DefaultCommand;
+        return c;
+    }
+
     public string Commit()
     {
+        LastCommand = GetSelectedCommand(); // Reset 前に確定候補のコマンドを退避。
         string result = SelectedCandidateIsCommand() ? string.Empty : GetPreedit();
         LearnHistory();
         Reset();
         return result;
+    }
+
+    // 選択中候補がコマンド候補ならそのコマンドを返す(複数文節なら最初の 1 つ)。
+    private Candidate.CommandType GetSelectedCommand()
+    {
+        if (CurrentState != State.Conversion || _segments == null)
+        {
+            return Candidate.CommandType.DefaultCommand;
+        }
+        for (int i = 0; i < _segments.ConversionSegmentsSize; i++)
+        {
+            Segment seg = _segments.ConversionSegment(i);
+            if (seg.CandidatesSize > 0)
+            {
+                Candidate c = seg.Get(_selected[i]);
+                if ((c.Attributes & Candidate.Attribute.CommandCandidate) != 0)
+                {
+                    return c.Command;
+                }
+            }
+        }
+        return Candidate.CommandType.DefaultCommand;
     }
 
     // 注目文節の選択候補がコマンド候補(CommandCandidate 属性)か。
@@ -267,7 +302,7 @@ public sealed class SessionConverter
 
     // 履歴予測 + 辞書予測を統合(履歴を上位に、value 重複は低コスト採用、コスト昇順)。
     // C++ の predictor aggregator 相当の中核スライス。
-    public List<Prediction.PredictionResult> PredictMerged(int maxResults = 10)
+    public List<Prediction.PredictionResult> PredictMerged(int maxResults = 10, bool includeHistory = true)
     {
         string query = _composer.GetQueryForConversion();
         var best = new Dictionary<string, Prediction.PredictionResult>();
@@ -285,8 +320,8 @@ public sealed class SessionConverter
             }
         }
 
-        // 履歴予測は辞書より優先(コストを大きく下げて上位固定)。
-        if (_history != null)
+        // 履歴予測は辞書より優先(コストを大きく下げて上位固定)。シークレット時は除外。
+        if (_history != null && includeHistory)
         {
             foreach (Prediction.PredictionResult r in _history.Predict(query, maxResults))
             {
