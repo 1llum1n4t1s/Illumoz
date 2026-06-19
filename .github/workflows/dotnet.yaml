@@ -11,13 +11,14 @@ on:
     paths: ["src_net/**", "src/data/**", ".github/workflows/dotnet.yaml"]
   workflow_dispatch:
 
-# 最小権限の原則: コードチェックアウト(read)とアーティファクト操作(write)のみ。
+# 最小権限の原則: 既定は読み取りのみ。書き込みは必要な job だけに付与する。
 permissions:
   contents: read
-  actions: write
 
 jobs:
   build-test:
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +45,9 @@ jobs:
   publish-datagen-aot:
     # データ生成 CLI を NativeAOT で各 RID 向けに publish できることを検証(配布の de-risk)。
     needs: build-test
+    permissions:
+      contents: read
+      actions: write   # upload-artifact に必要。
     strategy:
       fail-fast: false
       matrix:
