@@ -314,20 +314,25 @@ public sealed class NBestGenerator
         candidate.StructureCost = structureCost;
         candidate.Wcost = wcost;
 
+        // 文字列連結は StringBuilder で1パス構築する(string += はノードごとに全コピー = O(L²))。
+        var keyBuilder = new global::System.Text.StringBuilder();
+        var valueBuilder = new global::System.Text.StringBuilder();
+        var contentKeyBuilder = new global::System.Text.StringBuilder();
+        var contentValueBuilder = new global::System.Text.StringBuilder();
         bool isFunctional = false;
         foreach (Node node in nodes)
         {
             if (!isFunctional && !_isFunctional(node.Lid))
             {
-                candidate.ContentKey += node.Key;
-                candidate.ContentValue += node.Value;
+                contentKeyBuilder.Append(node.Key);
+                contentValueBuilder.Append(node.Value);
             }
             else
             {
                 isFunctional = true;
             }
-            candidate.Key += node.Key;
-            candidate.Value += node.Value;
+            keyBuilder.Append(node.Key);
+            valueBuilder.Append(node.Value);
 
             if ((node.Attributes & Node.Attribute.SpellingCorrection) != 0)
             {
@@ -350,6 +355,11 @@ public sealed class NBestGenerator
                 candidate.Attributes |= Candidate.Attribute.KeyExpandedInDictionary;
             }
         }
+
+        candidate.Key = keyBuilder.ToString();
+        candidate.Value = valueBuilder.ToString();
+        candidate.ContentKey = contentKeyBuilder.ToString();
+        candidate.ContentValue = contentValueBuilder.ToString();
 
         if (candidate.ContentKey.Length == 0 || candidate.ContentValue.Length == 0)
         {

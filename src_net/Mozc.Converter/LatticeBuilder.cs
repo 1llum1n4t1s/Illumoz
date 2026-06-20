@@ -23,6 +23,9 @@ public static class LatticeBuilder
                 && char.IsLowSurrogate(key[charIdx + 1]);
             int runeLen = validSurrogatePair ? 2 : 1;
             int pos = byteOffset;
+            // sub は LookupPrefix(string) の API 制約で残余コピーが必要(各位置で O(n) → 全体 O(n²))。
+            // 真の O(n) 化には dictionary に ReadOnlySpan<char> 受けの LookupPrefix を足し codec を
+            // span 対応させる必要があり(全辞書種＋トライ走査の検証要)、別タスクとする。
             string sub = key.Substring(charIdx);
 
             dictionary.LookupPrefix(sub, new InlineDictionaryCallback
@@ -36,7 +39,8 @@ public static class LatticeBuilder
                 },
             });
 
-            byteOffset += Encoding.UTF8.GetByteCount(key.Substring(charIdx, runeLen));
+            // byteOffset 加算用の1文字分は Span で割当回避(挙動不変・ゼロリスクの最適化)。
+            byteOffset += Encoding.UTF8.GetByteCount(key.AsSpan(charIdx, runeLen));
             charIdx += runeLen;
         }
     }
