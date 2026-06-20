@@ -23,17 +23,38 @@ public sealed class Session
     private readonly SessionConverter _converter;
     // IME が有効(変換受付)か。false は直接入力(DirectInput)状態。
     private bool _activated = true;
+    // 打鍵 1 つ分の保持単位。文字に加え「AS_IS(ローマ字変換しない literal)で入れたか」を持つ。
+    // Backspace の再構築や Undo の再生で、AS_IS で入れた literal をローマ字変換し直して
+    // 壊さない(例: literal "ka" が一部削除で "か" にならない)ようにモードを保存する。
+    private readonly record struct TypedKey(string Ch, bool AsIs);
+
     // Backspace 用に打鍵列を保持(Composer は編集 API 未実装のため再構築する)。
-    private readonly List<string> _typed = new();
+    private readonly List<TypedKey> _typed = new();
     // Undo 用: 直前に確定した打鍵列(確定の取り消しで composition を復元)。
-    private List<string> _lastCommitted = new();
+    private List<TypedKey> _lastCommitted = new();
+
+    // 打鍵列を composer へ再生する(各キーのモードに応じて romaji / AS_IS で投入)。
+    private void ReplayTyped(IEnumerable<TypedKey> keys)
+    {
+        foreach (TypedKey k in keys)
+        {
+            if (k.AsIs)
+            {
+                _converter.InsertCharacterAsIs(k.Ch);
+            }
+            else
+            {
+                _converter.InsertCharacter(k.Ch);
+            }
+        }
+    }
 
     // 確定時に打鍵列を Undo 用へ退避してクリアする。
     private void SnapshotAndClearTyped()
     {
         if (_typed.Count > 0)
         {
-            _lastCommitted = new List<string>(_typed);
+            _lastCommitted = new List<TypedKey>(_typed);
         }
         _typed.Clear();
         // 確定で履歴が更新され得るので、サジェスト有無キャッシュを無効化する
@@ -44,18 +65,20 @@ public sealed class Session
     // 部分確定(CommitHeadToFocusedSegments / CommitFirstSegment)後に Session 側の入力バッファを
     // 再同期する。_typed を残り読みへ、_lastCommitted を確定済み先頭読みへ揃えることで、
     // 後続の Backspace 再構築や Undo が古い全入力から既確定テキストを復活させないようにする。
+    // 残り読みは composer を kana で再構築済み(CommitHeadSegments)なので、再生も romaji 経路
+    // (AsIs=false)で composer と一致させる(かなは romaji 表で素通りする)。
     private void ResyncAfterPartialCommit()
     {
         _typed.Clear();
         foreach (global::System.Text.Rune r in _converter.ComposerReading.EnumerateRunes())
         {
-            _typed.Add(r.ToString());
+            _typed.Add(new TypedKey(r.ToString(), false));
         }
         // Undo は直前確定の読みを composition へ戻す。部分確定では先頭側の読みを記録する。
-        _lastCommitted = new List<string>();
+        _lastCommitted = new List<TypedKey>();
         foreach (global::System.Text.Rune r in _converter.LastHeadReading.EnumerateRunes())
         {
-            _lastCommitted.Add(r.ToString());
+            _lastCommitted.Add(new TypedKey(r.ToString(), false));
         }
         _suggestionCacheKey = null;
     }
@@ -69,12 +92,9 @@ public sealed class Session
         }
         _converter.Reset();
         _typed.Clear();
-        foreach (string ch in _lastCommitted)
-        {
-            _converter.InsertCharacter(ch);
-            _typed.Add(ch);
-        }
-        _lastCommitted = new List<string>();
+        ReplayTyped(_lastCommitted); // 確定時のモード(romaji/AS_IS)を保って復元する。
+        _typed.AddRange(_lastCommitted);
+        _lastCommitted = new List<TypedKey>();
         return Current(true);
     }
 
@@ -149,9 +169,18 @@ public sealed class Session
     private bool _suggestionCacheValue;
 
     // 入力中(composition)でサジェストが出ているか。Suggestion キーマップ状態の判定に使う。
+    // このリクエストでサジェストを抑止するか(context.suppress_suggestion / request_suggestion=false)。
+    // SessionHandler が SendKey/TestSendKey/SendCommand の直前に設定する。出力から消すだけでなく、
+    // ディスパッチ前の Status/keymap 判定でも非表示にし、画面に出ていない予測候補を
+    // CommitFirstSuggestion/PredictAndConvert/選択ショートカットで確定しないようにする。
+    private bool _suppressSuggestion;
+
+    public void SetSuggestionSuppressed(bool suppress) => _suppressSuggestion = suppress;
+
     private bool HasActiveSuggestion()
     {
-        if (!_settings.SuggestionEnabled
+        if (_suppressSuggestion
+            || !_settings.SuggestionEnabled
             || _converter.CurrentState != SessionConverter.State.Composition
             || _typed.Count == 0)
         {
@@ -447,7 +476,7 @@ public sealed class Session
             SnapshotAndClearTyped();
         }
         _converter.InsertCharacterAsIs(ch);
-        _typed.Add(ch);
+        _typed.Add(new TypedKey(ch, true)); // AS_IS: 再構築時もローマ字変換しない。
         return new SessionResult { Committed = committed, Preedit = GetPreedit(), Consumed = true };
     }
 
@@ -777,7 +806,7 @@ public sealed class Session
             SnapshotAndClearTyped();
         }
         _converter.InsertCharacter(ch);
-        _typed.Add(ch);
+        _typed.Add(new TypedKey(ch, false)); // 通常: ローマ字変換あり。
         return new SessionResult { Committed = committed, Preedit = GetPreedit(), Consumed = true };
     }
 
@@ -794,10 +823,9 @@ public sealed class Session
         }
         _typed.RemoveAt(_typed.Count - 1);
         _converter.Reset();
-        foreach (string ch in _typed)
-        {
-            _converter.InsertCharacter(ch);
-        }
+        // 各キーを元のモード(romaji/AS_IS)で再生する。AS_IS の literal を romaji 変換し直して
+        // 壊さない(例: literal "ka" を一部削除しても "か" にならない)。
+        ReplayTyped(_typed);
         return Current(true);
     }
 

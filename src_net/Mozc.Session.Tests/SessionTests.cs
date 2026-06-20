@@ -347,6 +347,42 @@ public class SessionTests
     }
 
     [Fact]
+    public void InsertTextAsIs_ThenBackspace_KeepsRemainingLiteral()
+    {
+        // AS_IS で literal "wat" を入れて 1 文字消すと、残り "wa" は literal のまま再構築される
+        // (ローマ字経路で再生すると wa→わ に化けるのを防ぐ。_typed が挿入モードを保持する)。
+        Session s = NewSession();
+        s.InsertTextAsIs("wat");
+        Assert.Equal("wat", s.GetPreedit());
+        s.SendKey("Backspace");
+        Assert.Equal("wa", s.GetPreedit()); // わ ではない
+    }
+
+    [Fact]
+    public void SuppressedSuggestion_DoesNotCommitHiddenSuggestion()
+    {
+        var km = new KeyMap();
+        km.LoadFromString(string.Join("\n", new[]
+        {
+            "Composition\tBackspace\tBackspace",
+            "Suggestion\tShift Enter\tCommitFirstSuggestion",
+        }));
+        // 抑止なし: サジェスト表示中の Shift+Enter は先頭サジェスト(私)を確定する。
+        var on = new Session(Engine(), km, rewriter: null, history: new Prediction.UserHistoryPredictor());
+        foreach (char c in "watashi") { on.SendKey(c.ToString()); }
+        Assert.Contains("私", on.GetSuggestions());
+        SessionResult onR = on.SendKey(new KeyEvent { Special = SpecialKey.Enter, Modifiers = { ModifierKey.Shift } });
+        Assert.Equal("私", onR.Committed);
+
+        // 抑止あり: 同じ Shift+Enter でも Suggestion 状態にならず、隠れた候補を確定しない。
+        var off = new Session(Engine(), km, rewriter: null, history: new Prediction.UserHistoryPredictor());
+        foreach (char c in "watashi") { off.SendKey(c.ToString()); }
+        off.SetSuggestionSuppressed(true);
+        SessionResult offR = off.SendKey(new KeyEvent { Special = SpecialKey.Enter, Modifiers = { ModifierKey.Shift } });
+        Assert.Equal("", offR.Committed); // 未表示候補を確定しない
+    }
+
+    [Fact]
     public void InsertTextDirect_DuringComposition_KeepsLiteral_NoRomaji()
     {
         // preedit 中の DIRECT_INPUT は AS_IS と同じ扱い。ローマ字表変換せず literal を合成する。
