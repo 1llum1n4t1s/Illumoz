@@ -94,7 +94,37 @@ public sealed class ServerLauncher
     private static bool DefaultIsAvailable(string ipcName)
     {
         var pm = new IpcPathManager();
-        return pm.TryLoad(ipcName) && pm.IsCompatibleProtocolVersion();
+        if (!pm.TryLoad(ipcName) || !pm.IsCompatibleProtocolVersion())
+        {
+            return false;
+        }
+        // .ipc に記録された server PID が生存していなければ stale(server がクラッシュ/終了済み)。
+        // TryLoad はファイルが残っていれば成功するため、PID 生存確認をしないと死んだ .ipc を
+        // 「利用可能」と誤判定し、EnsureServerRunning が永久に spawn せず接続不能になる(C++ も
+        // server_launcher が pid 生存を確認して再起動する)。
+        return IsServerProcessAlive(pm.ServerProcessId);
+    }
+
+    // .ipc が広告する server PID が生存しているか。pid==0(未記録)は判定不能なので生存扱いにする。
+    private static bool IsServerProcessAlive(uint pid)
+    {
+        if (pid == 0)
+        {
+            return true;
+        }
+        try
+        {
+            using Process p = Process.GetProcessById((int)pid);
+            return !p.HasExited;
+        }
+        catch (global::System.ArgumentException)
+        {
+            return false; // 該当 PID のプロセスが存在しない = stale。
+        }
+        catch (global::System.InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private static bool DefaultSpawn(Func<string?>? resolver)

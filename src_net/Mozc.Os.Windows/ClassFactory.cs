@@ -24,6 +24,12 @@ public partial class MozcClassFactory : IClassFactory
     // TIP 実体を生成する factory(transport 注入可)。
     public Func<MozcTextService>? ServiceFactory { get; set; }
 
+    // factory 自身も COM オブジェクトとして生存数に数え、保持中は DLL アンロードを防ぐ
+    // (C++ TipClassFactory のコンストラクタ/デストラクタで g_module_ref を増減するのと同じ)。
+    public MozcClassFactory() => ComExports.AddRef();
+
+    ~MozcClassFactory() => ComExports.Release();
+
     public int CreateInstance(nint outer, in Guid riid, out nint ppv)
     {
         ppv = 0;
