@@ -20,6 +20,10 @@ public partial class MozcTextService : ITfTextInputProcessorEx
     private uint _clientId;
     private TipController? _controller;
 
+    // mozc_server 未起動時に引数なし spawn して .ipc 公開を待つ(C++ ServerLauncher 相当)。
+    // TIP DLL と server 実行ファイルは同じ INSTALLFOLDER に同梱されるため既定パス探索で足りる。
+    private readonly Mozc.Ipc.ServerLauncher _launcher = new(DefaultServerName);
+
     // テスト/未結線時に差し替え可能。null なら Activate で既定 NamedPipe を生成する。
     public Func<byte[], byte[]>? Transport { get; set; }
 
@@ -29,13 +33,18 @@ public partial class MozcTextService : ITfTextInputProcessorEx
     ~MozcTextService() => ComExports.Release();
 
     // mozc_server へ connect-per-call する NamedPipe トランスポート。
-    private static Func<byte[], byte[]> BuildServerTransport(string name)
+    private Func<byte[], byte[]> BuildServerTransport(string name)
         => request =>
         {
             var pm = new Mozc.Ipc.IpcPathManager();
             if (!pm.TryLoad(name))
             {
-                throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+                // server 未起動: ServerLauncher で引数なし spawn を試み、.ipc 公開を待ってから再ロード。
+                // 一度起動できなければ FATAL ラッチで再試行しない(respawn storm 防止)。
+                if (!_launcher.EnsureServerRunning() || !pm.TryLoad(name))
+                {
+                    throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+                }
             }
             // サーバの protocol_version が一致しないなら接続しない(ワイヤー非互換の誤接続防止)。
             if (!pm.IsCompatibleProtocolVersion())

@@ -22,8 +22,9 @@
         <Component Id="MozcData" Guid="*">
           <File Id="MozcDataFile" Source="$(var.PublishDir)\mozc.data" KeyPath="yes" />
         </Component>
-        <!-- mozc_server は --roman/--keymap も必須(Program.cs)。Linux/mac パッケージと同様に
-             ローマ字表・キーマップを同梱する(発行時に PublishDir へ配置しておく)。 -->
+        <!-- TIP は mozc_server 未起動時に ServerLauncher で引数なし spawn する。Program.cs は引数
+             省略時に実行ファイル(INSTALLFOLDER)と同じディレクトリの同梱データへフォールバックする
+             ため、mozc.data/roman.tsv/keymap.tsv をここに同梱する(service/Run 登録は不要=C++ 忠実)。 -->
         <Component Id="MozcRoman" Guid="*">
           <File Id="MozcRomanFile" Source="$(var.PublishDir)\roman.tsv" KeyPath="yes" />
         </Component>

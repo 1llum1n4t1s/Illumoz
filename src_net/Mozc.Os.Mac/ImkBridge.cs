@@ -17,6 +17,11 @@ public static class ImkBridge
     // mozc_server の既定 IPC 名(Mozc.Server.Host の --pipe 既定と一致)。
     private const string DefaultServerName = "mozc.session";
 
+    // mozc_server 未起動時に引数なし spawn して .ipc 公開を待つ(C++ ServerLauncher 相当)。
+    // .app バンドルでは server(mozc_server)は IMK バイナリと同じ Contents/MacOS に同梱されるため
+    // 既定パス探索(実行ファイルディレクトリ)で足りる。
+    private static readonly Mozc.Ipc.ServerLauncher _launcher = new(DefaultServerName);
+
     public static void InitForTest(Func<byte[], byte[]> transport)
         => _controller = new ImkController(transport);
 
@@ -55,7 +60,12 @@ public static class ImkBridge
             var pm = new Mozc.Ipc.IpcPathManager();
             if (!pm.TryLoad(name))
             {
-                throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+                // server 未起動: ServerLauncher で引数なし spawn を試み、.ipc 公開を待って再ロード。
+                // 一度起動できなければ FATAL ラッチで再試行しない(respawn storm 防止)。
+                if (!_launcher.EnsureServerRunning() || !pm.TryLoad(name))
+                {
+                    throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+                }
             }
             // サーバの protocol_version が一致しないなら接続しない(ワイヤー非互換の誤接続防止)。
             if (!pm.IsCompatibleProtocolVersion())

@@ -22,6 +22,27 @@ public static class IbusBridge
     // mozc_server の既定 IPC 名(Mozc.Server.Host の --pipe 既定と一致)。
     private const string DefaultServerName = "mozc.session";
 
+    // mozc_server 未起動時に引数なし spawn して .ipc 公開を待つ(C++ ServerLauncher 相当)。
+    // deb レイアウトでは ibus エンジンは /usr/lib/ibus-mozc/、server は /usr/lib/mozc/mozc_server と
+    // 別ディレクトリのため、隣接パスを与える resolver を渡す。
+    private static readonly Mozc.Ipc.ServerLauncher _launcher =
+        new(DefaultServerName, LinuxServerPath);
+
+    private static string? LinuxServerPath()
+    {
+        string baseDir = global::System.AppContext.BaseDirectory;
+        foreach (string rel in new[] { "../mozc/mozc_server", "mozc_server" })
+        {
+            string p = global::System.IO.Path.GetFullPath(
+                global::System.IO.Path.Combine(baseDir, rel));
+            if (global::System.IO.File.Exists(p))
+            {
+                return p;
+            }
+        }
+        return null;
+    }
+
     // テスト/結線用: transport を差し替えて初期化(実機は NamedPipe/Unix client)。
     public static void InitForTest(Func<byte[], byte[]> transport)
         => _controller = new IbusEngineController(transport);
@@ -61,7 +82,12 @@ public static class IbusBridge
             var pm = new Mozc.Ipc.IpcPathManager();
             if (!pm.TryLoad(name))
             {
-                throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+                // server 未起動: ServerLauncher で引数なし spawn を試み、.ipc 公開を待って再ロード。
+                // 一度起動できなければ FATAL ラッチで再試行しない(respawn storm 防止)。
+                if (!_launcher.EnsureServerRunning() || !pm.TryLoad(name))
+                {
+                    throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
+                }
             }
             // サーバの protocol_version が一致しないなら接続しない(ワイヤー非互換の誤接続防止)。
             if (!pm.IsCompatibleProtocolVersion())

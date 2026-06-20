@@ -26,9 +26,43 @@ internal static class Program
                 case "--profile": profileDir = Next(); break;
             }
         }
-        if (data.Length == 0 || roman.Length == 0 || keymap.Length == 0)
+        // C++ mozc_server は data/roman/keymap を引数で取らず、インストール済みの同梱データを
+        // 内部解決する(mozc_server_main.cc)。C# 版も引数省略時は実行ファイル近傍の同梱ファイルへ
+        // フォールバックする。これがないと ServerLauncher による引数なし spawn 後に即終了し、
+        // TIP/ibus が接続先を永久に持てない(clean install で変換不能)。
+        // 探索先: 実行ファイルディレクトリ(MSI=INSTALLFOLDER / deb=/usr/lib/mozc)と、その隣の
+        // ../Resources(macOS .app バンドルは server=Contents/MacOS、data=Contents/Resources)。
+        string exeDir = global::System.AppContext.BaseDirectory;
+        string Resolve(string file)
         {
-            global::System.Console.Error.WriteLine("--data, --roman, --keymap are required");
+            string[] candidates =
+            {
+                global::System.IO.Path.Combine(exeDir, file),
+                global::System.IO.Path.Combine(exeDir, "..", "Resources", file),
+            };
+            foreach (string c in candidates)
+            {
+                if (global::System.IO.File.Exists(c))
+                {
+                    return c;
+                }
+            }
+            return candidates[0]; // 既定(存在チェックは後段)。
+        }
+        if (data.Length == 0) data = Resolve("mozc.data");
+        if (roman.Length == 0) roman = Resolve("roman.tsv");
+        if (keymap.Length == 0) keymap = Resolve("keymap.tsv");
+        // keymap プリセット(<datadir>/keymap/<preset>.tsv)・記号/単漢字の実データも同梱
+        // ディレクトリから解決できるよう、--datadir 未指定なら解決した mozc.data の所在を使う。
+        dataDir ??= global::System.IO.Path.GetDirectoryName(global::System.IO.Path.GetFullPath(data)) ?? exeDir;
+
+        if (!global::System.IO.File.Exists(data)
+            || !global::System.IO.File.Exists(roman)
+            || !global::System.IO.File.Exists(keymap))
+        {
+            global::System.Console.Error.WriteLine(
+                $"required data not found: data='{data}' roman='{roman}' keymap='{keymap}' " +
+                "(pass --data/--roman/--keymap, or bundle them next to the executable)");
             return 2;
         }
 

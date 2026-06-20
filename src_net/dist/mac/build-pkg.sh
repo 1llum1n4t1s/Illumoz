@@ -15,8 +15,9 @@ cp ../../Mozc.Os.Mac/Mozc "$APP/Contents/MacOS/"
 # IMK stub は NativeAOT 共有ライブラリ Mozc.Os.Mac.dylib にリンクされるため同梱必須。
 cp ../../Mozc.Os.Mac/bin/Release/net10.0/osx-arm64/publish/Mozc.Os.Mac.dylib "$APP/Contents/MacOS/"
 cp ../../Mozc.Server.Host/bin/Release/net10.0/osx-arm64/publish/Mozc.Server.Host "$APP/Contents/MacOS/mozc_server"
-# mozc_server は --data/--roman/--keymap が必須(Program.cs)。Linux パッケージと同様に
-# 変換データ・ローマ字表・キーマップを bundle に同梱する(launcher がこのパスで起動できるように)。
+# IMK は mozc_server 未起動時に ServerLauncher で引数なし spawn する。Program.cs は引数省略時に
+# 実行ファイル(Contents/MacOS/mozc_server)の隣の ../Resources の同梱データへフォールバックする
+# ため、変換データ・ローマ字表・キーマップを Contents/Resources に同梱する。
 MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
 need "$MOZC_DATA"
 need ../../../src/data/preedit/romanji-hiragana.tsv

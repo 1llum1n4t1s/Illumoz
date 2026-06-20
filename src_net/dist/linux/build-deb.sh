@@ -10,8 +10,9 @@ STAGE="${1:-stage}"
 mkdir -p "$STAGE/usr/lib/ibus-mozc" "$STAGE/usr/lib/mozc" \
          "$STAGE/usr/share/ibus/component" "$STAGE/DEBIAN"
 cp ../../Mozc.Server.Host/bin/Release/net10.0/linux-x64/publish/Mozc.Server.Host "$STAGE/usr/lib/mozc/mozc_server"
-# mozc_server は --data/--roman/--keymap が無いと起動しない(Program.cs)。
-# クリーン環境で起動できるよう、変換データ・ローマ字表・キーマップを同梱する。
+# ibus エンジンは mozc_server 未起動時に ServerLauncher で引数なし spawn する。Program.cs は
+# 引数省略時に実行ファイル(/usr/lib/mozc/mozc_server)と同じディレクトリの同梱データへ
+# フォールバックするため、mozc.data/roman.tsv/keymap.tsv をこの配置で同梱する。
 # mozc.data は GenerateMozcData ターゲットが Mozc.Server.Host 直下に生成する(MOZC_DATA で上書き可)。
 MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
 need "$MOZC_DATA"
