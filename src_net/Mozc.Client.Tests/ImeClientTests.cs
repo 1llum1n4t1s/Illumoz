@@ -1,4 +1,5 @@
 using System.Linq;
+using Google.Protobuf;
 using Mozc.Client;
 using Mozc.Converter;
 using Mozc.Dictionary;
@@ -79,6 +80,26 @@ public class ImeClientTests
         int idx = s.Candidates.ToList().IndexOf("ワタシ社");
         Assert.True(idx >= 0);
         Assert.Equal("ユーザー辞書", s.Descriptions[idx]);
+    }
+
+    [Fact]
+    public void ToState_JoinsAllPreeditSegments()
+    {
+        // 変換は文節ごとに 1 セグメントで返る。ImeState.Preedit は全文節を連結する
+        // (先頭のみだと多文節変換で 2 文節目以降が確定まで消える)。
+        var multi = new Pb.Output { Id = 1, Consumed = true, Preedit = new Pb.Preedit() };
+        multi.Preedit.Segment.Add(new Pb.Preedit.Types.Segment
+        {
+            Value = "私", Annotation = Pb.Preedit.Types.Segment.Types.Annotation.Highlight,
+        });
+        multi.Preedit.Segment.Add(new Pb.Preedit.Types.Segment
+        {
+            Value = "の名前", Annotation = Pb.Preedit.Types.Segment.Types.Annotation.Underline,
+        });
+        byte[] bytes = multi.ToByteArray();
+        var client = new ImeClient(_ => bytes); // CreateSession/SendKey とも同じ多文節 Output を返す。
+        ImeState s = client.SendCharacter('a');
+        Assert.Equal("私の名前", s.Preedit);
     }
 
     [Fact]

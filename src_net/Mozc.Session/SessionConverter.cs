@@ -638,7 +638,7 @@ public sealed class SessionConverter
         => CurrentState == State.Conversion ? _selected[_focusedSegment] : -1;
 
     // 注目文節の先頭が preedit 上で始まる文字位置(候補ウィンドウのアンカー = position)。
-    // 先行文節の選択候補表記の文字数(書記素単位)を合算する。変換中でなければ 0。
+    // 先行文節の選択候補表記のコードポイント数を合算する。変換中でなければ 0。
     public int FocusedPosition
     {
         get
@@ -651,9 +651,10 @@ public sealed class SessionConverter
             for (int i = 0; i < _focusedSegment && i < _segments.ConversionSegmentsSize; i++)
             {
                 string v = _segments.ConversionSegment(i).Get(_selected[i]).Value;
-                // エンジン全体と同じ書記素定義(C++ Util::SplitStringToUtf8Graphemes 相当)で
-                // 数える。StringInfo だと絵文字/ZWJ の数え方がずれてアンカー位置が食い違う。
-                pos += Mozc.Base.GraphemeSplitter.Split(v).Count;
+                // candidate_window.position は C++ Util::CharsLen(コードポイント数)で定義される。
+                // Preedit.Segment.value_length と同じ数え方に揃える(書記素単位だと結合濁点/
+                // 補助文字を含む先行文節でアンカーが左へずれ、native が候補窓を別文節に置く)。
+                pos += Mozc.Base.CharacterUtil.CharsLen(v);
             }
             return pos;
         }

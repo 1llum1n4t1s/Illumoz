@@ -87,7 +87,9 @@ public sealed class TipController
     private void Update(Pb.Output o)
     {
         LastCommit = o.Result != null ? o.Result.Value : string.Empty;
-        Preedit = o.Preedit != null && o.Preedit.Segment.Count > 0 ? o.Preedit.Segment[0].Value : string.Empty;
+        // 変換は文節ごとに 1 セグメントで返る。全文節を連結して preedit にする
+        // (先頭のみだと多文節変換で 2 文節目以降が確定まで消える)。
+        Preedit = o.Preedit != null ? string.Concat(o.Preedit.Segment.Select(s => s.Value)) : string.Empty;
         Candidates = o.CandidateWindow != null
             ? o.CandidateWindow.Candidate.Select(c => c.Value).ToList()
             : global::System.Array.Empty<string>();

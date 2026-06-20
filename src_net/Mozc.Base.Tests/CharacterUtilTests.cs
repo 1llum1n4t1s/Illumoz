@@ -29,4 +29,16 @@ public class CharacterUtilTests
     {
         Assert.False(CharacterUtil.IsAcceptableCharacterAsCandidate(cp));
     }
+
+    [Theory]
+    [InlineData("", 0)]
+    [InlineData("abc", 3)]
+    [InlineData("あいう", 3)]
+    [InlineData("が", 2)]      // か + 結合濁点 = 1 grapheme だが 2 コードポイント
+    [InlineData("\U0001F600", 1)]   // 絵文字(サロゲートペア)= 1 コードポイント
+    public void CharsLen_CountsCodePoints(string s, int expected)
+    {
+        // value_length / cursor / candidate_window.position の数え方(C++ Util::CharsLen)。
+        Assert.Equal(expected, CharacterUtil.CharsLen(s));
+    }
 }

@@ -229,17 +229,9 @@ public static class ProtoBridge
         return proto.ToByteArray();
     }
 
-    // commands.proto の Preedit.Segment.value_length / cursor は「コードポイント数」
-    // (C++ Util::CharsLen 相当)。サロゲートペアは 1 と数える。
-    private static int CharsLen(string s)
-    {
-        int n = 0;
-        foreach (global::System.Text.Rune _ in s.EnumerateRunes())
-        {
-            n++;
-        }
-        return n;
-    }
+    // commands.proto の value_length / cursor / candidate_window.position はコードポイント数
+    // (C++ Util::CharsLen 相当)。Mozc.Base.CharacterUtil.CharsLen に集約。
+    private static int CharsLen(string s) => Mozc.Base.CharacterUtil.CharsLen(s);
 
     private static KeyEvent DecodeKey(Pb.KeyEvent proto)
     {

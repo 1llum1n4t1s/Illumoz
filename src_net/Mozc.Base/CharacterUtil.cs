@@ -3,6 +3,19 @@ namespace Mozc.Base;
 // C++ src/base/util.cc の文字受理判定など。
 public static class CharacterUtil
 {
+    // 文字列のコードポイント数(C++ Util::CharsLen 相当)。サロゲートペアは 1 と数える。
+    // commands.proto の value_length / cursor / candidate_window.position はこの定義で揃える
+    // (書記素単位だと結合濁点/IVS/絵文字 ZWJ で下流のオフセットがずれる)。
+    public static int CharsLen(string s)
+    {
+        int n = 0;
+        foreach (global::System.Text.Rune _ in s.EnumerateRunes())
+        {
+            n++;
+        }
+        return n;
+    }
+
     // 候補(変換結果)として表示してよいコードポイントか。
     // C++ Util::IsAcceptableCharacterAsCandidate 相当。
     // 範囲外・制御文字(C0/C1, DEL)・双方向制御文字を拒否する。
