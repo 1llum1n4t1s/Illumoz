@@ -7,6 +7,8 @@ namespace Mozc.Ipc;
 // 全 OS(Windows10+/macOS/Linux)対応。abstract namespace 非対応の macOS の transport に使う
 // (Linux の abstract socket は UnixSocketIpcServer、Windows は NamedPipe を主に使う)。
 // framing: client が送信→SHUT_WR で半クローズ→server が EOF まで受信→応答→close。
+// 【並行モデル】単一 accept ループで1接続ずつ逐次処理する。SessionHandler/EngineServer は
+// 共有可変状態を持ちスレッドセーフでないため直列性が前提。並行受付化にはロック設計が必須。
 public sealed class FileSocketIpcServer : IDisposable
 {
     private readonly string _path;
@@ -68,13 +70,15 @@ public sealed class FileSocketIpcServer : IDisposable
             {
                 break;
             }
-            catch (SocketException)
+            catch (SocketException ex)
             {
                 // 接続エラー。次へ。
+                Mozc.Base.MozcLog.Error("FileSocket accept", ex);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // ハンドラ等の予期せぬ例外で受付ループが死ぬのを防ぐ。
+                // ハンドラ・リクエスト過大等の予期せぬ例外で受付ループが死ぬのを防ぐ。
+                Mozc.Base.MozcLog.Error("FileSocket handler", ex);
             }
             finally
             {
@@ -95,6 +99,11 @@ public sealed class FileSocketIpcServer : IDisposable
                 break;
             }
             ms.Write(buffer, 0, read);
+            // 上限超過(破損/悪意の巨大リクエスト)は読み取りを打ち切り破棄する(OOM 防止)。
+            if (ms.Length > MozcConstants.IpcMaxRequestSize)
+            {
+                throw new IOException("IPC request exceeds max size");
+            }
         }
         return ms.ToArray();
     }

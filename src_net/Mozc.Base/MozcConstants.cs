@@ -19,6 +19,11 @@ public static class MozcConstants
     // 受信初期バッファサイズ (ipc.h: IPC_INITIAL_READ_BUFFER_SIZE = 16 * 16384)
     public const int IpcInitialReadBufferSize = 16 * 16384;
 
+    // 1 リクエストの最大受信バイト数。これを超えたら読み取りを打ち切り接続を破棄する
+    // (上限が無いと巨大/無限リクエストで MemoryStream が無制限成長し OOM になる)。
+    // commands.proto の Input は通常 数KB。十分な余裕を持って 8MiB を上限とする。
+    public const int IpcMaxRequestSize = 8 * 1024 * 1024;
+
     // Windows 名前付きパイプのプレフィックス (const.h: kIPCPrefix)。
     // .NET の NamedPipeClientStream には "\\.\pipe\" を除いた部分を渡すため、
     // プレフィックス本体(パイプ名の接頭辞)だけを保持する。

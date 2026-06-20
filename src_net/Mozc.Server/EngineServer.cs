@@ -251,12 +251,23 @@ public sealed class EngineServer
         {
             input = CommandCodec.DecodeInput(request);
         }
-        catch (global::System.Exception)
+        catch (global::System.Exception ex)
         {
+            Mozc.Base.MozcLog.Error("HandleRequest decode", ex);
             return CommandCodec.EncodeOutput(new Output { ErrorOccured = true });
         }
-        Output output = EvalWithConfig(input).Output;
-        return CommandCodec.EncodeOutput(output);
+        // EvalCommand 以降の想定外例外も必ずエラー Output に変換して返す
+        // (応答を返さないと IPC 層で握りつぶされクライアントが応答を得られない)。
+        try
+        {
+            Output output = EvalWithConfig(input).Output;
+            return CommandCodec.EncodeOutput(output);
+        }
+        catch (global::System.Exception ex)
+        {
+            Mozc.Base.MozcLog.Error("HandleRequest eval", ex);
+            return CommandCodec.EncodeOutput(new Output { ErrorOccured = true });
+        }
     }
 
     // EvalWithConfig の結果。Output に加え、エンコード時に使う「実効 config 依存の値」
@@ -373,14 +384,25 @@ public sealed class EngineServer
         {
             input = ProtoBridge.DecodeInput(request);
         }
-        catch (global::System.Exception)
+        catch (global::System.Exception ex)
         {
+            Mozc.Base.MozcLog.Error("HandleProtoRequest decode", ex);
             return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
         }
         // per-request config が有効なうちに EvalWithConfig が捕捉した shortcut/preedit を使う
         // (preedit には preedit_character_form を適用済み。selection_shortcut も request 値)。
-        EvalResult r = EvalWithConfig(input);
-        return ProtoBridge.EncodeOutput(r.Output, r.Shortcuts, r.PreeditOverride);
+        // EvalCommand 以降の想定外例外も必ずエラー Output に変換して返す(無応答だと IPC 層で
+        // 握りつぶされクライアントが応答を得られない)。
+        try
+        {
+            EvalResult r = EvalWithConfig(input);
+            return ProtoBridge.EncodeOutput(r.Output, r.Shortcuts, r.PreeditOverride);
+        }
+        catch (global::System.Exception ex)
+        {
+            Mozc.Base.MozcLog.Error("HandleProtoRequest eval", ex);
+            return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
+        }
     }
 
     // SelectionShortcut → 候補ショートカット文字列。

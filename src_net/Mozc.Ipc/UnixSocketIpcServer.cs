@@ -7,6 +7,8 @@ namespace Mozc.Ipc;
 // C++ src/ipc/unix_ipc.cc の IPCServer(Linux) 相当。
 // abstract namespace の Unix domain socket を bind/listen し、接続ごとに
 // EOF(クライアントの SHUT_WR)まで受信 → ハンドラ → 応答送信 → close を行う。
+// 【並行モデル】単一 accept ループで1接続ずつ逐次処理する。SessionHandler/EngineServer は
+// 共有可変状態を持ちスレッドセーフでないため直列性が前提。並行受付化にはロック設計が必須。
 [SupportedOSPlatform("linux")]
 public sealed class UnixSocketIpcServer : IDisposable
 {
@@ -67,13 +69,15 @@ public sealed class UnixSocketIpcServer : IDisposable
             {
                 break;
             }
-            catch (SocketException)
+            catch (SocketException ex)
             {
                 // 接続エラー。次へ。
+                Mozc.Base.MozcLog.Error("UnixSocket accept", ex);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // ハンドラ等の予期せぬ例外で受付ループが死ぬのを防ぐ。
+                // ハンドラ・リクエスト過大等の予期せぬ例外で受付ループが死ぬのを防ぐ。
+                Mozc.Base.MozcLog.Error("UnixSocket handler", ex);
             }
             finally
             {
@@ -94,6 +98,11 @@ public sealed class UnixSocketIpcServer : IDisposable
                 break; // クライアントが SHUT_WR で半クローズ
             }
             ms.Write(buffer, 0, read);
+            // 上限超過(破損/悪意の巨大リクエスト)は読み取りを打ち切り破棄する(OOM 防止)。
+            if (ms.Length > MozcConstants.IpcMaxRequestSize)
+            {
+                throw new IOException("IPC request exceeds max size");
+            }
         }
         return ms.ToArray();
     }
