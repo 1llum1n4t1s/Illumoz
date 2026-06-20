@@ -36,6 +36,9 @@ public sealed class Session
             _lastCommitted = new List<string>(_typed);
         }
         _typed.Clear();
+        // 確定で履歴が更新され得るので、サジェスト有無キャッシュを無効化する
+        // (同じ読みを再入力したとき新しい履歴候補を取りこぼさない)。
+        _suggestionCacheKey = null;
     }
 
     // 直前の確定を取り消し、確定前の composition を復元する(C++ Undo 相当)。
@@ -112,12 +115,30 @@ public sealed class Session
         return _converter.PredictZeroQuery(maxResults).ConvertAll(p => p.Value);
     }
 
+    // サジェスト有無の判定キャッシュ(現在の preedit 文字列でメモ化)。Status() は
+    // キー入力ごと(TEST_SEND_KEY + SEND_KEY で 2 回)呼ばれるため、毎回 PredictMerged を
+    // 走らせないよう preedit が変わらない限り前回結果を使う。
+    private string? _suggestionCacheKey;
+    private bool _suggestionCacheValue;
+
     // 入力中(composition)でサジェストが出ているか。Suggestion キーマップ状態の判定に使う。
     private bool HasActiveSuggestion()
-        => _settings.SuggestionEnabled
-            && _converter.CurrentState == SessionConverter.State.Composition
-            && _typed.Count > 0
-            && _converter.PredictMerged(1, includeHistory: !_settings.IncognitoMode).Count > 0;
+    {
+        if (!_settings.SuggestionEnabled
+            || _converter.CurrentState != SessionConverter.State.Composition
+            || _typed.Count == 0)
+        {
+            return false;
+        }
+        string key = GetPreedit();
+        if (key != _suggestionCacheKey)
+        {
+            _suggestionCacheKey = key;
+            _suggestionCacheValue =
+                _converter.PredictMerged(1, includeHistory: !_settings.IncognitoMode).Count > 0;
+        }
+        return _suggestionCacheValue;
+    }
 
     // keymap 照合用の状態名。サジェスト表示中は "Suggestion"(CommitFirstSuggestion 等の
     // Suggestion 固有バインドを到達可能にする。未該当キーは Composition 行へフォールバック)。
@@ -364,18 +385,15 @@ public sealed class Session
             case "MoveCursorToEnd":
             case "MoveCursorLeftByWord":
             case "MoveCursorRightByWord":
-                // composer のカーソル編集は未実装。preedit がある間は消費して、
-                // アプリ側のキャレットが composition の外へ動くのを防ぐ(no-op)。
-                return _typed.Count > 0 || _converter.CurrentState == SessionConverter.State.Conversion
-                    ? Current(true)
-                    : new SessionResult { Preedit = string.Empty, Consumed = false };
+                // composer のカーソル編集は未実装。入力中/変換中は消費して、アプリ側の
+                // キャレットが composition の外へ動くのを防ぐ(no-op)。
+                return ConsumeNoOpWhile(_typed.Count > 0
+                    || _converter.CurrentState == SessionConverter.State.Conversion);
             case "SegmentWidthShrink":
             case "SegmentWidthExpand":
                 // 文節幅の伸縮は未実装。変換中は消費して、Shift+Left/Right 等がアプリへ抜けて
                 // 周辺文書を選択/移動するのを防ぐ(no-op。実装は文節境界編集の follow-up)。
-                return _converter.CurrentState == SessionConverter.State.Conversion
-                    ? Current(true)
-                    : new SessionResult { Preedit = GetPreedit(), Consumed = false };
+                return ConsumeNoOpWhile(_converter.CurrentState == SessionConverter.State.Conversion);
             case "IMEOn":
                 _activated = true;
                 return Current(true);
@@ -456,4 +474,9 @@ public sealed class Session
 
     private SessionResult Current(bool consumed)
         => new() { Preedit = GetPreedit(), Consumed = consumed };
+
+    // 未実装の編集コマンド(カーソル移動/文節幅)の共通処理。active(入力中/変換中)なら
+    // no-op として消費し、そうでなければアプリへ素通しする。
+    private SessionResult ConsumeNoOpWhile(bool active)
+        => active ? Current(true) : new SessionResult { Preedit = GetPreedit(), Consumed = false };
 }

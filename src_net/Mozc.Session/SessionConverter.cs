@@ -440,7 +440,9 @@ public sealed class SessionConverter
             for (int i = 0; i < _focusedSegment && i < _segments.ConversionSegmentsSize; i++)
             {
                 string v = _segments.ConversionSegment(i).Get(_selected[i]).Value;
-                pos += new global::System.Globalization.StringInfo(v).LengthInTextElements;
+                // エンジン全体と同じ書記素定義(C++ Util::SplitStringToUtf8Graphemes 相当)で
+                // 数える。StringInfo だと絵文字/ZWJ の数え方がずれてアンカー位置が食い違う。
+                pos += Mozc.Base.GraphemeSplitter.Split(v).Count;
             }
             return pos;
         }
