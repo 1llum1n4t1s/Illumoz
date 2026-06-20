@@ -38,6 +38,38 @@ public static class X11Keysym
         [0xff27] = Pb.KeyEvent.Types.SpecialKey.Katakana, // Hiragana_Katakana
         [0xff2a] = Pb.KeyEvent.Types.SpecialKey.Hankaku,  // Zenkaku_Hankaku toggle
         [0xff30] = Pb.KeyEvent.Types.SpecialKey.Eisu,     // Eisu_toggle
+        // テンキー(keypad)keysym(C++ key_translator.cc 準拠)。これらは特殊/Latin/Unicode の
+        // いずれの範囲にも無く、未対応だと UndefinedKey になって numpad 入力が取りこぼされる。
+        // 数字は NUMPAD0-9 へ(ProtoBridge.DecodeKey が '0'-'9' へ正規化する)、Enter/編集キーは
+        // 対応する特殊キーへ寄せる。KP_Begin(0xff9d)/KP_F1-F4(0xff91-94) は C++ も非マップなので入れない。
+        [0xff8d] = Pb.KeyEvent.Types.SpecialKey.Enter,    // KP_Enter
+        [0xff89] = Pb.KeyEvent.Types.SpecialKey.Tab,      // KP_Tab
+        [0xff95] = Pb.KeyEvent.Types.SpecialKey.Home,     // KP_Home
+        [0xff96] = Pb.KeyEvent.Types.SpecialKey.Left,     // KP_Left
+        [0xff97] = Pb.KeyEvent.Types.SpecialKey.Up,       // KP_Up
+        [0xff98] = Pb.KeyEvent.Types.SpecialKey.Right,    // KP_Right
+        [0xff99] = Pb.KeyEvent.Types.SpecialKey.Down,     // KP_Down
+        [0xff9a] = Pb.KeyEvent.Types.SpecialKey.PageUp,   // KP_Prior/Page_Up
+        [0xff9b] = Pb.KeyEvent.Types.SpecialKey.PageDown, // KP_Next/Page_Down
+        [0xff9c] = Pb.KeyEvent.Types.SpecialKey.End,      // KP_End
+        [0xff9e] = Pb.KeyEvent.Types.SpecialKey.Insert,   // KP_Insert
+        [0xff9f] = Pb.KeyEvent.Types.SpecialKey.Del,      // KP_Delete
+        [0xffaa] = Pb.KeyEvent.Types.SpecialKey.Multiply, // KP_Multiply
+        [0xffab] = Pb.KeyEvent.Types.SpecialKey.Add,      // KP_Add
+        [0xffac] = Pb.KeyEvent.Types.SpecialKey.Separator,// KP_Separator
+        [0xffad] = Pb.KeyEvent.Types.SpecialKey.Subtract, // KP_Subtract
+        [0xffae] = Pb.KeyEvent.Types.SpecialKey.Decimal,  // KP_Decimal
+        [0xffaf] = Pb.KeyEvent.Types.SpecialKey.Divide,   // KP_Divide
+        [0xffb0] = Pb.KeyEvent.Types.SpecialKey.Numpad0,
+        [0xffb1] = Pb.KeyEvent.Types.SpecialKey.Numpad1,
+        [0xffb2] = Pb.KeyEvent.Types.SpecialKey.Numpad2,
+        [0xffb3] = Pb.KeyEvent.Types.SpecialKey.Numpad3,
+        [0xffb4] = Pb.KeyEvent.Types.SpecialKey.Numpad4,
+        [0xffb5] = Pb.KeyEvent.Types.SpecialKey.Numpad5,
+        [0xffb6] = Pb.KeyEvent.Types.SpecialKey.Numpad6,
+        [0xffb7] = Pb.KeyEvent.Types.SpecialKey.Numpad7,
+        [0xffb8] = Pb.KeyEvent.Types.SpecialKey.Numpad8,
+        [0xffb9] = Pb.KeyEvent.Types.SpecialKey.Numpad9,
     };
 
     public static Pb.KeyEvent Translate(uint keyval, uint state)

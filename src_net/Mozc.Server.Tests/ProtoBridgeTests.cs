@@ -88,6 +88,36 @@ public class ProtoBridgeTests
     }
 
     [Fact]
+    public void CandidateWindow_AssignsSequentialIds_AndPosition()
+    {
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        foreach (char c in "watashi")
+        {
+            Call(server, new Pb.Input
+            {
+                Type = Pb.Input.Types.CommandType.SendKey,
+                Id = id,
+                Key = new Pb.KeyEvent { KeyCode = c },
+            });
+        }
+        Pb.Output conv = Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey,
+            Id = id,
+            Key = new Pb.KeyEvent { SpecialKey = Pb.KeyEvent.Types.SpecialKey.Space },
+        });
+        Assert.NotNull(conv.CandidateWindow);
+        // 各候補の id は行インデックスと一致する(SELECT_CANDIDATE の id とずれない)。
+        for (int i = 0; i < conv.CandidateWindow.Candidate.Count; i++)
+        {
+            Assert.Equal(i, conv.CandidateWindow.Candidate[i].Id);
+        }
+        // position(required)は変換中も常に設定される。
+        Assert.True(conv.CandidateWindow.HasPosition);
+    }
+
+    [Fact]
     public void DirectInput_KeyString_CommitsImmediately_InPrecomposition()
     {
         EngineServer server = Server();

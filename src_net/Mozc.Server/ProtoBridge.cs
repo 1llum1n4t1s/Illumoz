@@ -120,17 +120,23 @@ public static class ProtoBridge
         if (output.Candidates.Count > 0)
         {
             var cw = new Pb.CandidateWindow { Size = (uint)output.Candidates.Count };
-            // 変換候補は選択中インデックス(focused_index)と注目文節のアンカー(position)を
-            // 設定する。renderer がハイライト位置とウィンドウ位置を正しく描けるようにする。
+            // position は candidate_window.proto の proto2 required フィールド。C++ engine_output.cc は
+            // focused の有無に依らず常に set_position するため、ここでも無条件に設定する
+            // (proto2 クライアントが required 欠落で Output を uninitialized 拒否するのを防ぐ)。
+            cw.Position = (uint)output.FocusedPosition;
+            // 選択中インデックス(focused_index)は注目候補があるときだけ設定する。
             if (output.FocusedIndex >= 0)
             {
                 cw.FocusedIndex = (uint)output.FocusedIndex;
-                cw.Position = (uint)output.FocusedPosition;
             }
             for (int i = 0; i < output.Candidates.Count; i++)
             {
                 var cand = new Pb.CandidateWindow.Types.Candidate
                 {
+                    // Id は native クライアント(IBus/mac renderer)が選択時に送り返す候補識別子。
+                    // 現状 managed の候補列はフラット(cascading/paging 無し)なので Id==Index==配列添字。
+                    // この不変条件が崩れる(サブ候補/ページング導入)なら受信側で id→index 解決が必要。
+                    Id = i,
                     Index = (uint)i,
                     Value = output.Candidates[i],
                 };
@@ -154,11 +160,16 @@ public static class ProtoBridge
             {
                 Size = (uint)output.Suggestions.Count,
                 Category = Pb.Category.Suggestion,
+                // position は proto2 required フィールド。サジェスト(非 Conversion)では 0 だが、
+                // 明示設定して presence を立てないと proto2 クライアントが Output を拒否しうる。
+                Position = (uint)output.FocusedPosition,
             };
             for (int i = 0; i < output.Suggestions.Count; i++)
             {
                 var cand = new Pb.CandidateWindow.Types.Candidate
                 {
+                    // native 選択用の候補 id(フラットな候補列なので Id==Index==配列添字)。
+                    Id = i,
                     Index = (uint)i,
                     Value = output.Suggestions[i],
                 };
