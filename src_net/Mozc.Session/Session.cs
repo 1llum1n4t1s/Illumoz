@@ -206,8 +206,10 @@ public sealed class Session
                     SnapshotAndClearTyped();
                     return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
                 }
-                // サジェスト表示中: サジェスト候補 N を直接確定。
-                if (HasActiveSuggestion())
+                // サジェスト表示中: 表示中の候補数の範囲内の shortcut だけ確定する。
+                // suggestions_size が shortcut 数より小さいとき、画面に無い候補(隠れた
+                // 履歴/辞書予測)を誤って確定しないよう、表示件数で idx を制限する。
+                if (idx < GetSuggestions().Count && HasActiveSuggestion())
                 {
                     string? sug = _converter.CommitSuggestion(idx, includeHistory: IncludeHistorySuggest, includeDictionary: IncludeDictionarySuggest);
                     if (sug != null)
@@ -411,6 +413,18 @@ public sealed class Session
                 return _typed.Count > 0
                     ? Current(true)
                     : new SessionResult { Preedit = "", Consumed = false };
+            case "Revert":
+                // C++ Session::Revert 相当。composition/conversion は precomposition へ
+                // キャンセルして消費。precomposition では学習を戻し(本実装は履歴 revert 未対応)
+                // キーをエコーバックする(消費せずホストへ素通し = C++ EchoBack)。
+                if (_converter.CurrentState == SessionConverter.State.Conversion
+                    || _typed.Count > 0)
+                {
+                    _converter.Reset();
+                    _typed.Clear();
+                    return Current(true);
+                }
+                return new SessionResult { Preedit = string.Empty, Consumed = false };
             case "Undo":
                 return Undo();
             case "CommitFirstSuggestion":
@@ -446,6 +460,8 @@ public sealed class Session
             case "ConvertToHalfKatakana":
             case "DisplayAsHalfKatakana":
             case "ConvertToHalfWidth":
+            // KOTOERI は半角化(F8/Ctrl ;/Option a)を DisplayAsHalfWidth 名で割当てる(同義)。
+            case "DisplayAsHalfWidth":
                 // 半角化(F8): かな読みは半角カタカナへ。
                 _converter.ConvertToTransliteration(c => c.GetHalfKatakana());
                 return Current(true);

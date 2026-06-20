@@ -162,7 +162,10 @@ public sealed class SessionHandler
     private static bool PreferKeyString(Input input, Session session)
     {
         bool isTextInput = input.Key?.Special == SpecialKey.TextInput;
-        return input.KeyString.Length > 0 && input.Key != null && session.Activated
+        // クライアントが activated=false を明示したキーは IME off 扱い。SendKey が状態を同期する
+        // 前にここで生テキスト経路へ入ると素通しできないため、現状態に加えてこのフラグも見る。
+        bool active = input.Key?.Activated ?? session.Activated;
+        return input.KeyString.Length > 0 && input.Key != null && active
             && (isTextInput || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
     }
 

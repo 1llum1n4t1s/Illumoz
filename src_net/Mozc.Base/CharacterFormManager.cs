@@ -43,6 +43,28 @@ public sealed class CharacterFormManager
         return m;
     }
 
+    // 変換結果用の既定マネージャ(C++ character_form_manager.cc の conversion 既定)。
+    // preedit 既定は全て FULL_WIDTH だが、変換側は ASCII/数字/記号を LAST_FORM(直近選択を記憶)に
+    // して、半角を選べば半角が、全角を選べば全角が以後も使われるようにする。かな/句読点は FULL_WIDTH。
+    public static CharacterFormManager CreateConversionDefault()
+    {
+        var m = new CharacterFormManager();
+        m.AddRule("ア", CharacterForm.FullWidth);
+        m.AddRule("A", CharacterForm.LastForm);
+        m.AddRule("0", CharacterForm.LastForm);
+        m.AddRule("(){}[]", CharacterForm.LastForm);
+        m.AddRule(".,", CharacterForm.LastForm);
+        m.AddRule("。、", CharacterForm.FullWidth);
+        m.AddRule("・「」", CharacterForm.FullWidth);
+        m.AddRule("\"'", CharacterForm.LastForm);
+        m.AddRule(":;", CharacterForm.LastForm);
+        m.AddRule("#%&@$^_|`\\", CharacterForm.LastForm);
+        m.AddRule("~", CharacterForm.LastForm);
+        m.AddRule("<>=+-/*", CharacterForm.LastForm);
+        m.AddRule("?!", CharacterForm.LastForm);
+        return m;
+    }
+
     // config.character_form_rules 相当(group 文字列 + form)からまとめて構築する。
     // C++ では LAST_FORM は履歴記憶だが、未実装のため呼び出し側で FullWidth 等へ
     // 解決した form を渡す。空 group / 空 rules はそのまま無視される。

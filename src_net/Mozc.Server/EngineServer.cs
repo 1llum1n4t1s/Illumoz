@@ -34,7 +34,7 @@ public sealed class EngineServer
     public Mozc.Base.CharacterFormManager PreeditFormManager { get; private set; }
         = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
     public Mozc.Base.CharacterFormManager ConversionFormManager { get; private set; }
-        = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+        = Mozc.Base.CharacterFormManager.CreateConversionDefault();
 
     // Config を session の挙動へ反映する(履歴学習レベル + keymap プリセット)。
     public void ApplyConfig()
@@ -143,7 +143,9 @@ public sealed class EngineServer
             // ルールが空(初期化 or 後から解除)なら既定マネージャへ戻す。前の config の
             // 幅設定が残り続ける不具合を防ぐため、解除時も必ず再構築・伝播する。
             PreeditFormManager = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
-            ConversionFormManager = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+            // 変換側は preedit と別の既定(ASCII/数字/記号は LAST_FORM)。preedit 既定を流用すると
+            // abc/123 等が常に全角へ書き換わり、半角候補を選んでも記憶されない。
+            ConversionFormManager = Mozc.Base.CharacterFormManager.CreateConversionDefault();
             PropagateConversionFormManager();
             return;
         }
