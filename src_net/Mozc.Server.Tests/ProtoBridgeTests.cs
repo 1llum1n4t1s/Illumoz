@@ -284,6 +284,75 @@ public class ProtoBridgeTests
     }
 
     [Fact]
+    public void SendCommand_SelectCandidate_CommitsLikeClick()
+    {
+        // SELECT_CANDIDATE は候補窓を閉じる=確定する(マウス/タッチのクリック選択)。
+        // 以前は HIGHLIGHT と同じく選択だけで何も commit しなかった。
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        foreach (char c in "watashi")
+        {
+            Call(server, new Pb.Input
+            {
+                Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+                Key = new Pb.KeyEvent { KeyCode = c },
+            });
+        }
+        Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+            Key = new Pb.KeyEvent { SpecialKey = Pb.KeyEvent.Types.SpecialKey.Space },
+        });
+        Pb.Output o = Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendCommand,
+            Id = id,
+            Command = new Pb.SessionCommand
+            {
+                Type = Pb.SessionCommand.Types.CommandType.SelectCandidate,
+                Id = 0,
+            },
+        });
+        Assert.NotNull(o.Result);
+        Assert.Equal("私", o.Result.Value);
+    }
+
+    [Fact]
+    public void EncodeOutput_PreeditValueLength_CountsCodePointsNotGraphemes()
+    {
+        // 結合濁点 か+U+3099 は 1 grapheme だが 2 コードポイント。value_length は
+        // C++ Util::CharsLen(コードポイント数)に合わせる(下流のオフセットずれ防止)。
+        var output = new Output { Consumed = true, Preedit = "が" };
+        Pb.Output proto = Pb.Output.Parser.ParseFrom(ProtoBridge.EncodeOutput(output, string.Empty));
+        Assert.NotNull(proto.Preedit);
+        Assert.Single(proto.Preedit.Segment);
+        Assert.Equal(2u, proto.Preedit.Segment[0].ValueLength);
+        Assert.Equal(2u, proto.Preedit.Cursor);
+    }
+
+    [Fact]
+    public void EncodeOutput_ConversionSegments_EmitsPerClauseWithFocusedHighlight()
+    {
+        // 変換中は文節ごとに 1 セグメント。注目文節 HIGHLIGHT、他 UNDERLINE。cursor は注目文節の先頭。
+        var output = new Output
+        {
+            Consumed = true,
+            Preedit = "私の名前",
+            PreeditSegments = new[] { "私", "の", "名前" },
+            FocusedSegment = 1,
+        };
+        Pb.Output proto = Pb.Output.Parser.ParseFrom(ProtoBridge.EncodeOutput(output, string.Empty));
+        Assert.NotNull(proto.Preedit);
+        Assert.Equal(3, proto.Preedit.Segment.Count);
+        Assert.Equal(Pb.Preedit.Types.Segment.Types.Annotation.Underline, proto.Preedit.Segment[0].Annotation);
+        Assert.Equal(Pb.Preedit.Types.Segment.Types.Annotation.Highlight, proto.Preedit.Segment[1].Annotation);
+        Assert.Equal(Pb.Preedit.Types.Segment.Types.Annotation.Underline, proto.Preedit.Segment[2].Annotation);
+        Assert.Equal("名前", proto.Preedit.Segment[2].Value);
+        Assert.Equal(2u, proto.Preedit.Segment[2].ValueLength); // 名/前 = 2 文字
+        Assert.Equal(1u, proto.Preedit.Cursor); // 注目=文節 1。先頭文節「私」の 1 文字分。
+    }
+
+    [Fact]
     public void GarbageProtoRequest_ReturnsErrorOutput()
     {
         EngineServer server = Server();

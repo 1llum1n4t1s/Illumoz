@@ -77,6 +77,11 @@ public sealed class Output
     public ulong SessionId { get; init; }
     public bool Consumed { get; init; }
     public string Preedit { get; init; } = string.Empty;
+    // 変換中の文節別 preedit 値(表示順)。空なら preedit 全体を 1 セグメント(下線)として扱う。
+    // protobuf 出力で文節境界と注目文節 HIGHLIGHT を表現するために使う。
+    public IReadOnlyList<string> PreeditSegments { get; init; } = global::System.Array.Empty<string>();
+    // 注目している変換文節の添字(PreeditSegments 内)。変換中以外は無視される。
+    public int FocusedSegment { get; init; } = -1;
     public string Result { get; init; } = string.Empty; // 確定文字列(あれば)
     public IReadOnlyList<string> Candidates { get; init; } = global::System.Array.Empty<string>();
     // 各候補の説明(記号/全角 等。Candidates と同数か空)。

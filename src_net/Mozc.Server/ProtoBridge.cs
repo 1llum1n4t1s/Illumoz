@@ -86,7 +86,8 @@ public static class ProtoBridge
     // shortcuts が指定されれば候補 i に annotation.shortcut = shortcuts[i] を付与する
     // (C++ SelectionShortcut: "123456789" / "asdfghjkl")。
     // preeditOverride が指定されれば表示 preedit をそれで差し替える(文字形ルール適用後の文字列)。
-    public static byte[] EncodeOutput(Output output, string shortcuts, string? preeditOverride = null)
+    public static byte[] EncodeOutput(Output output, string shortcuts, string? preeditOverride = null,
+        IReadOnlyList<string>? preeditSegments = null)
     {
         string preeditText = preeditOverride ?? output.Preedit;
         var proto = new Pb.Output
@@ -108,9 +109,42 @@ public static class ProtoBridge
         {
             proto.Config = Mozc.Config.Config.Parser.ParseFrom(output.ConfigBytes);
         }
-        if (preeditText.Length != 0)
+        // 文節別 preedit(変換中)。char-form 適用済みの per-clause 値があればそれを、無ければ
+        // 生の output.PreeditSegments を使う。
+        IReadOnlyList<string> segs = preeditSegments ?? output.PreeditSegments;
+        if (segs.Count > 0)
         {
-            int len = Mozc.Base.GraphemeSplitter.Split(preeditText).Count;
+            // 変換中: 文節ごとに 1 セグメント。注目文節は HIGHLIGHT、他は UNDERLINE。
+            // C++ engine_output.cc と同様、文節境界と注目文節をクライアントへ伝える(IBus 等が
+            // segment.value_length() でオフセットを進めて下線/強調と候補窓のアンカーを置く)。
+            var preedit = new Pb.Preedit();
+            int focused = output.FocusedSegment;
+            int cursorLen = 0;
+            for (int i = 0; i < segs.Count; i++)
+            {
+                int vlen = CharsLen(segs[i]);
+                preedit.Segment.Add(new Pb.Preedit.Types.Segment
+                {
+                    Annotation = i == focused
+                        ? Pb.Preedit.Types.Segment.Types.Annotation.Highlight
+                        : Pb.Preedit.Types.Segment.Types.Annotation.Underline,
+                    Value = segs[i],
+                    ValueLength = (uint)vlen,
+                });
+                if (i < focused)
+                {
+                    cursorLen += vlen; // cursor は注目文節の先頭に置く。
+                }
+            }
+            preedit.Cursor = (uint)cursorLen;
+            proto.Preedit = preedit;
+        }
+        else if (preeditText.Length != 0)
+        {
+            // 入力中(composition)等は preedit 全体を 1 セグメント(下線)として載せる。
+            // value_length / cursor はコードポイント数(C++ Util::CharsLen)。GraphemeSplitter だと
+            // 結合濁点/IVS/絵文字 ZWJ を 1 と数え、下流のオフセット(下線/カーソル)がずれる。
+            int len = CharsLen(preeditText);
             var preedit = new Pb.Preedit { Cursor = (uint)len };
             preedit.Segment.Add(new Pb.Preedit.Types.Segment
             {
@@ -193,6 +227,18 @@ public static class ProtoBridge
             proto.CandidateWindow = cw;
         }
         return proto.ToByteArray();
+    }
+
+    // commands.proto の Preedit.Segment.value_length / cursor は「コードポイント数」
+    // (C++ Util::CharsLen 相当)。サロゲートペアは 1 と数える。
+    private static int CharsLen(string s)
+    {
+        int n = 0;
+        foreach (global::System.Text.Rune _ in s.EnumerateRunes())
+        {
+            n++;
+        }
+        return n;
     }
 
     private static KeyEvent DecodeKey(Pb.KeyEvent proto)

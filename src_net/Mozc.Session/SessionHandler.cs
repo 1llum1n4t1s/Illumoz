@@ -255,6 +255,9 @@ public sealed class SessionHandler
             SessionId = sessionId,
             Consumed = r.Consumed,
             Preedit = r.Preedit,
+            // 変換中の文節別 preedit と注目文節(protobuf 出力で文節境界/HIGHLIGHT を表現する)。
+            PreeditSegments = session.Converter.GetConversionSegmentValues(),
+            FocusedSegment = session.Converter.FocusedSegment,
             Result = r.Committed,
             Candidates = session.Converter.GetCandidates(),
             CandidateDescriptions = session.Converter.GetCandidateDescriptions(),

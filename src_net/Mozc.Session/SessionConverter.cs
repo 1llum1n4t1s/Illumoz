@@ -100,6 +100,22 @@ public sealed class SessionConverter
         return sb.ToString();
     }
 
+    // 変換中の各文節の選択候補値(表示順)。protobuf 出力で文節境界と注目文節 HIGHLIGHT を
+    // 表現するために使う。Conversion 以外、または T13n 表記変換中(全 preedit を 1 塊で扱う)は空。
+    public IReadOnlyList<string> GetConversionSegmentValues()
+    {
+        if (CurrentState != State.Conversion || _segments == null || _t13n != null)
+        {
+            return global::System.Array.Empty<string>();
+        }
+        var list = new List<string>(_segments.ConversionSegmentsSize);
+        for (int i = 0; i < _segments.ConversionSegmentsSize; i++)
+        {
+            list.Add(_segments.ConversionSegment(i).Get(_selected[i]).Value);
+        }
+        return list;
+    }
+
     // 各変換文節の読みに完全一致するユーザー辞書語を先頭候補へ挿入する。
     private void InsertUserDictionaryCandidates(Segments segments)
     {

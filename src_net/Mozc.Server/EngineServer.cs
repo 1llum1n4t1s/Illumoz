@@ -381,7 +381,8 @@ public sealed class EngineServer
     // (候補ショートカット文字列 / preedit 形変換済み文字列)を request config が有効な
     // うちに捕捉して持ち回る。per-request config を finally で戻した後にこれらを再計算すると
     // 設定が反映されないため(selection_shortcut / preedit_character_form)。
-    private readonly record struct EvalResult(Output Output, string Shortcuts, string? PreeditOverride);
+    private readonly record struct EvalResult(Output Output, string Shortcuts, string? PreeditOverride,
+        IReadOnlyList<string>? PreeditSegmentOverrides);
 
     // 現在の実効 config から、エンコードに必要な shortcut/preedit を捕捉する。
     private EvalResult Capture(Output output)
@@ -390,7 +391,19 @@ public sealed class EngineServer
         string? preedit = output.Preedit.Length != 0
             ? PreeditFormManager.ConvertString(output.Preedit)
             : null;
-        return new EvalResult(output, shortcuts, preedit);
+        // 変換中は文節ごとに preedit_character_form を適用して per-clause セグメントを作る
+        // (注目文節 HIGHLIGHT / 文節境界を protobuf に載せるため)。
+        IReadOnlyList<string>? segOverrides = null;
+        if (output.PreeditSegments.Count > 0)
+        {
+            var segs = new List<string>(output.PreeditSegments.Count);
+            foreach (string s in output.PreeditSegments)
+            {
+                segs.Add(PreeditFormManager.ConvertString(s));
+            }
+            segOverrides = segs;
+        }
+        return new EvalResult(output, shortcuts, preedit, segOverrides);
     }
 
     // Config 系コマンドは EngineServer 層(ConfigManager 所有)で処理し、
@@ -516,7 +529,8 @@ public sealed class EngineServer
         try
         {
             EvalResult r = EvalWithConfig(input);
-            return ProtoBridge.EncodeOutput(r.Output, r.Shortcuts, r.PreeditOverride);
+            return ProtoBridge.EncodeOutput(r.Output, r.Shortcuts, r.PreeditOverride,
+                r.PreeditSegmentOverrides);
         }
         catch (global::System.Exception ex)
         {
