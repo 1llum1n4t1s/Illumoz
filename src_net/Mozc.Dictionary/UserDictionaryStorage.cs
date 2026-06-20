@@ -141,7 +141,8 @@ public sealed class UserDictionaryStorage
         return ms.ToArray();
     }
 
-    public void Save(string path) => global::System.IO.File.WriteAllBytes(path, Serialize());
+    // 保存は AtomicFile(temp→rename)で行い、保存中の異常終了でもユーザー辞書の全損を防ぐ。
+    public void Save(string path) => Mozc.Base.AtomicFile.WriteAllBytes(path, Serialize());
 
     public bool Load(ReadOnlySpan<byte> data)
     {

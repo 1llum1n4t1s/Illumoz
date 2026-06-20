@@ -1,6 +1,11 @@
 #!/bin/sh
 # Linux 配布(deb)。NativeAOT publish 成果物 + ibus stub + component.xml をパッケージ化(実機)。
-set -e
+# set -u: 未定義変数を検出。cd: 呼び出し CWD に依らずスクリプト位置基準で相対パスを解決
+# (別ディレクトリから叩いても ../../../src/data 等の cp が静かに失敗しないように)。
+set -eu
+cd "$(dirname "$0")"
+# 同梱元ファイルの存在を事前検証する(欠けた不完全パッケージを dpkg-deb へ渡さない)。
+need() { [ -e "$1" ] || { echo "missing source: $1" >&2; exit 1; }; }
 STAGE="${1:-stage}"
 mkdir -p "$STAGE/usr/lib/ibus-mozc" "$STAGE/usr/lib/mozc" \
          "$STAGE/usr/share/ibus/component" "$STAGE/DEBIAN"
@@ -9,6 +14,9 @@ cp ../../Mozc.Server.Host/bin/Release/net10.0/linux-x64/publish/Mozc.Server.Host
 # クリーン環境で起動できるよう、変換データ・ローマ字表・キーマップを同梱する。
 # mozc.data は GenerateMozcData ターゲットが Mozc.Server.Host 直下に生成する(MOZC_DATA で上書き可)。
 MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
+need "$MOZC_DATA"
+need ../../../src/data/preedit/romanji-hiragana.tsv
+need ../../../src/data/keymap/ms-ime.tsv
 cp "$MOZC_DATA" "$STAGE/usr/lib/mozc/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$STAGE/usr/lib/mozc/roman.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$STAGE/usr/lib/mozc/keymap.tsv"

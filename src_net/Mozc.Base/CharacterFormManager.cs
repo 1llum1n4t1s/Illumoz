@@ -234,8 +234,9 @@ public sealed class CharacterFormManager
         }
     }
 
+    // 保存は AtomicFile(temp→rename)で行い、保存中の異常終了でも LAST_FORM 記憶の全損を防ぐ。
     public void SaveHistory(string path)
-        => global::System.IO.File.WriteAllBytes(path, SerializeHistory());
+        => AtomicFile.WriteAllBytes(path, SerializeHistory());
 
     // ファイルが無ければ何もせず false。
     public bool LoadHistory(string path)

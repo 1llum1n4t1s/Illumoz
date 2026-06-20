@@ -73,8 +73,10 @@ public sealed class UnicodeRewriter : IRewriter
         return true;
     }
 
-    // 逆変換(C++ RewriteToUnicodeCharFormat 相当): 単一文字を「U+XXXX」表記へ。
-    // 1グラフェム(コードポイント1個)でなければ null。サロゲートペアも扱う。
+    // 逆変換ヘルパ: 単一文字を「U+XXXX」表記へ。1グラフェム(コードポイント1個)でなければ
+    // null。サロゲートペアも扱う。【現状 Rewrite には未配線】C++ unicode_rewriter.cc の
+    // RewriteToUnicodeCharFormat(確定文字へ U+ 表記候補を付与)に相当する将来用のヘルパで、
+    // 本パイプラインの Rewrite は U+XXXX→文字の順変換(TryConvert)のみ行う。
     public static string? ToUnicodeFormat(string text)
     {
         if (string.IsNullOrEmpty(text))

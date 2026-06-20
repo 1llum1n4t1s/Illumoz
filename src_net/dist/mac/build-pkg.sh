@@ -1,6 +1,11 @@
 #!/bin/sh
 # macOS 配布(pkg)。Mozc.app(IMK bundle)を組み立て pkgbuild で .pkg 化(実機 macOS)。
-set -e
+# set -u: 未定義変数を検出。cd: 呼び出し CWD に依らずスクリプト位置基準で相対パスを解決
+# (別ディレクトリから叩いても ../../../src/data 等の cp が静かに失敗しないように)。
+set -eu
+cd "$(dirname "$0")"
+# 同梱元ファイルの存在を事前検証する(欠けた不完全パッケージを pkgbuild へ渡さない)。
+need() { [ -e "$1" ] || { echo "missing source: $1" >&2; exit 1; }; }
 APP="Mozc.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Info.plist "$APP/Contents/"
@@ -13,6 +18,9 @@ cp ../../Mozc.Server.Host/bin/Release/net10.0/osx-arm64/publish/Mozc.Server.Host
 # mozc_server は --data/--roman/--keymap が必須(Program.cs)。Linux パッケージと同様に
 # 変換データ・ローマ字表・キーマップを bundle に同梱する(launcher がこのパスで起動できるように)。
 MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
+need "$MOZC_DATA"
+need ../../../src/data/preedit/romanji-hiragana.tsv
+need ../../../src/data/keymap/ms-ime.tsv
 cp "$MOZC_DATA" "$APP/Contents/Resources/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$APP/Contents/Resources/roman.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$APP/Contents/Resources/keymap.tsv"

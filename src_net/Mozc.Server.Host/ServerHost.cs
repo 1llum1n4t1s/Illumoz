@@ -174,15 +174,31 @@ public static class ServerHost
             global::System.IO.Path.Combine(dir, CharacterFormFile));
     }
 
-    // プロファイルを dir へ保存する(dir が無ければ作成)。
+    // プロファイルを dir へ保存する(dir が無ければ作成)。各ファイルは AtomicFile で書く。
+    // ProcessExit ハンドラから呼ばれるため、1 ファイルの保存失敗で残りを巻き添えにせず
+    // (各 Save を独立 try/catch)、例外はハンドラ外へ伝播させない(終了処理を止めない)。
     public static void SaveProfile(EngineServer server, string dir)
     {
         global::System.IO.Directory.CreateDirectory(dir);
-        server.Config.Save(global::System.IO.Path.Combine(dir, ConfigFile));
-        server.Handler.SaveHistory(global::System.IO.Path.Combine(dir, HistoryFile));
-        server.Handler.SaveUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile));
-        server.ConversionFormManager.SaveHistory(
-            global::System.IO.Path.Combine(dir, CharacterFormFile));
+        SaveQuietly("config", () => server.Config.Save(global::System.IO.Path.Combine(dir, ConfigFile)));
+        SaveQuietly("history", () => server.Handler.SaveHistory(global::System.IO.Path.Combine(dir, HistoryFile)));
+        SaveQuietly("user_dictionary",
+            () => server.Handler.SaveUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile)));
+        SaveQuietly("character_form",
+            () => server.ConversionFormManager.SaveHistory(global::System.IO.Path.Combine(dir, CharacterFormFile)));
+    }
+
+    // 1 ファイルの保存を実行し、失敗しても stderr に記録して継続する(他ファイルの保存を守る)。
+    private static void SaveQuietly(string what, global::System.Action save)
+    {
+        try
+        {
+            save();
+        }
+        catch (global::System.Exception ex)
+        {
+            global::System.Console.Error.WriteLine($"[mozc] profile save failed ({what}): {ex.Message}");
+        }
     }
 
     public static EngineServer CreateFromBytes(byte[] mozcData, string romanTable, string keymapTsv)

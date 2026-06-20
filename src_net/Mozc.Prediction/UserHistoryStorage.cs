@@ -34,8 +34,9 @@ public static class UserHistoryStorage
         return ms.ToArray();
     }
 
+    // 保存は AtomicFile(temp→rename)で行い、保存中の異常終了でも学習履歴の全損を防ぐ。
     public static void Save(UserHistoryPredictor predictor, string path)
-        => global::System.IO.File.WriteAllBytes(path, Serialize(predictor));
+        => Mozc.Base.AtomicFile.WriteAllBytes(path, Serialize(predictor));
 
     // data を predictor に流し込む(既存に追記する Restore を使用)。失敗時は false。
     public static bool Load(UserHistoryPredictor predictor, ReadOnlySpan<byte> data)

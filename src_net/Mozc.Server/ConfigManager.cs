@@ -54,7 +54,8 @@ public sealed class ConfigManager
         }
     }
 
-    public void Save(string path) => global::System.IO.File.WriteAllBytes(path, Serialize());
+    // 保存は AtomicFile(temp→rename)で行い、保存中の異常終了でも設定全損を防ぐ。
+    public void Save(string path) => Mozc.Base.AtomicFile.WriteAllBytes(path, Serialize());
 
     // バイト列から読み込む。壊れていれば既定値のまま false。
     public bool Load(byte[] data)
