@@ -133,6 +133,46 @@ public static class ImkBridge
         }
     }
 
+    // IMKCandidates パネルでの行選択(マウスクリック/方向キー)を SUBMIT_CANDIDATE としてサーバへ送る。
+    // handleEvent を経由しないパネル選択をサーバへ届け、選んだ候補を確定する。戻り値は consumed(0/1)。
+    [UnmanagedCallersOnly(EntryPoint = "mozc_imk_select_candidate")]
+    public static int SelectCandidate(int index) => SelectCandidateCore(index);
+
+    private static int SelectCandidateCore(int index)
+    {
+        try
+        {
+            if (_controller == null)
+            {
+                EnsureController();
+                if (_controller == null)
+                {
+                    return 0;
+                }
+            }
+            Client.ImeState s = _controller.SelectCandidate(index);
+            _preedit = s.Preedit;
+            _commit = s.Commit;
+            _candidates = string.Join('\n', s.Candidates);
+            return s.Consumed ? 1 : 0;
+        }
+        catch
+        {
+            _controller = null;
+            _commit = string.Empty;
+            _preedit = string.Empty;
+            _candidates = string.Empty;
+            return 0;
+        }
+    }
+
+    // テスト用 managed 実体(UnmanagedCallersOnly は直接呼べないため)。
+    public static (string Preedit, string Commit, bool Consumed) SelectCandidateManaged(int index)
+    {
+        int c = SelectCandidateCore(index);
+        return (_preedit, _commit, c != 0);
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "mozc_imk_get_preedit")]
     public static unsafe int GetPreedit(byte* buf, int cap) => WriteUtf8(_preedit, buf, cap);
 

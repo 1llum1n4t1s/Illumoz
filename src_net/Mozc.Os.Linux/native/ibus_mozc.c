@@ -68,10 +68,23 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
         ibus_engine_update_preedit_text(engine, pt, cursor, p > 0);
     }
 
-    /* 候補列(改行区切り)を lookup table として表示。 */
-    char cands[4096];
-    int c = mozc_ibus_get_candidates(cands, sizeof(cands));
-    if (c > 0 && c < (int)sizeof(cands)) {
+    /* 候補列(改行区切り)を lookup table として表示。長いユーザー辞書語や多数の候補で
+       固定バッファを超える場合は、commit と同様に必要長で動的確保して取りこぼさない
+       (超過時に丸ごと候補窓を消さない)。 */
+    char cands_buf[4096];
+    int c = mozc_ibus_get_candidates(cands_buf, sizeof(cands_buf));
+    char *cands = cands_buf;
+    char *cands_heap = NULL;
+    if (c > (int)sizeof(cands_buf) - 1) {
+        /* cap 不足。WriteUtf8 は必要バイト数 c を返すので c+1 で確保し再取得する。 */
+        cands_heap = (char *)malloc((size_t)c + 1);
+        if (cands_heap != NULL && mozc_ibus_get_candidates(cands_heap, c + 1) == c) {
+            cands = cands_heap;
+        } else {
+            cands = NULL; /* 確保失敗時は候補表示を諦める(部分表示はしない)。 */
+        }
+    }
+    if (cands != NULL && c > 0) {
         cands[c] = '\0';
         IBusLookupTable *table = ibus_lookup_table_new(9, 0, TRUE, TRUE);
         char *save = NULL;
@@ -88,6 +101,7 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
     } else {
         ibus_engine_hide_lookup_table(engine);
     }
+    free(cands_heap);
 
     return consumed ? TRUE : FALSE;
 }

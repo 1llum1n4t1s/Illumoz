@@ -13,6 +13,7 @@ extern int mozc_imk_process_key(uint16_t keyCode, const char *charsUtf8, int cha
 extern int mozc_imk_get_preedit(char *buf, int cap);
 extern int mozc_imk_get_commit(char *buf, int cap);
 extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補列 */
+extern int mozc_imk_select_candidate(int index);        /* パネル選択 → SUBMIT_CANDIDATE */
 
 @interface MozcImkInputController : IMKInputController {
     /* 直近の変換候補(IMKCandidates のデータソースとして返す)。 */
@@ -49,6 +50,13 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
                                         chars, (int)strlen(chars),
                                         (uint32_t)event.modifierFlags);
 
+    [self applyServerOutputToClient:sender];
+    return consumed ? YES : NO;
+}
+
+/* サーバ出力(commit / preedit / 候補列)をクライアントとパネルへ反映する共通処理。
+ * handleEvent と candidateSelected: の両方から使う。 */
+- (void)applyServerOutputToClient:(id)sender {
     /* commit 文字列を確定。固定バッファに収まらない長文(辞書の長語句や長い
        TEXT_INPUT)は必要長で動的確保して取りこぼさない(IBus 側と同様)。 */
     char commit_buf[1024];
@@ -114,8 +122,21 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
             [panel hide];
         }
     }
+}
 
-    return consumed ? YES : NO;
+/* IMKCandidates パネルでの行選択(マウスクリック/方向キー)コールバック。
+ * handleEvent を経由しないため、選択行を index へ解決して SUBMIT_CANDIDATE をサーバへ送り、
+ * サーバ出力(確定文字列等)をクライアントへ反映する。これが無いとクリック選択が無視される。 */
+- (void)candidateSelected:(NSAttributedString *)candidateString {
+    if (_candidateStrings == nil) {
+        return;
+    }
+    NSUInteger index = [_candidateStrings indexOfObject:candidateString.string];
+    if (index == NSNotFound) {
+        return;
+    }
+    mozc_imk_select_candidate((int)index);
+    [self applyServerOutputToClient:[self client]];
 }
 
 @end
