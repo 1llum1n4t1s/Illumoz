@@ -172,6 +172,19 @@ public sealed class Session
             return new SessionResult { Preedit = string.Empty, Consumed = false };
         }
 
+        // 変換中に選択ショートカット(既定 "123456789" 等)の文字が来たら、
+        // 印字挿入の前に候補選択+確定として扱う(数字キーで候補 N を選べるように)。
+        if (_converter.CurrentState == SessionConverter.State.Conversion
+            && _settings.SelectionShortcuts.Length > 0
+            && key.Special == null && key.KeyCode is int sc && sc <= 0x7F
+            && !key.Modifiers.Contains(ModifierKey.Ctrl) && !key.Modifiers.Contains(ModifierKey.Alt)
+            && _converter.SelectByShortcut((char)sc, _settings.SelectionShortcuts))
+        {
+            string committed = _converter.Commit();
+            SnapshotAndClearTyped();
+            return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
+        }
+
         // command 未定義: 印字可能な文字なら入力として扱う。
         if (key.Special == null && key.KeyCode is int code && code >= 0x20
             && !key.Modifiers.Contains(ModifierKey.Ctrl) && !key.Modifiers.Contains(ModifierKey.Alt))

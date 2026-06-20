@@ -63,6 +63,23 @@ public sealed class TipController
             Id = _sessionId,
             Key = key,
         });
+        // サーバ再起動/セッション破棄で SESSION_FAILURE が返ったら、id を捨てて
+        // CreateSession からやり直し 1 回だけ再送する(ImeClient と同じ回復)。
+        if (o.HasErrorCode && o.ErrorCode == Pb.Output.Types.ErrorCode.SessionFailure)
+        {
+            _hasSession = false;
+            _sessionId = 0;
+            EnsureSession();
+            if (_hasSession)
+            {
+                o = Send(new Pb.Input
+                {
+                    Type = Pb.Input.Types.CommandType.SendKey,
+                    Id = _sessionId,
+                    Key = key,
+                });
+            }
+        }
         Update(o);
         return o.Consumed;
     }

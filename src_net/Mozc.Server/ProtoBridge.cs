@@ -71,8 +71,10 @@ public static class ProtoBridge
 
     // shortcuts が指定されれば候補 i に annotation.shortcut = shortcuts[i] を付与する
     // (C++ SelectionShortcut: "123456789" / "asdfghjkl")。
-    public static byte[] EncodeOutput(Output output, string shortcuts)
+    // preeditOverride が指定されれば表示 preedit をそれで差し替える(文字形ルール適用後の文字列)。
+    public static byte[] EncodeOutput(Output output, string shortcuts, string? preeditOverride = null)
     {
+        string preeditText = preeditOverride ?? output.Preedit;
         var proto = new Pb.Output
         {
             Id = output.SessionId,
@@ -92,14 +94,14 @@ public static class ProtoBridge
         {
             proto.Config = Mozc.Config.Config.Parser.ParseFrom(output.ConfigBytes);
         }
-        if (output.Preedit.Length != 0)
+        if (preeditText.Length != 0)
         {
-            int len = new global::System.Globalization.StringInfo(output.Preedit).LengthInTextElements;
+            int len = Mozc.Base.GraphemeSplitter.Split(preeditText).Count;
             var preedit = new Pb.Preedit { Cursor = (uint)len };
             preedit.Segment.Add(new Pb.Preedit.Types.Segment
             {
                 Annotation = Pb.Preedit.Types.Segment.Types.Annotation.Underline,
-                Value = output.Preedit,
+                Value = preeditText,
                 ValueLength = (uint)len,
             });
             proto.Preedit = preedit;
@@ -177,7 +179,17 @@ public static class ProtoBridge
         }
         if (proto.HasSpecialKey)
         {
-            ke.Special = MapSpecial(proto.SpecialKey);
+            // テンキーの数字(NUMPAD0-9)は keymap に行が無く、印字フォールバックも
+            // Special!=null だと効かない。'0'-'9' の key_code に正規化して通常入力扱いにする。
+            if (proto.SpecialKey >= Pb.KeyEvent.Types.SpecialKey.Numpad0
+                && proto.SpecialKey <= Pb.KeyEvent.Types.SpecialKey.Numpad9)
+            {
+                ke.KeyCode = '0' + (proto.SpecialKey - Pb.KeyEvent.Types.SpecialKey.Numpad0);
+            }
+            else
+            {
+                ke.Special = MapSpecial(proto.SpecialKey);
+            }
         }
         foreach (Pb.KeyEvent.Types.ModifierKey m in proto.ModifierKeys)
         {

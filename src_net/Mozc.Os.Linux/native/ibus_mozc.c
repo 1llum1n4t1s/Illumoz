@@ -9,6 +9,7 @@
  */
 #include <ibus.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* C# (NativeAOT) エクスポート。 */
@@ -29,16 +30,30 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
 
     int consumed = mozc_ibus_process_key((uint32_t)keyval, (uint32_t)state);
 
-    /* commit 文字列があれば確定。 */
-    char commit[1024];
-    int n = mozc_ibus_get_commit(commit, sizeof(commit));
-    /* n<0 はエラー、null 終端の余地(<= size-1)を残す。 */
-    if (n > 0 && n <= (int)sizeof(commit) - 1) {
-        commit[n] = '\0';
-        IBusText *t = ibus_text_new_from_string(commit);
-        if (t != NULL) {
-            ibus_engine_commit_text(engine, t);
+    /* commit 文字列があれば確定。固定バッファに収まらない長文(辞書の長語句や
+       長い TEXT_INPUT)は、必要長で動的確保して取りこぼさない。 */
+    char commit_buf[1024];
+    int n = mozc_ibus_get_commit(commit_buf, sizeof(commit_buf));
+    if (n > 0) {
+        char *commit = commit_buf;
+        char *heap = NULL;
+        if (n > (int)sizeof(commit_buf) - 1) {
+            /* cap 不足。WriteUtf8 は必要バイト数 n を返すので n+1 で確保し再取得する。 */
+            heap = (char *)malloc((size_t)n + 1);
+            if (heap != NULL && mozc_ibus_get_commit(heap, n + 1) == n) {
+                commit = heap;
+            } else {
+                commit = NULL; /* 確保失敗時は確定を諦める(部分挿入はしない)。 */
+            }
         }
+        if (commit != NULL) {
+            commit[n] = '\0';
+            IBusText *t = ibus_text_new_from_string(commit);
+            if (t != NULL) {
+                ibus_engine_commit_text(engine, t);
+            }
+        }
+        free(heap);
     }
 
     /* preedit を更新表示。 */

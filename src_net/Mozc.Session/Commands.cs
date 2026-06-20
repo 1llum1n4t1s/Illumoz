@@ -30,6 +30,8 @@ public sealed class SessionSettings
     public bool IncognitoMode = false;
     // InsertSpace コマンドが挿入する空白の字形(config.space_character_form 由来)。
     public SpaceForm SpaceForm = SpaceForm.Half;
+    // 候補選択ショートカット文字列(config.selection_shortcut。"123456789"/"asdfghjkl"/空)。
+    public string SelectionShortcuts = string.Empty;
 }
 
 // スペース字形(InsertSpace コマンド用)。Default は半角扱い。

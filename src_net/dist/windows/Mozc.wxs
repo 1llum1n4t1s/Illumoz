@@ -22,6 +22,14 @@
         <Component Id="MozcData" Guid="*">
           <File Id="MozcDataFile" Source="$(var.PublishDir)\mozc.data" KeyPath="yes" />
         </Component>
+        <!-- mozc_server は --roman/--keymap も必須(Program.cs)。Linux/mac パッケージと同様に
+             ローマ字表・キーマップを同梱する(発行時に PublishDir へ配置しておく)。 -->
+        <Component Id="MozcRoman" Guid="*">
+          <File Id="MozcRomanFile" Source="$(var.PublishDir)\roman.tsv" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcKeymap" Guid="*">
+          <File Id="MozcKeymapFile" Source="$(var.PublishDir)\keymap.tsv" KeyPath="yes" />
+        </Component>
       </Directory>
     </StandardDirectory>
 
@@ -30,6 +38,8 @@
       <ComponentRef Id="MozcServer" />
       <ComponentRef Id="MozcTool" />
       <ComponentRef Id="MozcData" />
+      <ComponentRef Id="MozcRoman" />
+      <ComponentRef Id="MozcKeymap" />
     </Feature>
 
     <!-- TIP の CLSID/TSF 言語プロファイルを登録する。これが無いと Windows は

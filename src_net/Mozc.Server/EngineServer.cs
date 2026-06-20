@@ -48,6 +48,7 @@ public sealed class EngineServer
             && (c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion);
         _handler.Settings.SuggestionSize = (int)c.SuggestionsSize;
         _handler.Settings.IncognitoMode = c.IncognitoMode;
+        _handler.Settings.SelectionShortcuts = ShortcutChars(c.SelectionShortcut);
 
         // CommandRewriter があれば config のモードフラグを反映する(C++ command_rewriter は
         // config.incognito_mode / presentation_mode / use_*_suggest を直接参照する)。
@@ -307,7 +308,13 @@ public sealed class EngineServer
             return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
         }
         Output output = EvalWithConfig(input);
-        return ProtoBridge.EncodeOutput(output, ShortcutChars(_config.GetConfig().SelectionShortcut));
+        // 表示 preedit に preedit 用の文字形ルール(config.character_form_rules の
+        // preedit_character_form)を適用する。ASCII/数字の幅等を設定どおりに正規化する。
+        string? preedit = output.Preedit.Length != 0
+            ? PreeditFormManager.ConvertString(output.Preedit)
+            : null;
+        return ProtoBridge.EncodeOutput(
+            output, ShortcutChars(_config.GetConfig().SelectionShortcut), preedit);
     }
 
     // SelectionShortcut → 候補ショートカット文字列。

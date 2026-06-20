@@ -137,13 +137,16 @@ public sealed class SessionConverter
         _rewriter?.Rewrite(_segments);
         InsertUserDictionaryCandidates(_segments);
         int n = _segments.ConversionSegmentsSize;
-        if (n == 0)
+        // Viterbi がパスを構築できないと文節は 1 つでも候補 0 件のことがある。候補が
+        // 1 件も無いまま Conversion に入ると GetPreedit が候補 0 を引いて壊れるため弾く。
+        if (n == 0 || _segments.ConversionSegment(0).CandidatesSize == 0)
         {
             _segments = null;
             return false;
         }
         _selected = new int[n];
         _focusedSegment = 0;
+        _t13n = null; // 変換に入ったら F6-F10 の表記変換オーバーライドは無効化する。
         CurrentState = State.Conversion;
         return true;
     }
@@ -164,6 +167,7 @@ public sealed class SessionConverter
         {
             return;
         }
+        _t13n = null; // 候補移動したら表記変換オーバーライドより選択候補を優先する。
         _selected[_focusedSegment] = ((_selected[_focusedSegment] + delta) % count + count) % count;
     }
 
@@ -179,6 +183,7 @@ public sealed class SessionConverter
         {
             return false;
         }
+        _t13n = null; // 候補を選んだら表記変換オーバーライドより選択候補を優先する。
         _selected[_focusedSegment] = index;
         return true;
     }
