@@ -14,12 +14,15 @@ public sealed class EngineServer
     private readonly ConfigManager _config = new();
     // keymap プリセットを config から再ロードするための src/data ルート(任意)。
     private readonly string? _dataDir;
+    // 構築時のキーマップ。custom/preset が無い config に戻ったとき復元する基準。
+    private readonly KeyMap _initialKeyMap;
 
     public EngineServer(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null, string? dataDir = null)
     {
         _engine = engine;
         _handler = new SessionHandler(engine, keyMap, rewriter);
         _dataDir = dataDir;
+        _initialKeyMap = keyMap;
         ApplyConfig();
     }
 
@@ -67,10 +70,8 @@ public sealed class EngineServer
         {
             var km = new KeyMap();
             km.LoadFromString(c.CustomKeymapTable.ToStringUtf8());
-            if (km.EntryCount > 0)
-            {
-                _handler.SetKeyMap(km);
-            }
+            // 不正/空のカスタム表なら構築時キーマップへ戻す(直前のカスタムが残らないように)。
+            _handler.SetKeyMap(km.EntryCount > 0 ? km : _initialKeyMap);
         }
         else if (_dataDir != null
             && c.SessionKeymap != Mozc.Config.Config.Types.SessionKeymap.Custom
@@ -78,10 +79,14 @@ public sealed class EngineServer
         {
             string name = KeymapName(c.SessionKeymap);
             KeyMap? km = KeymapPresets.Load(_dataDir, name);
-            if (km != null)
-            {
-                _handler.SetKeyMap(km);
-            }
+            // プリセットが解決できなければ構築時キーマップへフォールバック。
+            _handler.SetKeyMap(km ?? _initialKeyMap);
+        }
+        else
+        {
+            // custom 表もプリセットも無い config → 構築時キーマップを復元する。
+            // (per-request の一時カスタムキーマップが後続セッションへ残るのを防ぐ)
+            _handler.SetKeyMap(_initialKeyMap);
         }
 
         // カスタムローマ字表(bytes=TSV)が設定されていれば composer に反映する。
@@ -248,27 +253,43 @@ public sealed class EngineServer
         {
             return CommandCodec.EncodeOutput(new Output { ErrorOccured = true });
         }
-        Output output = EvalWithConfig(input);
+        Output output = EvalWithConfig(input).Output;
         return CommandCodec.EncodeOutput(output);
+    }
+
+    // EvalWithConfig の結果。Output に加え、エンコード時に使う「実効 config 依存の値」
+    // (候補ショートカット文字列 / preedit 形変換済み文字列)を request config が有効な
+    // うちに捕捉して持ち回る。per-request config を finally で戻した後にこれらを再計算すると
+    // 設定が反映されないため(selection_shortcut / preedit_character_form)。
+    private readonly record struct EvalResult(Output Output, string Shortcuts, string? PreeditOverride);
+
+    // 現在の実効 config から、エンコードに必要な shortcut/preedit を捕捉する。
+    private EvalResult Capture(Output output)
+    {
+        string shortcuts = ShortcutChars(_config.GetConfig().SelectionShortcut);
+        string? preedit = output.Preedit.Length != 0
+            ? PreeditFormManager.ConvertString(output.Preedit)
+            : null;
+        return new EvalResult(output, shortcuts, preedit);
     }
 
     // Config 系コマンドは EngineServer 層(ConfigManager 所有)で処理し、
     // それ以外は SessionHandler に委譲する。
-    private Output EvalWithConfig(Input input)
+    private EvalResult EvalWithConfig(Input input)
     {
         switch (input.Type)
         {
             case CommandType.GetConfig:
-                return new Output { Consumed = true, ConfigBytes = _config.Serialize() };
+                return Capture(new Output { Consumed = true, ConfigBytes = _config.Serialize() });
             case CommandType.SetConfig:
                 try
                 {
                     SetConfig(Mozc.Config.Config.Parser.ParseFrom(input.ConfigBytes));
-                    return new Output { Consumed = true, ConfigBytes = _config.Serialize() };
+                    return Capture(new Output { Consumed = true, ConfigBytes = _config.Serialize() });
                 }
                 catch (Google.Protobuf.InvalidProtocolBufferException)
                 {
-                    return new Output { ErrorOccured = true };
+                    return Capture(new Output { ErrorOccured = true });
                 }
             default:
             {
@@ -299,7 +320,9 @@ public sealed class EngineServer
                     {
                         ConversionFormManager.GuessAndSetCharacterForm(output.Result);
                     }
-                    return output;
+                    // request config(per-request の selection_shortcut / preedit_character_form)が
+                    // 有効なうちに encode 用の値を捕捉する。finally の復元後では設定が反映されない。
+                    return Capture(output);
                 }
                 finally
                 {
@@ -352,14 +375,10 @@ public sealed class EngineServer
         {
             return ProtoBridge.EncodeOutput(new Output { ErrorOccured = true });
         }
-        Output output = EvalWithConfig(input);
-        // 表示 preedit に preedit 用の文字形ルール(config.character_form_rules の
-        // preedit_character_form)を適用する。ASCII/数字の幅等を設定どおりに正規化する。
-        string? preedit = output.Preedit.Length != 0
-            ? PreeditFormManager.ConvertString(output.Preedit)
-            : null;
-        return ProtoBridge.EncodeOutput(
-            output, ShortcutChars(_config.GetConfig().SelectionShortcut), preedit);
+        // per-request config が有効なうちに EvalWithConfig が捕捉した shortcut/preedit を使う
+        // (preedit には preedit_character_form を適用済み。selection_shortcut も request 値)。
+        EvalResult r = EvalWithConfig(input);
+        return ProtoBridge.EncodeOutput(r.Output, r.Shortcuts, r.PreeditOverride);
     }
 
     // SelectionShortcut → 候補ショートカット文字列。

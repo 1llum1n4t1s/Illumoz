@@ -63,6 +63,9 @@ public sealed class Input
     public int CommandId { get; init; }
     // SET_CONFIG 用の protobuf Config バイト列。
     public byte[] ConfigBytes { get; init; } = global::System.Array.Empty<byte>();
+    // このリクエストでサジェストを抑止するか(commands.proto context.suppress_suggestion /
+    // request_suggestion=false。パスワード欄等でクライアントが中間サジェストを止めたいとき)。
+    public bool SuppressSuggestion { get; init; }
 }
 
 public sealed class Output

@@ -28,6 +28,10 @@ public sealed class KeyEvent
     public SpecialKey? Special { get; set; }
     public HashSet<ModifierKey> Modifiers { get; } = new();
 
+    // クライアントが宣言する IME 有効状態(commands.proto KeyEvent.activated)。
+    // null=未指定。false の印字キーは IME off 扱いでアプリへ素通しさせる。
+    public bool? Activated { get; set; }
+
     // 照合用の正規化シグネチャ(parse 結果と実イベントで一致させる)。
     public string Signature()
     {

@@ -26,15 +26,7 @@ public static class ServerHost
         {
             merger.AddRewriter(emoji);
         }
-        merger.AddRewriter(new CalculatorRewriter());
-        merger.AddRewriter(new UnicodeRewriter());
-        merger.AddRewriter(new SmallLetterRewriter());
-        merger.AddRewriter(new VariantsRewriter());
-        merger.AddRewriter(new TransliterationRewriter());
-        merger.AddRewriter(new EnglishVariantsRewriter());
-        merger.AddRewriter(new CommandRewriter());
-        merger.AddRewriter(new DiceRewriter());
-        merger.AddRewriter(new CharacterFormRewriter());
+        AddCommonRewriters(merger);
         return merger;
     }
 
@@ -57,6 +49,45 @@ public static class ServerHost
         {
             merger.AddRewriter(new EmojiRewriter(emoji));
         }
+        AddCommonRewriters(merger);
+        return merger;
+    }
+
+    // 埋め込みテーブル(mozc.data)を優先し、空のものだけ dataDir のファイルへフォールバックする。
+    // --datadir を keymap プリセット公開のために渡したときも、記号/単漢字/絵文字の埋め込み
+    // 変換を失わない(dataDir に symbol/single_kanji/emoji を stage していなくても動く)。
+    public static IRewriter BuildDefaultRewriter(MozcEngine engine, string? dataDir, IClock? clock = null)
+    {
+        var merger = new RewriterMerger();
+        merger.AddRewriter(new DateRewriter(clock ?? new SystemClock()));
+        merger.AddRewriter(new NumberRewriter());
+
+        var symbol = engine.GetSymbolTable();
+        merger.AddRewriter(symbol.Count > 0 ? new SymbolRewriter(symbol) : BuildSymbolRewriter(dataDir));
+
+        var sk = engine.GetSingleKanjiTable();
+        SingleKanjiRewriter? skr = sk.Count > 0
+            ? new SingleKanjiRewriter(sk)
+            : BuildSingleKanjiRewriter(dataDir);
+        if (skr != null)
+        {
+            merger.AddRewriter(skr);
+        }
+
+        var emoji = engine.GetEmojiTable();
+        EmojiRewriter? er = emoji.Count > 0 ? new EmojiRewriter(emoji) : BuildEmojiRewriter(dataDir);
+        if (er != null)
+        {
+            merger.AddRewriter(er);
+        }
+
+        AddCommonRewriters(merger);
+        return merger;
+    }
+
+    // 記号/単漢字/絵文字より後段の、データソースに依存しない共通 rewriter 群(登録順固定)。
+    private static void AddCommonRewriters(RewriterMerger merger)
+    {
         merger.AddRewriter(new CalculatorRewriter());
         merger.AddRewriter(new UnicodeRewriter());
         merger.AddRewriter(new SmallLetterRewriter());
@@ -66,7 +97,6 @@ public static class ServerHost
         merger.AddRewriter(new CommandRewriter());
         merger.AddRewriter(new DiceRewriter());
         merger.AddRewriter(new CharacterFormRewriter());
-        return merger;
     }
 
     private static SymbolRewriter BuildSymbolRewriter(string? dataDir)
@@ -111,10 +141,9 @@ public static class ServerHost
         var keyMap = new KeyMap();
         keyMap.LoadFromString(global::System.IO.File.ReadAllText(keymapPath));
         var engine = new MozcEngine(data, romanTable);
-        // dataDir 指定時はファイル直読み、未指定時は mozc.data 埋め込みテーブルを使う。
-        IRewriter rewriter = dataDir != null
-            ? BuildDefaultRewriter(dataDir: dataDir)
-            : BuildDefaultRewriter(engine);
+        // mozc.data の埋め込みテーブルを優先し、空のものだけ dataDir のファイルへフォールバックする。
+        // (--datadir を keymap プリセット用に渡しても記号/単漢字/絵文字の埋め込み変換を失わない)
+        IRewriter rewriter = BuildDefaultRewriter(engine, dataDir);
         return new EngineServer(engine, keyMap, rewriter, dataDir);
     }
 
@@ -124,31 +153,12 @@ public static class ServerHost
     public const string ConfigFile = "config1.db";
     public const string CharacterFormFile = "character_form.db";
 
-    // OS 標準のユーザープロファイルディレクトリ(C++ SystemUtil::GetUserProfileDirectory 相当)。
-    // Windows: %APPDATA%\Mozc / macOS: ~/Library/Application Support/Mozc /
-    // Linux: $XDG_CONFIG_HOME(or ~/.config)/mozc。
-    public static string DefaultProfileDir()
-    {
-        if (global::System.OperatingSystem.IsWindows())
-        {
-            string appData = global::System.Environment.GetFolderPath(
-                global::System.Environment.SpecialFolder.ApplicationData);
-            return global::System.IO.Path.Combine(appData, "Mozc");
-        }
-        if (global::System.OperatingSystem.IsMacOS())
-        {
-            string home = global::System.Environment.GetFolderPath(
-                global::System.Environment.SpecialFolder.UserProfile);
-            return global::System.IO.Path.Combine(home, "Library", "Application Support", "Mozc");
-        }
-        string? xdg = global::System.Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-        string baseDir = !string.IsNullOrEmpty(xdg)
-            ? xdg
-            : global::System.IO.Path.Combine(
-                global::System.Environment.GetFolderPath(
-                    global::System.Environment.SpecialFolder.UserProfile), ".config");
-        return global::System.IO.Path.Combine(baseDir, "mozc");
-    }
+    // OS 標準のユーザープロファイルディレクトリ。IPC の .ipc メタデータと同じ場所を使うため、
+    // 共有の MozcPaths.GetUserProfileDirectory() に委譲する(C++ SystemUtil::GetUserProfileDirectory 相当)。
+    // Windows: %LOCALAPPDATA%\Mozc / macOS: ~/Library/Application Support/Mozc /
+    // Linux: $HOME/.mozc(あれば) or $XDG_CONFIG_HOME/mozc or ~/.config/mozc。
+    // 以前は Windows で %APPDATA%(Roaming)を返し IPC 側(Local)と分裂していた。
+    public static string DefaultProfileDir() => Mozc.Base.MozcPaths.GetUserProfileDirectory();
 
     // プロファイル(設定/履歴/ユーザー辞書)を dir から読み込む(無いファイルはスキップ)。
     public static void LoadProfile(EngineServer server, string dir)

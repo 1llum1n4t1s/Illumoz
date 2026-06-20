@@ -64,6 +64,9 @@ public static class ProtoBridge
             SessionCommand = sessionCommand,
             CommandId = commandId,
             ConfigBytes = configBytes,
+            // context.suppress_suggestion=true、または request_suggestion=false を抑止として扱う。
+            SuppressSuggestion = (proto.Context != null && proto.Context.SuppressSuggestion)
+                || (proto.HasRequestSuggestion && !proto.RequestSuggestion),
         };
     }
 
@@ -176,6 +179,12 @@ public static class ProtoBridge
         if (proto.HasKeyCode)
         {
             ke.KeyCode = (int)proto.KeyCode;
+        }
+        // クライアントが IME 有効状態を明示していれば取り込む(間接 IME off 処理)。
+        // activated=false の印字キーは session 側で素通しさせる。
+        if (proto.HasActivated)
+        {
+            ke.Activated = proto.Activated;
         }
         if (proto.HasSpecialKey)
         {

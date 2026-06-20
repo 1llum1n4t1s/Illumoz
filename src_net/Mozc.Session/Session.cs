@@ -169,6 +169,12 @@ public sealed class Session
 
     public SessionResult SendKey(KeyEvent key)
     {
+        // クライアントが IME 有効状態を宣言していれば、ディスパッチ前にセッションへ同期する
+        // (commands.proto KeyEvent.activated。間接 IME off の印字キーを素通しさせる)。
+        if (key.Activated.HasValue)
+        {
+            _activated = key.Activated.Value;
+        }
         string status = Status();
         string? command = _keyMap.GetCommand(status, key);
 
@@ -227,10 +233,11 @@ public sealed class Session
     public SessionResult TestSendKey(KeyEvent key)
     {
         string status = Status();
-        // 直接入力(IME off)中は印字キーを消費しない。SendKey 側のガードと一致させ、
-        // クライアントが横取り判定を誤らないようにする(IMEOn 等のコマンドのみ消費)。
+        // クライアント宣言の activated を優先(状態は変えない)。直接入力(IME off)中は
+        // 印字キーを消費しない。SendKey 側のガードと一致させ、横取り判定の誤りを防ぐ。
+        bool active = key.Activated ?? _activated;
         bool consumed = _keyMap.GetCommand(status, key) != null
-            || (_activated && key.Special == null && key.KeyCode is int code && code >= 0x20
+            || (active && key.Special == null && key.KeyCode is int code && code >= 0x20
                 && !key.Modifiers.Contains(ModifierKey.Ctrl)
                 && !key.Modifiers.Contains(ModifierKey.Alt));
         return new SessionResult { Preedit = GetPreedit(), Consumed = consumed };
@@ -240,6 +247,15 @@ public sealed class Session
         => KeyParser.TryParse(keyString, out KeyEvent ke)
             ? TestSendKey(ke)
             : new SessionResult { Preedit = GetPreedit(), Consumed = false };
+
+    // 生テキスト(かな/ソフトキーボード/TEXT_INPUT)挿入の消費可否のみ判定する(状態は変えない)。
+    // IME 有効かつ非空テキストなら消費する(InsertText の消費条件と一致)。
+    public SessionResult TestInsertText(string text)
+        => new SessionResult
+        {
+            Preedit = GetPreedit(),
+            Consumed = _activated && !string.IsNullOrEmpty(text),
+        };
 
     // SEND_COMMAND: 候補の明示選択・確定・取消。
     public SessionResult SendCommand(SessionCommandType type, int id)
@@ -341,6 +357,10 @@ public sealed class Session
                 }
                 return ConsumeNoOpWhile(_typed.Count > 0);
             case "Convert":
+            // ConvertWithoutHistory(F2): 履歴を使わない変換。no-history 変換は未実装のため
+            // 通常変換へエイリアスして消費する(プリセットが composition 中の F2 に割当てており、
+            // 未対応だと F2 がアプリへ漏れる)。
+            case "ConvertWithoutHistory":
                 _converter.Convert();
                 return Current(true);
             case "ConvertNext":

@@ -128,7 +128,7 @@ public sealed class SessionHandler
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
         SessionResult r = session.SendCommand(input.SessionCommand, input.CommandId);
-        return ToOutput(input.SessionId, session, r);
+        return ToOutput(input.SessionId, session, r, input.SuppressSuggestion);
     }
 
     // TEST_SEND_KEY: 状態を変えず消費可否のみ判定する。
@@ -138,10 +138,32 @@ public sealed class SessionHandler
         {
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
-        SessionResult r = input.Key != null
-            ? session.TestSendKey(input.Key)
-            : session.TestSendKey(input.KeyString);
-        return ToOutput(input.SessionId, session, r);
+        // SEND_KEY と同じ判定で、key_string 付きの生テキスト(かな/ソフトキーボード/TEXT_INPUT)は
+        // テキスト挿入経路の消費可否を返す。さもないと Key だけ見て横取り不可と誤判定し、
+        // クライアントがテキストを IME を素通しさせてしまう。
+        SessionResult r;
+        if (PreferKeyString(input, session))
+        {
+            r = session.TestInsertText(input.KeyString);
+        }
+        else if (input.Key != null)
+        {
+            r = session.TestSendKey(input.Key);
+        }
+        else
+        {
+            r = session.TestSendKey(input.KeyString);
+        }
+        return ToOutput(input.SessionId, session, r, input.SuppressSuggestion);
+    }
+
+    // key_string を「生テキスト」として composer へ入れるべき入力かを判定する(SEND_KEY/TEST_SEND_KEY 共通)。
+    // 直接入力(IME off)中は素通しさせるため false。特殊/修飾キー付きは keymap 解釈に回す。
+    private static bool PreferKeyString(Input input, Session session)
+    {
+        bool isTextInput = input.Key?.Special == SpecialKey.TextInput;
+        return input.KeyString.Length > 0 && input.Key != null && session.Activated
+            && (isTextInput || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
     }
 
     private Output SendKey(Input input)
@@ -156,13 +178,8 @@ public sealed class SessionHandler
         // ただし Key 自体が無い(KeyString だけ渡された)入力は、KeyString を keymap 構文
         // (例 "Space" / "Ctrl a")として解釈する従来パスを使う(protobuf では key_string は
         // 必ず Key の一部として届くため、この分岐に来るのは文字列キー指定の経路)。
-        bool isTextInput = input.Key?.Special == SpecialKey.TextInput;
-        // 直接入力(IME off)中は生テキスト挿入経路を使わず、アプリへ素通しさせる
-        // (SendKey の _activated ガードと一致させる)。
-        bool preferKeyString = input.KeyString.Length > 0 && input.Key != null && session.Activated
-            && (isTextInput || (input.Key.Special == null && input.Key.Modifiers.Count == 0));
         SessionResult r;
-        if (preferKeyString)
+        if (PreferKeyString(input, session))
         {
             // key_string は keymap 構文として再解釈せず、生テキストとして composer へ入れる。
             r = session.InsertText(input.KeyString);
@@ -175,10 +192,11 @@ public sealed class SessionHandler
         {
             r = session.SendKey(input.KeyString);
         }
-        return ToOutput(input.SessionId, session, r);
+        return ToOutput(input.SessionId, session, r, input.SuppressSuggestion);
     }
 
-    private static Output ToOutput(ulong sessionId, Session session, SessionResult r)
+    private static Output ToOutput(ulong sessionId, Session session, SessionResult r,
+        bool suppressSuggestion = false)
     {
         return new Output
         {
@@ -188,7 +206,10 @@ public sealed class SessionHandler
             Result = r.Committed,
             Candidates = session.Converter.GetCandidates(),
             CandidateDescriptions = session.Converter.GetCandidateDescriptions(),
-            Suggestions = session.GetSuggestions(),
+            // クライアントが抑止を要求した応答ではサジェストを出さない。
+            Suggestions = suppressSuggestion
+                ? global::System.Array.Empty<string>()
+                : session.GetSuggestions(),
             FocusedIndex = session.Converter.FocusedCandidateIndex,
             FocusedPosition = session.Converter.FocusedPosition,
             ConverterCommand = session.Converter.TakeLastCommand(),
