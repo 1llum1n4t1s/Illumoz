@@ -80,9 +80,11 @@ public static class IbusBridge
         => request =>
         {
             var pm = new Mozc.Ipc.IpcPathManager();
-            if (!pm.TryLoad(name))
+            // .ipc が未ロード、または parseable でも広告 PID が死んでいる(クラッシュ/再起動で
+            // 残った stale .ipc)場合は server を spawn して再ロードする。生存確認をしないと
+            // 死んだソケットへ即接続し、ユーザーが .ipc を消すまで IME が接続不能になる。
+            if (!pm.TryLoad(name) || !Mozc.Ipc.ServerLauncher.IsAdvertisedServerAlive(pm))
             {
-                // server 未起動: ServerLauncher で引数なし spawn を試み、.ipc 公開を待って再ロード。
                 // 一度起動できなければ FATAL ラッチで再試行しない(respawn storm 防止)。
                 if (!_launcher.EnsureServerRunning() || !pm.TryLoad(name))
                 {

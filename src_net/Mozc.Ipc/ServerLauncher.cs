@@ -105,6 +105,12 @@ public sealed class ServerLauncher
         return IsServerProcessAlive(pm.ServerProcessId);
     }
 
+    // .ipc を広告する server プロセスが生存しているか(トランスポートの stale 検出にも使う)。
+    // 未ロード(ProcessId 既定 0)や pid 未記録は判定不能なので「生存(=respawn 不要)」扱い。
+    // 呼び出し側は TryLoad 成功後にこれが false なら EnsureServerRunning で respawn する。
+    public static bool IsAdvertisedServerAlive(IpcPathManager pathManager)
+        => IsServerProcessAlive(pathManager.ServerProcessId);
+
     // .ipc が広告する server PID が生存しているか。pid==0(未記録)は判定不能なので生存扱いにする。
     private static bool IsServerProcessAlive(uint pid)
     {
