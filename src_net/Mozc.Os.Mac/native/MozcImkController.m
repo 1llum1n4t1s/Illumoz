@@ -14,10 +14,20 @@ extern int mozc_imk_get_preedit(char *buf, int cap);
 extern int mozc_imk_get_commit(char *buf, int cap);
 extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補列 */
 
-@interface MozcImkInputController : IMKInputController
+@interface MozcImkInputController : IMKInputController {
+    /* 直近の変換候補(IMKCandidates のデータソースとして返す)。 */
+    NSArray<NSString *> *_candidateStrings;
+}
 @end
 
 @implementation MozcImkInputController
+
+/* IMKCandidates のデータソース。updateCandidates 時に IMK がここを呼んで候補配列を取得する。
+ * これを実装しないと updateCandidates が空のソースを参照し、候補ウィンドウに何も出ない。 */
+- (NSArray *)candidates:(id)sender {
+    (void)sender;
+    return _candidateStrings ?: @[];
+}
 
 - (BOOL)handleEvent:(NSEvent *)event client:(id)sender {
     if (event.type != NSEventTypeKeyDown) {
@@ -73,16 +83,34 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
              replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
     }
 
-    /* 候補列(改行区切り)を IMKCandidates へ供給。空なら隠す。 */
+    /* 候補列(改行区切り)を IMKCandidates へ供給。空なら隠す。
+     * cands を改行で分割して _candidateStrings に格納し、candidates: データソース経由で
+     * パネルへ渡す(updateCandidates だけでは新しい候補がソースに入らず空表示になる)。 */
     char cands[4096];
     int c = mozc_imk_get_candidates(cands, sizeof(cands));
     IMKCandidates *panel = [self candidates];
     if (panel) {
         if (c > 0 && c < (int)sizeof(cands)) {
             cands[c] = '\0';
-            [panel updateCandidates];
-            [panel show:kIMKLocateCandidatesBelowHint];
+            NSString *joined = [NSString stringWithUTF8String:cands];
+            NSArray<NSString *> *list =
+                [joined componentsSeparatedByString:@"\n"];
+            /* 末尾の空要素(改行終端)を除去して空候補がパネルに混じらないようにする。 */
+            NSMutableArray<NSString *> *filtered = [NSMutableArray arrayWithCapacity:list.count];
+            for (NSString *item in list) {
+                if (item.length > 0) {
+                    [filtered addObject:item];
+                }
+            }
+            _candidateStrings = filtered;
+            if (filtered.count > 0) {
+                [panel updateCandidates];
+                [panel show:kIMKLocateCandidatesBelowHint];
+            } else {
+                [panel hide];
+            }
         } else {
+            _candidateStrings = @[];
             [panel hide];
         }
     }

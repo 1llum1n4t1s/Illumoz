@@ -160,8 +160,14 @@ public static class TipRegistration
             {
                 string dll = GetModulePath();
                 ApplyClsidRegistration(dll);
-                // CLSID 登録後に TSF プロファイル/カテゴリ登録(TSF が無い環境では失敗しても続行)。
-                RegisterProfiles();
+                // CLSID 登録後に TSF プロファイル/カテゴリ登録。失敗 HRESULT は installer(regsvr32/MSI)へ
+                // 伝播する。破棄して S_OK を返すと、CLSID だけ書けて TSF プロファイル登録が失敗しても
+                // インストールが成功扱いになり、Windows が Mozc を一覧/有効化できなくなる。
+                int hr = RegisterProfiles();
+                if (hr < 0)
+                {
+                    return hr;
+                }
             }
             return 0; // S_OK
         }
