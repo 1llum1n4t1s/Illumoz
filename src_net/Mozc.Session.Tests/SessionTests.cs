@@ -385,6 +385,20 @@ public class SessionTests
     }
 
     [Fact]
+    public void CommandSubmitCandidate_Suppressed_DoesNotCommitHiddenSuggestion()
+    {
+        // SUBMIT/SELECT_CANDIDATE(SEND_COMMAND 経路)も、候補窓に表示中のときだけ確定する。
+        // 抑止中(パスワード欄等)は古いクライアント選択でも隠れた予測を確定/学習しない。
+        var s = new Session(Engine(), Keymap(), rewriter: null,
+            history: new Prediction.UserHistoryPredictor());
+        foreach (char c in "watashi") { s.SendKey(c.ToString()); }
+        Assert.Contains("私", s.GetSuggestions());
+        s.SetSuggestionSuppressed(true);
+        SessionResult r = s.SendCommand(SessionCommandType.SubmitCandidate, 0);
+        Assert.Equal("", r.Committed);
+    }
+
+    [Fact]
     public void ZeroSuggestionSize_DoesNotCommitHiddenSuggestion()
     {
         var km = new KeyMap();

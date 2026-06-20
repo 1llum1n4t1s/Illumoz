@@ -366,8 +366,12 @@ public sealed class Session
             // 確定しなかったため、クリックしても preedit に残り何も commit されなかった)。
             case SessionCommandType.SelectCandidate:
             case SessionCommandType.SubmitCandidate:
-                // 入力中(サジェスト)はサジェスト候補を直接確定する。
-                if (_converter.CurrentState == SessionConverter.State.Composition)
+                // 入力中はサジェスト候補を直接確定する。ただし候補窓に実際に表示されている
+                // ときだけ(id が表示件数内 かつ HasActiveSuggestion)。抑止中(パスワード欄等)/
+                // suggestions_size=0/範囲外では確定しない。古いクライアント選択が隠れた予測を
+                // 確定・学習するのを防ぐ(ショートカット経路と同じガード)。
+                if (_converter.CurrentState == SessionConverter.State.Composition
+                    && id < GetSuggestions().Count && HasActiveSuggestion())
                 {
                     string? sug = _converter.CommitSuggestion(id, includeHistory: IncludeHistorySuggest, includeDictionary: IncludeDictionarySuggest);
                     if (sug != null)
