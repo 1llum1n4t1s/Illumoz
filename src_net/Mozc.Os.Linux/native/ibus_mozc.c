@@ -56,16 +56,34 @@ mozc_process_key_event(IBusEngine *engine, guint keyval, guint keycode, guint st
         free(heap);
     }
 
-    /* preedit を更新表示。 */
-    char preedit[1024];
-    int p = mozc_ibus_get_preedit(preedit, sizeof(preedit));
-    if (p >= 0 && p < (int)sizeof(preedit)) {
-        preedit[p] = '\0';
-        IBusText *pt = ibus_text_new_from_string(preedit);
-        /* cursor は「文字数」で渡す。バイト数(p)を渡すと日本語等の多バイト文字で
-           カーソル位置がずれるため g_utf8_strlen で文字数に換算する。 */
-        guint cursor = (guint)g_utf8_strlen(preedit, p);
-        ibus_engine_update_preedit_text(engine, pt, cursor, p > 0);
+    /* preedit を更新表示。長い貼り付け/合成テキストが固定バッファ(1023B)を超える場合は、
+       commit/candidate と同様に必要長で動的確保して再取得する。超過時に更新を飛ばすと
+       IBus が前回の marked text を出したままになり現在の preedit に同期しない。 */
+    char preedit_buf[1024];
+    int p = mozc_ibus_get_preedit(preedit_buf, sizeof(preedit_buf));
+    if (p >= 0) {
+        char *preedit = preedit_buf;
+        char *preedit_heap = NULL;
+        if (p > (int)sizeof(preedit_buf) - 1) {
+            /* cap 不足。WriteUtf8 は必要バイト数 p を返すので p+1 で確保し再取得する。 */
+            preedit_heap = (char *)malloc((size_t)p + 1);
+            if (preedit_heap != NULL && mozc_ibus_get_preedit(preedit_heap, p + 1) == p) {
+                preedit = preedit_heap;
+            } else {
+                preedit = NULL; /* 確保失敗時は残存表示を明示クリアして不整合を防ぐ。 */
+            }
+        }
+        if (preedit != NULL) {
+            preedit[p] = '\0';
+            IBusText *pt = ibus_text_new_from_string(preedit);
+            /* cursor は「文字数」で渡す。バイト数(p)を渡すと日本語等の多バイト文字で
+               カーソル位置がずれるため g_utf8_strlen で文字数に換算する。 */
+            guint cursor = (guint)g_utf8_strlen(preedit, p);
+            ibus_engine_update_preedit_text(engine, pt, cursor, p > 0);
+        } else {
+            ibus_engine_hide_preedit_text(engine);
+        }
+        free(preedit_heap);
     }
 
     /* 候補列(改行区切り)を lookup table として表示。長いユーザー辞書語や多数の候補で

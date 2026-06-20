@@ -80,25 +80,54 @@ extern int mozc_imk_select_candidate(int index);        /* パネル選択 → S
         free(heap);
     }
 
-    char preedit[1024];
-    int p = mozc_imk_get_preedit(preedit, sizeof(preedit));
-    if (p >= 0 && p < (int)sizeof(preedit)) {
-        preedit[p] = '\0';
-        NSString *s = [NSString stringWithUTF8String:preedit];
-        /* selectionRange は NSString(UTF-16)インデックス。UTF-8 バイト数 p ではなく
-         * s.length を使う(かな等で 1 文字=複数 UTF-8 バイトのとき位置がずれる)。 */
-        [sender setMarkedText:s selectionRange:NSMakeRange(s.length, 0)
-             replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
+    /* preedit。固定バッファ(1023B)を超える長い合成/貼り付けは commit と同様に必要長で
+     * 動的確保して再取得する。超過時に setMarkedText を飛ばすと IMK クライアントが前回の
+     * marked text を出したままになり現在の preedit に同期しない。 */
+    char preedit_buf[1024];
+    int p = mozc_imk_get_preedit(preedit_buf, sizeof(preedit_buf));
+    if (p >= 0) {
+        char *preedit = preedit_buf;
+        char *preedit_heap = NULL;
+        if (p > (int)sizeof(preedit_buf) - 1) {
+            preedit_heap = (char *)malloc((size_t)p + 1);
+            if (preedit_heap != NULL && mozc_imk_get_preedit(preedit_heap, p + 1) == p) {
+                preedit = preedit_heap;
+            } else {
+                preedit = NULL;
+            }
+        }
+        if (preedit != NULL) {
+            preedit[p] = '\0';
+            NSString *s = [NSString stringWithUTF8String:preedit];
+            /* selectionRange は NSString(UTF-16)インデックス。UTF-8 バイト数 p ではなく
+             * s.length を使う(かな等で 1 文字=複数 UTF-8 バイトのとき位置がずれる)。 */
+            [sender setMarkedText:s selectionRange:NSMakeRange(s.length, 0)
+                 replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
+        }
+        free(preedit_heap);
     }
 
     /* 候補列(改行区切り)を IMKCandidates へ供給。空なら隠す。
      * cands を改行で分割して _candidateStrings に格納し、candidates: データソース経由で
      * パネルへ渡す(updateCandidates だけでは新しい候補がソースに入らず空表示になる)。 */
-    char cands[4096];
-    int c = mozc_imk_get_candidates(cands, sizeof(cands));
+    char cands_buf[4096];
+    int c = mozc_imk_get_candidates(cands_buf, sizeof(cands_buf));
     IMKCandidates *panel = [self candidates];
     if (panel) {
-        if (c > 0 && c < (int)sizeof(cands)) {
+        /* 候補列が固定バッファ(4095B)を超える場合は、commit と同様に必要長で動的確保して
+         * 再取得する。超過を空扱いで hide すると、長いユーザー辞書語や多数候補で候補窓が
+         * 丸ごと消える。 */
+        char *cands = cands_buf;
+        char *cands_heap = NULL;
+        if (c > (int)sizeof(cands_buf) - 1) {
+            cands_heap = (char *)malloc((size_t)c + 1);
+            if (cands_heap != NULL && mozc_imk_get_candidates(cands_heap, c + 1) == c) {
+                cands = cands_heap;
+            } else {
+                cands = NULL;
+            }
+        }
+        if (cands != NULL && c > 0) {
             cands[c] = '\0';
             NSString *joined = [NSString stringWithUTF8String:cands];
             NSArray<NSString *> *list =
@@ -121,6 +150,7 @@ extern int mozc_imk_select_candidate(int index);        /* パネル選択 → S
             _candidateStrings = @[];
             [panel hide];
         }
+        free(cands_heap);
     }
 }
 
