@@ -25,13 +25,35 @@ public sealed class MozcSessionClient
     // client.cc: preferences_ (SET_CONFIG なしで毎回 Input に載せる設定)。
     public ConfigProto? Preferences { get; set; }
 
+    // 接続フェーズで高速失敗したとき再接続を試みる回数(C++ client.cc の起動レース対策に相当)。
+    private const int MaxConnectAttempts = 3;
+
     // client.cc: Call(Input, Output)。serialize→IPC→parse。
     public Output Call(Input input)
     {
         byte[] request = input.ToByteArray();
-        using IIpcClient client = _ipcClientFactory();
-        byte[] response = client.Call(request, _timeout);
+        byte[] response = CallWithConnectRetry(request);
         return Output.Parser.ParseFrom(response);
+    }
+
+    // 接続確立フェーズで高速失敗(server 再起動レース等)したときだけ、短い指数バックオフで
+    // 再接続する。IpcException.Connecting=true(送信前・タイムアウト前の高速失敗)に限定する
+    // ため、非冪等コマンド(SEND_KEY/commit 等)が送信後に二重送信される事故は起きない。
+    private byte[] CallWithConnectRetry(byte[] request)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using IIpcClient client = _ipcClientFactory();
+                return client.Call(request, _timeout);
+            }
+            catch (IpcException ex) when (ex.Connecting && attempt < MaxConnectAttempts)
+            {
+                // 50ms, 100ms と待って server 起動/再接続の収束を待つ(高速失敗時のみ)。
+                Thread.Sleep(50 * (1 << (attempt - 1)));
+            }
+        }
     }
 
     // client.cc: InitInput。id と(あれば)preferences を載せる。

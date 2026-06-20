@@ -30,9 +30,13 @@ public sealed class UnixSocketIpcClient : IIpcClient
         cts.CancelAfter(timeout);
 
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        // 接続成立までを「接続フェーズ」とし、ここで高速失敗したときだけリトライ可能とする
+        // (server 未起動の ECONNREFUSED 等)。送信開始後の失敗は二重送信リスクのためリトライ不可。
+        bool connected = false;
         try
         {
             await socket.ConnectAsync(new AbstractUnixEndPoint(_abstractName), cts.Token).ConfigureAwait(false);
+            connected = true;
 
             // SendAsync は部分送信し得るため全バイト送るまでループする。
             int sent = 0;
@@ -65,11 +69,13 @@ public sealed class UnixSocketIpcClient : IIpcClient
         }
         catch (OperationCanceledException ex)
         {
+            // タイムアウトは待機 budget を消費済みのためリトライしない(Connecting=false)。
             throw new IpcException("IPC timed out", ex);
         }
         catch (SocketException ex)
         {
-            throw new IpcException("IPC socket error", ex);
+            // 接続前の高速失敗(ECONNREFUSED 等)だけリトライ可。送信後はリトライ不可。
+            throw new IpcException("IPC socket error", ex) { Connecting = !connected };
         }
     }
 

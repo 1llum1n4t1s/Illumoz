@@ -5,6 +5,10 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Mozc.Server.Host</RootNamespace>
+    <!-- NativeAOT 自己完結配布(プラン C7)。publish 時のみ native 化し、build/test には影響しない。
+         実 native コンパイルは RID 指定の `dotnet publish -r <rid>` が各 OS runner 上で行う。 -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>

@@ -109,6 +109,88 @@ public class MozcSessionClientTests
         Assert.Equal(5, state.LastInput.Config.VerboseLevel);
     }
 
+    // 接続フェーズ(Connecting=true)で N 回失敗してから成功するフェイク。試行回数を数える。
+    private sealed class FlakyConnectClient : IIpcClient
+    {
+        private readonly int _failBeforeSuccess;
+        private readonly FakeServerState _state;
+        public int Attempts { get; private set; }
+
+        public FlakyConnectClient(int failBeforeSuccess, FakeServerState state)
+        {
+            _failBeforeSuccess = failBeforeSuccess;
+            _state = state;
+        }
+
+        public byte[] Call(byte[] request, TimeSpan timeout)
+        {
+            Attempts++;
+            if (Attempts <= _failBeforeSuccess)
+            {
+                throw new IpcException("connect failed") { Connecting = true };
+            }
+            return new FakeIpcClient(_state).Call(request, timeout);
+        }
+
+        public Task<byte[]> CallAsync(byte[] request, TimeSpan timeout, CancellationToken ct = default)
+            => Task.FromResult(Call(request, timeout));
+
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public void Call_RetriesOnConnectingFailure_ThenSucceeds()
+    {
+        // 各 factory 呼び出しで新インスタンスを返すと試行数を共有できないため、共有カウンタを使う。
+        var state = new FakeServerState { AssignSessionId = 7 };
+        var shared = new FlakyConnectClient(failBeforeSuccess: 2, state);
+        var client = new MozcSessionClient(() => shared);
+
+        Assert.True(client.CreateSession());      // 2 回失敗→3 回目で成功
+        Assert.Equal(7ul, client.SessionId);
+        Assert.Equal(3, shared.Attempts);          // 初回 + 2 リトライ
+    }
+
+    [Fact]
+    public void Call_DoesNotRetryWhenNotConnecting()
+    {
+        // Connecting=false(送信後/タイムアウト)の失敗はリトライせず即送出する。
+        int attempts = 0;
+        var client = new MozcSessionClient(() =>
+        {
+            attempts++;
+            return new ThrowingClient(new IpcException("sent then failed"));
+        });
+
+        Assert.Throws<IpcException>(() => client.NoOperation());
+        Assert.Equal(1, attempts); // リトライしない
+    }
+
+    [Fact]
+    public void Call_StopsAfterMaxAttempts()
+    {
+        // 接続フェーズ失敗が続いても最大試行数(3)で打ち切り、最後の例外を送出する。
+        int attempts = 0;
+        var client = new MozcSessionClient(() =>
+        {
+            attempts++;
+            return new ThrowingClient(new IpcException("connect failed") { Connecting = true });
+        });
+
+        Assert.Throws<IpcException>(() => client.NoOperation());
+        Assert.Equal(3, attempts);
+    }
+
+    private sealed class ThrowingClient : IIpcClient
+    {
+        private readonly IpcException _ex;
+        public ThrowingClient(IpcException ex) => _ex = ex;
+        public byte[] Call(byte[] request, TimeSpan timeout) => throw _ex;
+        public Task<byte[]> CallAsync(byte[] request, TimeSpan timeout, CancellationToken ct = default)
+            => throw _ex;
+        public void Dispose() { }
+    }
+
     [Fact]
     public void ClearAndMaintenanceCommands_SendCorrectTypes()
     {

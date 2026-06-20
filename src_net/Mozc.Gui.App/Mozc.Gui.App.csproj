@@ -8,6 +8,9 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- NativeAOT 自己完結配布(プラン C7)。compiled bindings 既定 ON で AOT 前提を満たす。
+         publish 時のみ native 化し、build/test には影響しない(RID 指定 publish は各 OS runner)。 -->
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>

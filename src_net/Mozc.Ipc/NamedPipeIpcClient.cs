@@ -38,6 +38,9 @@ public sealed class NamedPipeIpcClient : IIpcClient
         using var pipe = new NamedPipeClientStream(
             _serverName, _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
 
+        // 接続+ReadMode 設定までを「接続フェーズ」とし、ここで高速失敗したときだけ
+        // リトライ可能(Connecting=true)とする。WriteAsync 開始後の失敗は二重送信リスクのため不可。
+        bool connected = false;
         try
         {
             await pipe.ConnectAsync((int)timeout.TotalMilliseconds, cts.Token).ConfigureAwait(false);
@@ -45,6 +48,7 @@ public sealed class NamedPipeIpcClient : IIpcClient
             // C++ の SetNamedPipeHandleState(PIPE_READMODE_MESSAGE) 相当。
             // これで受信側はメッセージ境界(IsMessageComplete)に依拠できる。
             pipe.ReadMode = PipeTransmissionMode.Message;
+            connected = true;
 
             await pipe.WriteAsync(request, cts.Token).ConfigureAwait(false);
 
@@ -65,14 +69,17 @@ public sealed class NamedPipeIpcClient : IIpcClient
         }
         catch (OperationCanceledException ex)
         {
+            // タイムアウトは待機 budget を消費済みのためリトライしない(Connecting=false)。
             throw new IpcException("IPC timed out", ex);
         }
         catch (IOException ex)
         {
-            throw new IpcException("IPC I/O error", ex);
+            // 接続前の I/O 失敗(パイプ一時 busy 等)は高速失敗としてリトライ可。
+            throw new IpcException("IPC I/O error", ex) { Connecting = !connected };
         }
         catch (TimeoutException ex)
         {
+            // ConnectAsync が timeout 一杯待った後の失敗。待機済みのためリトライしない。
             throw new IpcException("IPC connect timed out", ex);
         }
     }
