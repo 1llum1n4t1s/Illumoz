@@ -111,7 +111,11 @@ public sealed class ServerLauncher
     public static bool IsAdvertisedServerAlive(IpcPathManager pathManager)
         => IsServerProcessAlive(pathManager.ServerProcessId);
 
-    // .ipc が広告する server PID が生存しているか。pid==0(未記録)は判定不能なので生存扱いにする。
+    // .ipc を広告する PID のプロセスが「mozc_server 本体」として生存しているか。
+    // 単なる PID 生存だけだと、再起動や通常の PID 再利用で .ipc が無関係なプロセスを
+    // 指したとき stale を見逃し、死んだソケット/パイプへ接続し続ける。PID 生存に加えて
+    // プロセス名が server 実行ファイル名と一致することを確認し、同一性を検証する。
+    // pid==0(未記録)は判定不能なので生存扱い(=respawn 不要)。
     private static bool IsServerProcessAlive(uint pid)
     {
         if (pid == 0)
@@ -121,7 +125,13 @@ public sealed class ServerLauncher
         try
         {
             using Process p = Process.GetProcessById((int)pid);
-            return !p.HasExited;
+            if (p.HasExited)
+            {
+                return false;
+            }
+            // プロセス名が server 実行ファイル(Windows: Mozc.Server.Host / Unix: mozc_server)と
+            // 一致するか。一致しなければ PID 再利用された無関係プロセス → stale 扱いで respawn。
+            return IsServerProcessName(p.ProcessName);
         }
         catch (global::System.ArgumentException)
         {
@@ -132,6 +142,11 @@ public sealed class ServerLauncher
             return false;
         }
     }
+
+    // ProcessName は拡張子を含まない(Windows "Mozc.Server.Host" / Unix "mozc_server")。
+    private static bool IsServerProcessName(string name)
+        => string.Equals(name, "Mozc.Server.Host", global::System.StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "mozc_server", global::System.StringComparison.OrdinalIgnoreCase);
 
     private static bool DefaultSpawn(Func<string?>? resolver)
     {
