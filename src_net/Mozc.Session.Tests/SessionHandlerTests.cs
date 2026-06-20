@@ -92,4 +92,36 @@ public class SessionHandlerTests
         // セッション b は a の影響を受けない(t→pending, わ ではない)。
         Assert.DoesNotContain("わ", ob.Preedit);
     }
+
+    [Fact]
+    public void CreateSession_OverLimit_EvictsLruInsteadOfError()
+    {
+        SessionHandler h = Handler();
+        var ids = new List<ulong>();
+        for (int i = 0; i < SessionHandler.MaxSessions; i++)
+        {
+            Output c = h.EvalCommand(new Input { Type = CommandType.CreateSession });
+            Assert.False(c.ErrorOccured);
+            ids.Add(c.SessionId);
+        }
+        Assert.Equal(SessionHandler.MaxSessions, h.SessionCount);
+
+        // 最古(ids[0])以外を一度使って LRU を更新する → 破棄対象は ids[0] のまま。
+        for (int i = 1; i < ids.Count; i++)
+        {
+            h.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = ids[i], KeyString = "a" });
+        }
+
+        // 上限到達後の新規作成はエラーにならず成功し、件数は上限を超えない。
+        Output extra = h.EvalCommand(new Input { Type = CommandType.CreateSession });
+        Assert.False(extra.ErrorOccured);
+        Assert.Equal(SessionHandler.MaxSessions, h.SessionCount);
+
+        // 最も長く使われていない ids[0] が破棄されている(送信するとエラー)。
+        Output dead = h.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = ids[0], KeyString = "a" });
+        Assert.True(dead.ErrorOccured);
+        // 直近使用の ids[1] は生存している。
+        Output alive = h.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = ids[1], KeyString = "a" });
+        Assert.False(alive.ErrorOccured);
+    }
 }

@@ -34,6 +34,10 @@ public sealed class SessionConverter
     public State CurrentState { get; private set; } = State.Composition;
     public int FocusedSegment => _focusedSegment;
 
+    // 変換中の文節数(0=変換中でない)。候補ウィンドウ/テストの文節数確認用。
+    public int ConversionSegmentsSize
+        => CurrentState == State.Conversion && _segments != null ? _segments.ConversionSegmentsSize : 0;
+
     // idle(入力中でも変換中でもない)なら engine の最新ローマ字表で composer を作り直す。
     // custom_roman_table 等の設定変更を、既存セッションの次の入力から反映させる。
     public void RefreshComposerIfIdle()
@@ -111,6 +115,12 @@ public sealed class SessionConverter
             int insertAt = 0;
             foreach (var m in matches)
             {
+                // 抑制単語は候補として挿入しない(変換から除外すべき指定であり、挿入すると
+                // 望まない語が先頭に出てしまう)。完全な除去経路(システム辞書側同一語の抑制)は別途。
+                if (m.Pos == Mozc.Dictionary.UserDictionaryStorage.SuppressionWordPos)
+                {
+                    continue;
+                }
                 if (existing.Add(m.Word))
                 {
                     seg.InsertCandidate(insertAt++, new Candidate
@@ -239,6 +249,65 @@ public sealed class SessionConverter
         return result;
     }
 
+    // SUBMIT_CANDIDATE(変換中): 注目文節までを確定し、後続文節は変換状態のまま残す
+    // (C++ session_converter の「先頭〜注目文節をコミットし残りを変換継続」相当)。
+    // 単文節・注目が最終文節・コマンド候補が絡む場合は通常の全体 Commit に委ねる。
+    public string CommitHeadToFocusedSegments()
+    {
+        if (CurrentState != State.Conversion || _segments == null)
+        {
+            return Commit();
+        }
+        int convSize = _segments.ConversionSegmentsSize;
+        if (convSize <= 1 || _focusedSegment >= convSize - 1 || SelectedCandidateIsCommand())
+        {
+            return Commit();
+        }
+
+        // 注目文節までの確定テキストを組み立てる。
+        var sb = new global::System.Text.StringBuilder();
+        for (int i = 0; i <= _focusedSegment; i++)
+        {
+            sb.Append(_segments.ConversionSegment(i).Get(_selected[i]).Value);
+        }
+        string committed = sb.ToString();
+
+        // 確定する先頭文節群([0.._focusedSegment])だけ履歴学習する。
+        LearnHistoryRange(0, _focusedSegment + 1);
+
+        // 残り文節の読みを退避してから先頭文節群を除去し、composer を残り読みで再同期する
+        // (composer が確定済み読みを保持したままだと、次の打鍵/確定で先頭読みが混入する)。
+        var remainingReading = new global::System.Text.StringBuilder();
+        for (int i = _focusedSegment + 1; i < convSize; i++)
+        {
+            remainingReading.Append(_segments.ConversionSegment(i).Key);
+        }
+
+        int historySize = _segments.HistorySegmentsSize;
+        _segments.EraseSegments(historySize, _focusedSegment + 1);
+
+        // _selected を残存文節へ詰め替え、注目を先頭へ戻す。
+        int remaining = _segments.ConversionSegmentsSize;
+        var newSelected = new int[remaining];
+        for (int i = 0; i < remaining; i++)
+        {
+            newSelected[i] = _selected[i + _focusedSegment + 1];
+        }
+        _selected = newSelected;
+        _focusedSegment = 0;
+        LastCommand = Candidate.CommandType.DefaultCommand;
+
+        // composer を残り読みへ作り直す(以降の打鍵/再変換で先頭読みを引きずらない)。
+        _composer = _engine.CreateComposer();
+        _composer.InsertCharacters(remainingReading.ToString());
+
+        if (remaining == 0)
+        {
+            Reset();
+        }
+        return committed;
+    }
+
     // 選択中候補がコマンド候補ならそのコマンドを返す(複数文節なら最初の 1 つ)。
     private Candidate.CommandType GetSelectedCommand()
     {
@@ -297,7 +366,18 @@ public sealed class SessionConverter
         {
             return;
         }
-        for (int i = 0; i < _segments.ConversionSegmentsSize; i++)
+        LearnHistoryRange(0, _segments.ConversionSegmentsSize);
+    }
+
+    // 指定範囲 [start, end) の変換文節だけを履歴学習する(部分確定の学習に使う)。
+    private void LearnHistoryRange(int start, int end)
+    {
+        if (_history == null || CurrentState != State.Conversion || _segments == null)
+        {
+            return;
+        }
+        int n = _segments.ConversionSegmentsSize;
+        for (int i = start; i < end && i < n; i++)
         {
             Segment seg = _segments.ConversionSegment(i);
             if (seg.CandidatesSize > 0)
@@ -340,6 +420,11 @@ public sealed class SessionConverter
         {
             foreach (var e in _userDict.LookupPredictive(query))
             {
+                // 抑制単語は予測候補にも出さない(変換除外指定のため)。
+                if (e.Pos == Mozc.Dictionary.UserDictionaryStorage.SuppressionWordPos)
+                {
+                    continue;
+                }
                 var r = new Prediction.PredictionResult { Key = e.Reading, Value = e.Word, Cost = -20000 };
                 if (!best.TryGetValue(e.Word, out var cur) || r.Cost < cur.Cost)
                 {

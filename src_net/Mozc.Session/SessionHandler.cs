@@ -16,6 +16,9 @@ public sealed class SessionHandler
     // ユーザー辞書もユーザ単位で全セッション共有。
     private readonly Dictionary.UserDictionaryStorage _userDict = new();
     private readonly Dictionary<ulong, Session> _sessions = new();
+    // LRU 順(先頭=最近使用 / 末尾=最古)。上限到達時に末尾を破棄する(C++ の
+    // DeleteSessionId による最古セッション破棄に相当)。
+    private readonly LinkedList<ulong> _lru = new();
     private ulong _nextId = 1;
     // 全セッション共有の挙動設定(EngineServer.ApplyConfig が更新)。
     private readonly SessionSettings _settings = new();
@@ -106,19 +109,39 @@ public sealed class SessionHandler
 
     private Output CreateSession()
     {
-        if (_sessions.Count >= MaxSessions)
+        // 上限到達時はエラーにせず、最も長く使われていないセッションを破棄して空きを作る
+        // (C++ session_handler は最古セッションを消して新規生成を継続する)。
+        if (_sessions.Count >= MaxSessions && _lru.Last != null)
         {
-            return new Output { ErrorOccured = true };
+            ulong oldest = _lru.Last.Value;
+            _sessions.Remove(oldest);
+            _lru.RemoveLast();
         }
         ulong id = _nextId++;
         _sessions[id] = new Session(_engine, _keyMap, _rewriter, _history, _userDict, _settings);
+        _lru.AddFirst(id);
         return new Output { SessionId = id, Consumed = true };
     }
 
     private Output DeleteSession(ulong id)
     {
         bool removed = _sessions.Remove(id);
+        if (removed)
+        {
+            _lru.Remove(id);
+        }
         return new Output { SessionId = id, Consumed = removed, ErrorOccured = !removed };
+    }
+
+    // セッション利用時に LRU 先頭へ移動する(最近使用としてマーク)。
+    private void Touch(ulong id)
+    {
+        if (_lru.First?.Value == id)
+        {
+            return;
+        }
+        _lru.Remove(id);
+        _lru.AddFirst(id);
     }
 
     private Output SendCommand(Input input)
@@ -127,6 +150,7 @@ public sealed class SessionHandler
         {
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
+        Touch(input.SessionId);
         SessionResult r = session.SendCommand(input.SessionCommand, input.CommandId);
         return ToOutput(input.SessionId, session, r, input.SuppressSuggestion);
     }
@@ -138,6 +162,7 @@ public sealed class SessionHandler
         {
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
+        Touch(input.SessionId);
         // SEND_KEY と同じ判定で、key_string 付きの生テキスト(かな/ソフトキーボード/TEXT_INPUT)は
         // テキスト挿入経路の消費可否を返す。さもないと Key だけ見て横取り不可と誤判定し、
         // クライアントがテキストを IME を素通しさせてしまう。
@@ -147,7 +172,7 @@ public sealed class SessionHandler
             // input_style=DIRECT_INPUT は precomposition で echo back 扱い(未消費)になる。
             r = input.Key!.InputStyle == InputStyle.DirectInput
                 ? session.TestInsertTextDirect(input.KeyString, input.Key.KeyCode)
-                : session.TestInsertText(input.KeyString);
+                : session.TestInsertText(input.KeyString, input.Key.Activated);
         }
         else if (input.Key != null)
         {
@@ -178,6 +203,7 @@ public sealed class SessionHandler
         {
             return new Output { SessionId = input.SessionId, ErrorOccured = true };
         }
+        Touch(input.SessionId);
         // key_string が付いた直接入力(かな入力/ソフトキーボード/TEXT_INPUT)は、特殊キーや
         // 修飾キーを伴わない限り key_string をそのまま「生テキスト」として composer へ入れる。
         // key_code は ASCII フォールバックに過ぎず、優先すると "ぱ" 等の合成文字を取りこぼすため。
@@ -187,6 +213,8 @@ public sealed class SessionHandler
         SessionResult r;
         if (PreferKeyString(input, session))
         {
+            // 間接 IME-ON/OFF をディスパッチ前に同期する(SendKey(KeyEvent) と判定 source を揃える)。
+            session.SyncIndirectImeOnOff(input.Key!.Activated);
             // input_style=DIRECT_INPUT の key_string は precomposition で即時確定する(直接入力)。
             // それ以外は keymap 構文として再解釈せず、生テキストとして composer へ入れる。
             r = input.Key!.InputStyle == InputStyle.DirectInput

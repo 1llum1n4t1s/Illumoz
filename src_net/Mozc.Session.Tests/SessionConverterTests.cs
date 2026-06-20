@@ -180,6 +180,23 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void SuppressionWord_NotInsertedAsCandidate()
+    {
+        // Pos=抑制単語 のユーザー辞書語は候補に挿入しない(変換から除外する指定)。
+        var userDict = new Mozc.Dictionary.UserDictionaryStorage();
+        userDict.Add(new Mozc.Dictionary.UserDictionaryStorage.UserEntry(
+            "わたし", "ワタシ社",
+            Mozc.Dictionary.UserDictionaryStorage.SuppressionWordPos, ""));
+        var sc = new SessionConverter(Engine(), rewriter: null, history: null, userDict: userDict);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+        Assert.DoesNotContain("ワタシ社", sc.GetCandidates());
+    }
+
+    [Fact]
     public void SelectByShortcut_SelectsCandidate()
     {
         var sc = new SessionConverter(Engine());
@@ -232,6 +249,50 @@ public class SessionConverterTests
 
         // 注目文節(私)の候補一覧に 私 が含まれる。
         Assert.Contains("私", sc.GetCandidates());
+    }
+
+    [Fact]
+    public void CommitHeadToFocusedSegments_CommitsHeadAndKeepsRest()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashinonamae")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        sc.Convert();
+        Assert.True(sc.ConversionSegmentsSize >= 2); // 多文節であること。
+
+        // 注目=先頭文節。先頭文節までを確定すると、残り文節は変換状態のまま。
+        string fullPreedit = sc.GetPreedit();
+        int convSize = sc.ConversionSegmentsSize;
+        string head = sc.CommitHeadToFocusedSegments();
+
+        Assert.NotEqual(string.Empty, head);
+        Assert.Equal(SessionConverter.State.Conversion, sc.CurrentState);
+        // 確定テキスト + 残り preedit = 元の全文。
+        Assert.Equal(fullPreedit, head + sc.GetPreedit());
+        // 文節が 1 つ減っている。
+        Assert.Equal(convSize - 1, sc.ConversionSegmentsSize);
+        Assert.Equal(0, sc.FocusedSegment);
+    }
+
+    [Fact]
+    public void CommitHeadToFocusedSegments_LastSegment_CommitsAll()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashinonamae")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        sc.Convert();
+        // 最終文節へ注目を移すと全体確定になる(残りが無い)。
+        while (sc.FocusedSegment < sc.ConversionSegmentsSize - 1)
+        {
+            sc.SegmentFocusRight();
+        }
+        string committed = sc.CommitHeadToFocusedSegments();
+        Assert.NotEqual(string.Empty, committed);
+        Assert.Equal(SessionConverter.State.Composition, sc.CurrentState);
     }
 
     [Fact]

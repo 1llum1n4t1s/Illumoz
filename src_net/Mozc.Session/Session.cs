@@ -265,12 +265,25 @@ public sealed class Session
 
     // 生テキスト(かな/ソフトキーボード/TEXT_INPUT)挿入の消費可否のみ判定する(状態は変えない)。
     // IME 有効かつ非空テキストなら消費する(InsertText の消費条件と一致)。
-    public SessionResult TestInsertText(string text)
+    // activatedOverride: TEST_SEND_KEY で「状態を変えず」クライアント宣言の activated を反映して
+    // 判定する(SEND_KEY 側は SyncIndirectImeOnOff で事前同期するので両経路の source を揃える)。
+    public SessionResult TestInsertText(string text, bool? activatedOverride = null)
         => new SessionResult
         {
             Preedit = GetPreedit(),
-            Consumed = _activated && !string.IsNullOrEmpty(text),
+            Consumed = (activatedOverride ?? _activated) && !string.IsNullOrEmpty(text),
         };
+
+    // 間接 IME-ON/OFF の同期: クライアントが KeyEvent.activated を宣言していれば反映する。
+    // 生テキスト経路(InsertText/InsertTextDirect)は keymap を通さず _activated 同期の機会が
+    // 無いため、SEND_KEY 評価の直前にこれを呼んで SendKey(KeyEvent) と判定 source を揃える。
+    public void SyncIndirectImeOnOff(bool? activated)
+    {
+        if (activated.HasValue)
+        {
+            _activated = activated.Value;
+        }
+    }
 
     // SEND_COMMAND: 候補の明示選択・確定・取消。
     public SessionResult SendCommand(SessionCommandType type, int id)
@@ -297,7 +310,24 @@ public sealed class Session
                 {
                     return Current(false);
                 }
-                goto case SessionCommandType.Submit;
+                // 変換中の候補確定は注目文節までを確定し、後続文節は変換状態のまま残す
+                // (C++ 同様の部分確定)。残り文節があれば preedit を保持して消費継続する。
+                {
+                    string head = _converter.CommitHeadToFocusedSegments();
+                    if (_converter.CurrentState == SessionConverter.State.Conversion)
+                    {
+                        // 部分確定: 確定テキストを返しつつ残り変換を継続(_typed は維持)。
+                        return new SessionResult
+                        {
+                            Committed = head,
+                            Preedit = _converter.GetPreedit(),
+                            Consumed = true,
+                        };
+                    }
+                    // 全体確定(単文節/最終文節)。
+                    SnapshotAndClearTyped();
+                    return new SessionResult { Committed = head, Preedit = "", Consumed = true };
+                }
             case SessionCommandType.Submit:
             {
                 string committed = _converter.Commit();

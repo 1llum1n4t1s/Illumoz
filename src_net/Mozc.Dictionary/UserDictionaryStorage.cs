@@ -11,6 +11,10 @@ public sealed class UserDictionaryStorage
     // 1 エントリ。Reading=よみ, Word=表記, Pos=品詞, Comment=コメント。
     public sealed record UserEntry(string Reading, string Word, string Pos, string Comment);
 
+    // 「抑制単語」品詞は通常の変換候補ではなく、変換から当該語を除外するためのフィルタ指定
+    // (C++ SuppressionDictionary 相当)。候補/予測に挿入してはいけない。
+    public const string SuppressionWordPos = "抑制単語";
+
     private const uint Magic = 0x4D5A5544; // "MZUD"
     private readonly List<UserEntry> _entries = new();
 
