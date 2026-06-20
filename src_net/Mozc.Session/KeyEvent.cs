@@ -21,6 +21,14 @@ public enum SpecialKey
 // キーマップ照合に使う正規化済み修飾キー(左右は基本キーに畳む)。
 public enum ModifierKey { Ctrl, Shift, Alt, Caps }
 
+// C++ commands::KeyEvent::InputStyle(input_style)。key_string の扱いを指定する。
+public enum InputStyle
+{
+    FollowMode = 0,  // 現在の入力モードに従う(既定)。
+    AsIs = 1,        // key_string を transliteration せずそのまま使う。
+    DirectInput = 2, // precomposition では key_string を即時確定出力。preedit では AS_IS と同じ。
+}
+
 // C++ commands::KeyEvent の中核(KeyCode=単一文字 / SpecialKey / Modifiers)。
 public sealed class KeyEvent
 {
@@ -31,6 +39,10 @@ public sealed class KeyEvent
     // クライアントが宣言する IME 有効状態(commands.proto KeyEvent.activated)。
     // null=未指定。false の印字キーは IME off 扱いでアプリへ素通しさせる。
     public bool? Activated { get; set; }
+
+    // key_string の扱い(commands.proto KeyEvent.input_style)。既定は FollowMode。
+    // DIRECT_INPUT は precomposition で key_string を即時確定する(ソフトキーボード等の直接入力)。
+    public InputStyle InputStyle { get; set; } = InputStyle.FollowMode;
 
     // 照合用の正規化シグネチャ(parse 結果と実イベントで一致させる)。
     public string Signature()

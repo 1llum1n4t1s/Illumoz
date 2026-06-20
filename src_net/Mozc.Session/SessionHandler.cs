@@ -144,7 +144,10 @@ public sealed class SessionHandler
         SessionResult r;
         if (PreferKeyString(input, session))
         {
-            r = session.TestInsertText(input.KeyString);
+            // input_style=DIRECT_INPUT は precomposition で echo back 扱い(未消費)になる。
+            r = input.Key!.InputStyle == InputStyle.DirectInput
+                ? session.TestInsertTextDirect(input.KeyString, input.Key.KeyCode)
+                : session.TestInsertText(input.KeyString);
         }
         else if (input.Key != null)
         {
@@ -184,8 +187,11 @@ public sealed class SessionHandler
         SessionResult r;
         if (PreferKeyString(input, session))
         {
-            // key_string は keymap 構文として再解釈せず、生テキストとして composer へ入れる。
-            r = session.InsertText(input.KeyString);
+            // input_style=DIRECT_INPUT の key_string は precomposition で即時確定する(直接入力)。
+            // それ以外は keymap 構文として再解釈せず、生テキストとして composer へ入れる。
+            r = input.Key!.InputStyle == InputStyle.DirectInput
+                ? session.InsertTextDirect(input.KeyString, input.Key.KeyCode)
+                : session.InsertText(input.KeyString);
         }
         else if (input.Key != null)
         {

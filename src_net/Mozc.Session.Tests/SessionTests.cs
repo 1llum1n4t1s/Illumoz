@@ -127,6 +127,67 @@ public class SessionTests
     }
 
     [Fact]
+    public void InsertTextDirect_Precomposition_CommitsImmediately()
+    {
+        var s = NewSession();
+        // 入力前(precomposition)の DIRECT_INPUT 直接テキストは即確定(Result)になる。
+        SessionResult r = s.InsertTextDirect("あ", keyCode: null);
+        Assert.True(r.Consumed);
+        Assert.Equal("あ", r.Committed);
+        Assert.Equal("", r.Preedit);
+    }
+
+    [Fact]
+    public void InsertTextDirect_HalfWidthAscii_EchoesBackNotConsumed()
+    {
+        var s = NewSession();
+        // 半角 ASCII 1 文字(key_code==key_string)は echo back(未消費・確定なし)。
+        SessionResult r = s.InsertTextDirect("a", keyCode: 'a');
+        Assert.False(r.Consumed);
+        Assert.Equal("", r.Committed);
+        Assert.Equal("", r.Preedit);
+    }
+
+    [Fact]
+    public void InsertTextDirect_DuringComposition_ComposesAsIs()
+    {
+        var s = NewSession();
+        foreach (char c in "wa")
+        {
+            s.SendKey(c.ToString()); // composition: わ
+        }
+        // 入力中(preedit)の DIRECT_INPUT は AS_IS 扱い: 即確定せず合成へ回る。
+        SessionResult r = s.InsertTextDirect("z", keyCode: null);
+        Assert.True(r.Consumed);
+        Assert.Equal("", r.Committed);   // 即確定はしない
+        Assert.NotEqual("", r.Preedit);  // preedit として保持される
+    }
+
+    [Fact]
+    public void InsertTextDirect_DuringConversion_CommitsConversionThenText()
+    {
+        var s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        s.SendKey("Space"); // ConvertNext → Convert(Conversion 状態へ)
+        // 変換中の DIRECT_INPUT は、変換を確定してから直接テキストを確定する。
+        SessionResult r = s.InsertTextDirect("x", keyCode: null);
+        Assert.True(r.Consumed);
+        Assert.Equal("私x", r.Committed);
+        Assert.Equal("", r.Preedit);
+    }
+
+    [Fact]
+    public void TestInsertTextDirect_Precomposition_NotConsumed()
+    {
+        var s = NewSession();
+        // TEST_SEND_KEY: precomposition の DIRECT_INPUT は echo back 扱いで未消費(状態不変)。
+        Assert.False(s.TestInsertTextDirect("あ", keyCode: null).Consumed);
+    }
+
+    [Fact]
     public void GetSuggestions_DuringComposition()
     {
         var history = new Prediction.UserHistoryPredictor();

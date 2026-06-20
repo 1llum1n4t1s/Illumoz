@@ -88,6 +88,31 @@ public class ProtoBridgeTests
     }
 
     [Fact]
+    public void DirectInput_KeyString_CommitsImmediately_InPrecomposition()
+    {
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+
+        // input_style=DIRECT_INPUT + key_string(ソフトキーボードの直接テキスト)。
+        // precomposition では key_string を即時確定する(preedit/composition にしない)。
+        Pb.Output output = Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey,
+            Id = id,
+            Key = new Pb.KeyEvent
+            {
+                KeyCode = 'a',
+                KeyString = "あ",
+                InputStyle = Pb.KeyEvent.Types.InputStyle.DirectInput,
+            },
+        });
+        Assert.True(output.Consumed);
+        Assert.NotNull(output.Result);
+        Assert.Equal("あ", output.Result.Value);
+        Assert.Null(output.Preedit); // preedit ではなく Result として出力される
+    }
+
+    [Fact]
     public void Preedit_IsCarriedInProtoOutput()
     {
         EngineServer server = Server();

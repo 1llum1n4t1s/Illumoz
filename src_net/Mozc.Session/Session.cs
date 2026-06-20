@@ -351,6 +351,72 @@ public sealed class Session
         };
     }
 
+    // input_style=DIRECT_INPUT の key_string 処理(C++ session.cc:1486-1544 相当)。
+    // precomposition(入力前)では key_string を即時確定する(ソフトキーボード/直接テキスト)。
+    // ただし半角 ASCII 1 文字(key_code==key_string)は echo back(未消費・確定なし)。
+    // 変換中は変換を確定してから直接テキストを確定する。preedit(入力中)では AS_IS と同じ扱い。
+    // keyCode は半角 ASCII echo back 判定に使う(key_code==key_string の単一コードポイント)。
+    public SessionResult InsertTextDirect(string text, int? keyCode)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return new SessionResult { Preedit = GetPreedit(), Consumed = false };
+        }
+        // precomposition proxy: 入力も変換中も無い状態。
+        if (_converter.CurrentState == SessionConverter.State.Composition && _typed.Count == 0)
+        {
+            // 半角 ASCII 1 文字(key_code==key_string[0] かつ空白以外)は echo back(未消費)。
+            // C++ EchoBack 相当: converter をリセットし、キーをアプリへ委ねる。
+            if (IsHalfWidthAsciiEcho(text, keyCode))
+            {
+                _converter.Reset();
+                return new SessionResult { Preedit = "", Consumed = false };
+            }
+            // それ以外の直接テキストは即時確定する(Result として出力)。
+            return new SessionResult { Committed = text, Preedit = "", Consumed = true };
+        }
+        // 変換中: まず変換を確定し、続けて直接テキストを確定する(C++ should_commit + DIRECT_INPUT)。
+        if (_converter.CurrentState == SessionConverter.State.Conversion)
+        {
+            string committed = _converter.Commit();
+            SnapshotAndClearTyped();
+            return new SessionResult { Committed = committed + text, Preedit = "", Consumed = true };
+        }
+        // 入力中(preedit): AS_IS と同じ。生テキストとして合成する(従来 InsertText)。
+        // transliteration を完全に止める as-is 合成は composer 側対応が要る follow-up。
+        return InsertText(text);
+    }
+
+    // TEST_SEND_KEY の DIRECT_INPUT 判定(セッション状態は変えない)。C++ session.cc:459-466 相当:
+    // precomposition の DIRECT_INPUT(INSERT_CHARACTER)は echo back 扱いで未消費を返す。
+    public SessionResult TestInsertTextDirect(string text, int? keyCode)
+    {
+        if (_converter.CurrentState == SessionConverter.State.Composition && _typed.Count == 0)
+        {
+            return new SessionResult { Preedit = "", Consumed = false };
+        }
+        return TestInsertText(text);
+    }
+
+    // key_string が単一コードポイントの半角 ASCII 印字(0x21-0x7E)で key_code と一致するか。
+    private static bool IsHalfWidthAsciiEcho(string text, int? keyCode)
+    {
+        if (keyCode is not int kc || kc < 0x21 || kc > 0x7E)
+        {
+            return false; // 非 ASCII / 制御文字 / 半角空白(0x20)は echo back 対象外。
+        }
+        global::System.Text.Rune? only = null;
+        foreach (global::System.Text.Rune rune in text.EnumerateRunes())
+        {
+            if (only != null)
+            {
+                return false; // 複数コードポイントは対象外。
+            }
+            only = rune;
+        }
+        return only is global::System.Text.Rune r && r.Value == kc;
+    }
+
     private SessionResult Dispatch(string command, KeyEvent key)
     {
         switch (command)

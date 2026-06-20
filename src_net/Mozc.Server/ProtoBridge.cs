@@ -186,6 +186,17 @@ public static class ProtoBridge
         {
             ke.Activated = proto.Activated;
         }
+        // input_style を取り込む。DIRECT_INPUT の key_string は precomposition で即時確定する
+        // (ソフトキーボード/クライアント供給の直接テキスト)。未指定は FollowMode(従来パス)。
+        if (proto.HasInputStyle)
+        {
+            ke.InputStyle = proto.InputStyle switch
+            {
+                Pb.KeyEvent.Types.InputStyle.AsIs => InputStyle.AsIs,
+                Pb.KeyEvent.Types.InputStyle.DirectInput => InputStyle.DirectInput,
+                _ => InputStyle.FollowMode,
+            };
+        }
         if (proto.HasSpecialKey)
         {
             // テンキーの数字(NUMPAD0-9)は keymap に行が無く、印字フォールバックも
