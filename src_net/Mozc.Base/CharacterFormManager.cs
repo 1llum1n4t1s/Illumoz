@@ -125,12 +125,14 @@ public sealed class CharacterFormManager
         foreach (Rune rune in str.EnumerateRunes())
         {
             int cp = rune.Value;
-            // 全角 ASCII / 全角数字英字 → 全角、ASCII → 半角(ざっくり判定)。
-            if (cp >= 0xFF01 && cp <= 0xFF5E)
+            // 全角 ASCII / 全角カタカナ → 全角、半角 ASCII / 半角カタカナ → 半角(ざっくり判定)。
+            if ((cp >= 0xFF01 && cp <= 0xFF5E)      // 全角 ASCII 記号英数
+                || (cp >= 0x30A0 && cp <= 0x30FF))  // 全角カタカナ
             {
                 hasFull = true;
             }
-            else if (cp >= 0x21 && cp <= 0x7E)
+            else if ((cp >= 0x21 && cp <= 0x7E)        // 半角 ASCII 記号英数
+                     || (cp >= 0xFF61 && cp <= 0xFF9F)) // 半角カタカナ
             {
                 hasHalf = true;
             }

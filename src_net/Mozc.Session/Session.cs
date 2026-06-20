@@ -77,6 +77,11 @@ public sealed class Session
     // IME 有効状態(クライアントへ Status.activated として返す)。
     public bool Activated => _activated;
 
+    // サジェストの表示と確定で同じソース可否を使うためのヘルパ(食い違うと未表示の
+    // 履歴候補を確定してしまう)。
+    private bool IncludeHistorySuggest => _settings.UseHistorySuggest && !_settings.IncognitoMode;
+    private bool IncludeDictionarySuggest => _settings.UseDictionarySuggest || _settings.UseRealtimeConversion;
+
     // keymap を差し替える(SET_CONFIG で keymap が変わったとき既存セッションへ反映する)。
     public void SetKeyMap(KeyMap keyMap) => _keyMap = keyMap;
 
@@ -101,8 +106,8 @@ public sealed class Session
         // シークレット/履歴無効では履歴由来を出さない。辞書/リアルタイム無効では辞書由来を出さない。
         return _converter.PredictMerged(
                 limit,
-                includeHistory: _settings.UseHistorySuggest && !_settings.IncognitoMode,
-                includeDictionary: _settings.UseDictionarySuggest || _settings.UseRealtimeConversion)
+                includeHistory: IncludeHistorySuggest,
+                includeDictionary: IncludeDictionarySuggest)
             .ConvertAll(p => p.Value);
     }
 
@@ -139,8 +144,8 @@ public sealed class Session
             _suggestionCacheKey = key;
             _suggestionCacheValue = _converter.PredictMerged(
                 1,
-                includeHistory: _settings.UseHistorySuggest && !_settings.IncognitoMode,
-                includeDictionary: _settings.UseDictionarySuggest || _settings.UseRealtimeConversion)
+                includeHistory: IncludeHistorySuggest,
+                includeDictionary: IncludeDictionarySuggest)
                 .Count > 0;
         }
         return _suggestionCacheValue;
@@ -198,7 +203,7 @@ public sealed class Session
                 // サジェスト表示中: サジェスト候補 N を直接確定。
                 if (HasActiveSuggestion())
                 {
-                    string? sug = _converter.CommitSuggestion(idx, includeHistory: !_settings.IncognitoMode);
+                    string? sug = _converter.CommitSuggestion(idx, includeHistory: IncludeHistorySuggest, includeDictionary: IncludeDictionarySuggest);
                     if (sug != null)
                     {
                         SnapshotAndClearTyped();
@@ -249,7 +254,7 @@ public sealed class Session
                 // 入力中(サジェスト)はサジェスト候補を直接確定する。
                 if (_converter.CurrentState == SessionConverter.State.Composition)
                 {
-                    string? sug = _converter.CommitSuggestion(id, includeHistory: !_settings.IncognitoMode);
+                    string? sug = _converter.CommitSuggestion(id, includeHistory: IncludeHistorySuggest, includeDictionary: IncludeDictionarySuggest);
                     if (sug != null)
                     {
                         SnapshotAndClearTyped();
@@ -299,11 +304,20 @@ public sealed class Session
             return new SessionResult { Preedit = GetPreedit(), Consumed = false };
         }
         SessionResult last = Current(true);
+        // 各 rune が確定(候補コミット等)を生むことがあるため、Committed を取りこぼさず累積する。
+        string committed = string.Empty;
         foreach (global::System.Text.Rune rune in text.EnumerateRunes())
         {
             last = InsertChar(rune.ToString());
+            committed += last.Committed;
         }
-        return last;
+        return new SessionResult
+        {
+            Committed = committed,
+            Preedit = last.Preedit,
+            Consumed = last.Consumed,
+            Command = last.Command,
+        };
     }
 
     private SessionResult Dispatch(string command, KeyEvent key)
@@ -382,7 +396,7 @@ public sealed class Session
             case "CommitFirstSuggestion":
             {
                 // サジェスト表示中に先頭候補を確定する(Shift Enter / Ctrl Enter)。
-                string? sug = _converter.CommitSuggestion(0, includeHistory: !_settings.IncognitoMode);
+                string? sug = _converter.CommitSuggestion(0, includeHistory: IncludeHistorySuggest, includeDictionary: IncludeDictionarySuggest);
                 if (sug != null)
                 {
                     SnapshotAndClearTyped();
@@ -431,7 +445,7 @@ public sealed class Session
                     if (HasActiveSuggestion())
                     {
                         string? sug = _converter.CommitSuggestion(
-                            0, includeHistory: !_settings.IncognitoMode);
+                            0, includeHistory: IncludeHistorySuggest, includeDictionary: IncludeDictionarySuggest);
                         if (sug != null)
                         {
                             SnapshotAndClearTyped();
@@ -479,6 +493,20 @@ public sealed class Session
                 _activated = false;
                 return new SessionResult { Committed = committed, Preedit = string.Empty, Consumed = true };
             }
+            // 入力モード切替。入力モードの永続状態機械は未実装だが、これらは IME 用キー
+            // (かな/カナ/英数キー等)に割り当たるため、ホストへ素のキーを漏らさないよう必ず消費する。
+            case "CompositionModeHiragana":
+                // 現在の composition をひらがな表記へ寄せて消費(かなモードへ切替相当)。
+                _converter.ConvertToTransliteration(c => c.GetHiragana());
+                return Current(true);
+            case "CompositionModeFullKatakana":
+                _converter.ConvertToTransliteration(c => c.GetFullKatakana());
+                return Current(true);
+            case "ToggleAlphanumericMode":
+            case "SwitchKanaType":
+            case "CompositionModeSwitchKanaType":
+                // モード状態機械が無いため preedit を保ったまま消費のみ(キー透過を防ぐ)。
+                return new SessionResult { Preedit = GetPreedit(), Consumed = true };
             default:
                 // 未対応 command はキーを消費しない。
                 return new SessionResult { Preedit = GetPreedit(), Consumed = false };

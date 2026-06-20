@@ -12,6 +12,13 @@ MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
 cp "$MOZC_DATA" "$STAGE/usr/lib/mozc/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$STAGE/usr/lib/mozc/roman.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$STAGE/usr/lib/mozc/keymap.tsv"
+# SET_CONFIG の session_keymap(ATOK/KOTOERI/MOBILE/CHROMEOS/MSIME)プリセットは
+# <datadir>/keymap/<preset>.tsv から解決される(KeymapPresets.Load)。プリセット tsv 一式を
+# /usr/lib/mozc/keymap/ に同梱しないと、既定以外のキーマップへ切替できない。
+mkdir -p "$STAGE/usr/lib/mozc/keymap"
+for f in ms-ime atok kotoeri mobile chromeos; do
+  cp "../../../src/data/keymap/$f.tsv" "$STAGE/usr/lib/mozc/keymap/$f.tsv"
+done
 # 設定 GUI(mozc.xml の <setup> が /usr/lib/mozc/mozc_tool を参照する)。同梱しないと
 # IBus の「設定」から存在しないファイルを起動してしまう。
 cp ../../Mozc.Gui.App/bin/Release/net10.0/linux-x64/publish/Mozc.Gui.App "$STAGE/usr/lib/mozc/mozc_tool"

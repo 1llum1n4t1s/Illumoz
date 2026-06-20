@@ -273,28 +273,41 @@ public sealed class EngineServer
             default:
             {
                 // クライアントがリクエストに config を添付(MozcSessionClient.Preferences 経由の
-                // per-request 設定)していれば、キー処理前に適用する。incognito/keymap/
-                // サジェスト等の毎リクエスト設定が無視されないようにする。
+                // per-request 設定)していれば、このリクエストの間だけ適用する。共有 ConfigManager を
+                // 恒久的に書き換えると他クライアントへ漏れたり shutdown 時に保存されるため、
+                // 評価後に元の config へ必ず戻す。
+                byte[]? savedConfig = null;
                 if (input.ConfigBytes.Length != 0)
                 {
                     try
                     {
+                        savedConfig = _config.Serialize();
                         SetConfig(Mozc.Config.Config.Parser.ParseFrom(input.ConfigBytes));
                     }
                     catch (Google.Protobuf.InvalidProtocolBufferException)
                     {
-                        // 壊れた config は無視して通常処理を続ける。
+                        savedConfig = null; // 壊れた config は無視して通常処理を続ける。
                     }
                 }
-                Output output = _handler.EvalCommand(input);
-                ApplyConverterCommand(output.ConverterCommand);
-                // LAST_FORM 学習: 確定文字列の字形を ConversionFormManager に記憶させ、
-                // 以降の変換/保存(character_form.db)へ反映する。
-                if (output.Result.Length != 0)
+                try
                 {
-                    ConversionFormManager.GuessAndSetCharacterForm(output.Result);
+                    Output output = _handler.EvalCommand(input);
+                    ApplyConverterCommand(output.ConverterCommand);
+                    // LAST_FORM 学習: 確定文字列の字形を ConversionFormManager に記憶させ、
+                    // 以降の変換/保存(character_form.db)へ反映する。
+                    if (output.Result.Length != 0)
+                    {
+                        ConversionFormManager.GuessAndSetCharacterForm(output.Result);
+                    }
+                    return output;
                 }
-                return output;
+                finally
+                {
+                    if (savedConfig != null)
+                    {
+                        SetConfig(Mozc.Config.Config.Parser.ParseFrom(savedConfig));
+                    }
+                }
             }
         }
     }
