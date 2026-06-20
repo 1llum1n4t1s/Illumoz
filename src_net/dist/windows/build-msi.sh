@@ -17,5 +17,15 @@ need ../../../src/data/keymap/ms-ime.tsv
 cp "$MOZC_DATA" "$PUBLISH/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$PUBLISH/roman.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$PUBLISH/keymap.tsv"
-wix build Mozc.wxs -d PublishDir="$PUBLISH" -o Mozc.msi
+# session_keymap プリセット(ms-ime/atok/kotoeri/mobile/chromeos)を keymap\ サブディレクトリへ
+# stage する(Mozc.wxs の KeymapDir が参照。同梱しないと既定以外へ切替できない)。
+mkdir -p "$PUBLISH/keymap"
+for f in ms-ime atok kotoeri mobile chromeos; do
+  need "../../../src/data/keymap/$f.tsv"
+  cp "../../../src/data/keymap/$f.tsv" "$PUBLISH/keymap/$f.tsv"
+done
+# Mozc.wxs の RegisterTip カスタムアクションは Util 拡張(Wix4UtilCA_X64)を使うため、
+# ビルド前に拡張を取得し -ext で参照する(欠けると "unresolved reference" でビルド失敗)。
+wix extension add -g WixToolset.Util.wixext/5.0.2
+wix build Mozc.wxs -ext WixToolset.Util.wixext -d PublishDir="$PUBLISH" -o Mozc.msi
 # インストーラのカスタムアクションで TIP DLL を regsvr32 相当登録(DllRegisterServer)。

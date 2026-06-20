@@ -31,6 +31,18 @@
         <Component Id="MozcKeymap" Guid="*">
           <File Id="MozcKeymapFile" Source="$(var.PublishDir)\keymap.tsv" KeyPath="yes" />
         </Component>
+        <!-- SET_CONFIG の session_keymap(ATOK/KOTOERI/MOBILE/CHROMEOS/MSIME)プリセットは
+             <datadir>\keymap\<preset>.tsv から解決される(KeymapPresets.Load)。プリセット tsv
+             一式を同梱しないと、既定以外のキーマップへ切替できない(Linux deb / mac pkg と同じ)。 -->
+        <Directory Id="KeymapDir" Name="keymap">
+          <Component Id="MozcKeymapPresets" Guid="*">
+            <File Id="KeymapMsime" Source="$(var.PublishDir)\keymap\ms-ime.tsv" KeyPath="yes" />
+            <File Id="KeymapAtok" Source="$(var.PublishDir)\keymap\atok.tsv" />
+            <File Id="KeymapKotoeri" Source="$(var.PublishDir)\keymap\kotoeri.tsv" />
+            <File Id="KeymapMobile" Source="$(var.PublishDir)\keymap\mobile.tsv" />
+            <File Id="KeymapChromeos" Source="$(var.PublishDir)\keymap\chromeos.tsv" />
+          </Component>
+        </Directory>
       </Directory>
     </StandardDirectory>
 
@@ -41,6 +53,7 @@
       <ComponentRef Id="MozcData" />
       <ComponentRef Id="MozcRoman" />
       <ComponentRef Id="MozcKeymap" />
+      <ComponentRef Id="MozcKeymapPresets" />
     </Feature>
 
     <!-- TIP の CLSID/TSF 言語プロファイルを登録する。これが無いと Windows は

@@ -25,5 +25,13 @@ need ../../../src/data/keymap/ms-ime.tsv
 cp "$MOZC_DATA" "$APP/Contents/Resources/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$APP/Contents/Resources/roman.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$APP/Contents/Resources/keymap.tsv"
+# SET_CONFIG の session_keymap(ATOK/KOTOERI/MOBILE/CHROMEOS/MSIME)プリセットは
+# <datadir>/keymap/<preset>.tsv から解決される(KeymapPresets.Load)。プリセット tsv 一式を
+# Resources/keymap/ に同梱しないと、既定以外のキーマップへ切替できない(Linux deb と同じ)。
+mkdir -p "$APP/Contents/Resources/keymap"
+for f in ms-ime atok kotoeri mobile chromeos; do
+  need "../../../src/data/keymap/$f.tsv"
+  cp "../../../src/data/keymap/$f.tsv" "$APP/Contents/Resources/keymap/$f.tsv"
+done
 pkgbuild --root "$APP" --identifier org.mozc.inputmethod.Mozc \
   --version 1.0.0 --install-location "/Library/Input Methods/$APP" Mozc.pkg
