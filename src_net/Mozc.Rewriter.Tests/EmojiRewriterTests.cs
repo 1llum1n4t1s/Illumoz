@@ -62,4 +62,15 @@ public class EmojiRewriterTests
         var rewriter = new EmojiRewriter(new Dictionary<string, string[]>());
         Assert.False(rewriter.Rewrite(OneSegment("あ", "亜")));
     }
+
+    [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_emoji_conversion=false 相当: Enabled=false なら絵文字候補を出さない。
+        var table = new Dictionary<string, string[]> { ["ねこ"] = new[] { "🐈️", "🐱" } };
+        var rewriter = new EmojiRewriter(table) { Enabled = false };
+        Segments segments = OneSegment("ねこ", "猫");
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, segments.ConversionSegment(0).CandidatesSize);
+    }
 }

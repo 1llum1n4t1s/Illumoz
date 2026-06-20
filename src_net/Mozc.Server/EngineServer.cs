@@ -227,6 +227,10 @@ public sealed class EngineServer
                 case CalculatorRewriter calc:
                     calc.Enabled = c.UseCalculator;
                     break;
+                // 絵文字は proto 既定が false。設定で明示有効化したときだけ候補を出す。
+                case EmojiRewriter emoji:
+                    emoji.Enabled = c.UseEmojiConversion;
+                    break;
             }
         }
     }

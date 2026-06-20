@@ -11,12 +11,20 @@ public sealed class EmojiRewriter : IRewriter
 
     public EmojiRewriter(IReadOnlyDictionary<string, string[]> table) => _table = table;
 
+    // config.use_emoji_conversion=false で絵文字候補を出さない(C++ use_emoji_conversion() 相当)。
+    // proto 既定は false のため、EngineServer.ApplyConfig が construct 直後に設定で上書きする。
+    public bool Enabled { get; set; } = true;
+
     // emoji_data.tsv を (読み->絵文字列) へ(共通パーサに委譲)。
     public static IReadOnlyDictionary<string, string[]> LoadTable(string tsv)
         => Base.SymbolDataParser.ParseEmoji(tsv);
 
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         bool modified = false;
         for (int i = 0; i < segments.ConversionSegmentsSize; i++)
         {
