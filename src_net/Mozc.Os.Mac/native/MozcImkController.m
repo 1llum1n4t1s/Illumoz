@@ -6,6 +6,7 @@
 #import <Cocoa/Cocoa.h>
 #import <InputMethodKit/InputMethodKit.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /* C# (NativeAOT) エクスポート。 */
 extern int mozc_imk_process_key(uint16_t keyCode, const char *charsUtf8, int charsLen, uint32_t modifiers);
@@ -31,12 +32,27 @@ extern int mozc_imk_get_candidates(char *buf, int cap); /* 改行区切り候補
                                         chars, (int)strlen(chars),
                                         (uint32_t)event.modifierFlags);
 
-    char commit[1024];
-    int n = mozc_imk_get_commit(commit, sizeof(commit));
-    if (n > 0 && n < (int)sizeof(commit)) {
-        commit[n] = '\0';
-        [sender insertText:[NSString stringWithUTF8String:commit]
-          replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
+    /* commit 文字列を確定。固定バッファに収まらない長文(辞書の長語句や長い
+       TEXT_INPUT)は必要長で動的確保して取りこぼさない(IBus 側と同様)。 */
+    char commit_buf[1024];
+    int n = mozc_imk_get_commit(commit_buf, sizeof(commit_buf));
+    if (n > 0) {
+        char *commit = commit_buf;
+        char *heap = NULL;
+        if (n > (int)sizeof(commit_buf) - 1) {
+            heap = (char *)malloc((size_t)n + 1);
+            if (heap != NULL && mozc_imk_get_commit(heap, n + 1) == n) {
+                commit = heap;
+            } else {
+                commit = NULL;
+            }
+        }
+        if (commit != NULL) {
+            commit[n] = '\0';
+            [sender insertText:[NSString stringWithUTF8String:commit]
+              replacementRange:NSMakeRange(NSNotFound, NSNotFound)];
+        }
+        free(heap);
     }
 
     char preedit[1024];

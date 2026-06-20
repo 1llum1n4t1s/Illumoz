@@ -231,6 +231,13 @@ public sealed class CharacterFormManager
         {
             string ch = rune.ToString();
             ScriptType type = ScriptClassifier.Classify(rune.Value);
+            // 半角の濁点(U+FF9E)/半濁点(U+FF9F)はカタカナ列の続き扱いにする。Other のまま
+            // だと "ｶﾞ" が "ｶ" と分断され、幅変換が結合できず "カﾞ" になってしまう。続けて
+            // バッファに残せば幅変換表が "ｶﾞ"→"ガ" を結合できる。
+            if ((rune.Value == 0xFF9E || rune.Value == 0xFF9F) && prevType == ScriptType.Katakana)
+            {
+                type = ScriptType.Katakana;
+            }
             CharacterForm form = prevForm;
 
             // 記号(Other)は C++ の UNKNOWN_SCRIPT 相当: 毎回 GetCharacterForm。

@@ -96,7 +96,7 @@ public sealed class SessionConverter
         {
             Segment seg = segments.ConversionSegment(i);
             var matches = _userDict.LookupExact(seg.Key);
-            if (matches.Count == 0 || seg.CandidatesSize == 0)
+            if (matches.Count == 0)
             {
                 continue;
             }
@@ -105,7 +105,9 @@ public sealed class SessionConverter
             {
                 existing.Add(seg.Get(j).Value);
             }
-            Candidate base0 = seg.Get(0);
+            // システムが基底候補を出せない新規読みでも、ユーザー辞書語を候補として合成する
+            // (候補 0 件のままだと Convert() が変換を破棄して登録語が一生出てこない)。
+            int baseCost = seg.CandidatesSize > 0 ? seg.Get(0).Cost : 0;
             int insertAt = 0;
             foreach (var m in matches)
             {
@@ -118,7 +120,7 @@ public sealed class SessionConverter
                         ContentKey = seg.Key,
                         ContentValue = m.Word,
                         Description = "ユーザー辞書",
-                        Cost = base0.Cost - 1000,
+                        Cost = baseCost - 1000,
                     });
                 }
             }
@@ -317,13 +319,14 @@ public sealed class SessionConverter
 
     // 履歴予測 + 辞書予測を統合(履歴を上位に、value 重複は低コスト採用、コスト昇順)。
     // C++ の predictor aggregator 相当の中核スライス。
-    public List<Prediction.PredictionResult> PredictMerged(int maxResults = 10, bool includeHistory = true)
+    public List<Prediction.PredictionResult> PredictMerged(
+        int maxResults = 10, bool includeHistory = true, bool includeDictionary = true)
     {
         string query = _composer.GetQueryForConversion();
         var best = new Dictionary<string, Prediction.PredictionResult>();
 
-        // ユーザー辞書(前方一致)を最優先(コスト最小で上位固定)。
-        if (_userDict != null)
+        // ユーザー辞書(前方一致)を最優先(コスト最小で上位固定)。辞書サジェスト無効時は除外。
+        if (_userDict != null && includeDictionary)
         {
             foreach (var e in _userDict.LookupPredictive(query))
             {
@@ -335,7 +338,7 @@ public sealed class SessionConverter
             }
         }
 
-        // 履歴予測は辞書より優先(コストを大きく下げて上位固定)。シークレット時は除外。
+        // 履歴予測は辞書より優先(コストを大きく下げて上位固定)。シークレット/履歴無効時は除外。
         if (_history != null && includeHistory)
         {
             foreach (Prediction.PredictionResult r in _history.Predict(query, maxResults))
@@ -352,11 +355,15 @@ public sealed class SessionConverter
             }
         }
 
-        foreach (Prediction.PredictionResult r in _engine.Predict(query, maxResults))
+        // 辞書/リアルタイム予測(engine)。辞書サジェスト無効時は除外。
+        if (includeDictionary)
         {
-            if (!best.TryGetValue(r.Value, out var cur) || r.Cost < cur.Cost)
+            foreach (Prediction.PredictionResult r in _engine.Predict(query, maxResults))
             {
-                best[r.Value] = r;
+                if (!best.TryGetValue(r.Value, out var cur) || r.Cost < cur.Cost)
+                {
+                    best[r.Value] = r;
+                }
             }
         }
 

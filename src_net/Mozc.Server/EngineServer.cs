@@ -46,6 +46,10 @@ public sealed class EngineServer
         // presentation_mode はサジェストを一時停止する(use_*_suggest が有効でも抑止)。
         _handler.Settings.SuggestionEnabled = !c.PresentationMode
             && (c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion);
+        // 個別のサジェストソース可否も保持し、Session 側で履歴/辞書を選択的に出す。
+        _handler.Settings.UseHistorySuggest = c.UseHistorySuggest;
+        _handler.Settings.UseDictionarySuggest = c.UseDictionarySuggest;
+        _handler.Settings.UseRealtimeConversion = c.UseRealtimeConversion;
         _handler.Settings.SuggestionSize = (int)c.SuggestionsSize;
         _handler.Settings.IncognitoMode = c.IncognitoMode;
         _handler.Settings.SelectionShortcuts = ShortcutChars(c.SelectionShortcut);
@@ -114,6 +118,11 @@ public sealed class EngineServer
                 _engine.AddRomanRule(" ", " ");
                 _handler.Settings.SpaceForm = SpaceForm.Half;
                 break;
+            default:
+                // FUNDAMENTAL_INPUT_MODE 等(モード追従)。前回の全角/半角キャッシュが残ると
+                // InsertSpace が古い字形のままになるため、既定(半角)へ戻す。
+                _handler.Settings.SpaceForm = SpaceForm.Half;
+                break;
         }
 
         // ローマ字表/ルールが変わったので、idle な既存セッションの composer を作り直して
@@ -160,12 +169,15 @@ public sealed class EngineServer
         }
     }
 
-    // config の CharacterForm → Base の CharacterForm(LAST_FORM も対応)。
+    // config の CharacterForm → Base の CharacterForm(LAST_FORM / NO_CONVERSION も対応)。
     private static Mozc.Base.CharacterForm MapForm(Mozc.Config.Config.Types.CharacterForm f) => f switch
     {
         Mozc.Config.Config.Types.CharacterForm.HalfWidth => Mozc.Base.CharacterForm.HalfWidth,
         Mozc.Config.Config.Types.CharacterForm.FullWidth => Mozc.Base.CharacterForm.FullWidth,
         Mozc.Config.Config.Types.CharacterForm.LastForm => Mozc.Base.CharacterForm.LastForm,
+        // NO_CONVERSION は「変換しない」。既定の FullWidth に潰すと ASCII/数字/カナを
+        // そのままにしたいユーザー設定を壊すため明示的に NoConversion を返す。
+        Mozc.Config.Config.Types.CharacterForm.NoConversion => Mozc.Base.CharacterForm.NoConversion,
         _ => Mozc.Base.CharacterForm.FullWidth,
     };
 
@@ -260,8 +272,28 @@ public sealed class EngineServer
                 }
             default:
             {
+                // クライアントがリクエストに config を添付(MozcSessionClient.Preferences 経由の
+                // per-request 設定)していれば、キー処理前に適用する。incognito/keymap/
+                // サジェスト等の毎リクエスト設定が無視されないようにする。
+                if (input.ConfigBytes.Length != 0)
+                {
+                    try
+                    {
+                        SetConfig(Mozc.Config.Config.Parser.ParseFrom(input.ConfigBytes));
+                    }
+                    catch (Google.Protobuf.InvalidProtocolBufferException)
+                    {
+                        // 壊れた config は無視して通常処理を続ける。
+                    }
+                }
                 Output output = _handler.EvalCommand(input);
                 ApplyConverterCommand(output.ConverterCommand);
+                // LAST_FORM 学習: 確定文字列の字形を ConversionFormManager に記憶させ、
+                // 以降の変換/保存(character_form.db)へ反映する。
+                if (output.Result.Length != 0)
+                {
+                    ConversionFormManager.GuessAndSetCharacterForm(output.Result);
+                }
                 return output;
             }
         }

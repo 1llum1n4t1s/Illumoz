@@ -98,8 +98,11 @@ public sealed class Session
         {
             return global::System.Array.Empty<string>();
         }
-        // シークレットモードでは履歴由来の候補を出さない(プライバシー)。
-        return _converter.PredictMerged(limit, includeHistory: !_settings.IncognitoMode)
+        // シークレット/履歴無効では履歴由来を出さない。辞書/リアルタイム無効では辞書由来を出さない。
+        return _converter.PredictMerged(
+                limit,
+                includeHistory: _settings.UseHistorySuggest && !_settings.IncognitoMode,
+                includeDictionary: _settings.UseDictionarySuggest || _settings.UseRealtimeConversion)
             .ConvertAll(p => p.Value);
     }
 
@@ -134,8 +137,11 @@ public sealed class Session
         if (key != _suggestionCacheKey)
         {
             _suggestionCacheKey = key;
-            _suggestionCacheValue =
-                _converter.PredictMerged(1, includeHistory: !_settings.IncognitoMode).Count > 0;
+            _suggestionCacheValue = _converter.PredictMerged(
+                1,
+                includeHistory: _settings.UseHistorySuggest && !_settings.IncognitoMode,
+                includeDictionary: _settings.UseDictionarySuggest || _settings.UseRealtimeConversion)
+                .Count > 0;
         }
         return _suggestionCacheValue;
     }
@@ -172,17 +178,34 @@ public sealed class Session
             return new SessionResult { Preedit = string.Empty, Consumed = false };
         }
 
-        // 変換中に選択ショートカット(既定 "123456789" 等)の文字が来たら、
-        // 印字挿入の前に候補選択+確定として扱う(数字キーで候補 N を選べるように)。
-        if (_converter.CurrentState == SessionConverter.State.Conversion
-            && _settings.SelectionShortcuts.Length > 0
+        // 選択ショートカット(既定 "123456789" 等)が設定されていて、印字キーがその文字なら、
+        // 通常入力の前に候補確定として扱う(候補窓に出した shortcut を SEND_KEY 経路でも機能させる)。
+        if (_settings.SelectionShortcuts.Length > 0
             && key.Special == null && key.KeyCode is int sc && sc <= 0x7F
-            && !key.Modifiers.Contains(ModifierKey.Ctrl) && !key.Modifiers.Contains(ModifierKey.Alt)
-            && _converter.SelectByShortcut((char)sc, _settings.SelectionShortcuts))
+            && !key.Modifiers.Contains(ModifierKey.Ctrl) && !key.Modifiers.Contains(ModifierKey.Alt))
         {
-            string committed = _converter.Commit();
-            SnapshotAndClearTyped();
-            return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
+            int idx = _settings.SelectionShortcuts.IndexOf((char)sc);
+            if (idx >= 0)
+            {
+                // 変換中: 注目文節の候補 N を選んで確定。
+                if (_converter.CurrentState == SessionConverter.State.Conversion
+                    && _converter.SelectByShortcut((char)sc, _settings.SelectionShortcuts))
+                {
+                    string committed = _converter.Commit();
+                    SnapshotAndClearTyped();
+                    return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
+                }
+                // サジェスト表示中: サジェスト候補 N を直接確定。
+                if (HasActiveSuggestion())
+                {
+                    string? sug = _converter.CommitSuggestion(idx, includeHistory: !_settings.IncognitoMode);
+                    if (sug != null)
+                    {
+                        SnapshotAndClearTyped();
+                        return new SessionResult { Committed = sug, Preedit = "", Consumed = true };
+                    }
+                }
+            }
         }
 
         // command 未定義: 印字可能な文字なら入力として扱う。
@@ -293,6 +316,16 @@ public sealed class Session
                 SnapshotAndClearTyped();
                 return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
             }
+            case "CommitOnlyFirstSegment":
+                // 第一文節のみ確定は未実装(文節分割編集が前提)。変換中は全体確定として
+                // 消費し、キーがアプリへ抜けないようにする(単一文節では等価)。
+                if (_converter.CurrentState == SessionConverter.State.Conversion)
+                {
+                    string committed = _converter.Commit();
+                    SnapshotAndClearTyped();
+                    return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
+                }
+                return ConsumeNoOpWhile(_typed.Count > 0);
             case "Convert":
                 _converter.Convert();
                 return Current(true);
@@ -364,27 +397,47 @@ public sealed class Session
                 return InsertSpaceCommand(" ");
             case "InsertFullSpace":
                 return InsertSpaceCommand("　");
+            case "InsertAlternateSpace":
+                // 設定字形の逆(全角設定なら半角、半角設定なら全角)を挿入する。
+                return InsertSpaceCommand(_settings.SpaceForm == SpaceForm.Full ? " " : "　");
+            // KOTOERI プリセットは DisplayAs* 名で同じ表記変換を割り当てる(別名扱い)。
             case "ConvertToHiragana":
+            case "DisplayAsHiragana":
                 _converter.ConvertToTransliteration(c => c.GetHiragana());
                 return Current(true);
             case "ConvertToFullKatakana":
+            case "DisplayAsFullKatakana":
                 _converter.ConvertToTransliteration(c => c.GetFullKatakana());
                 return Current(true);
             case "ConvertToHalfKatakana":
+            case "DisplayAsHalfKatakana":
             case "ConvertToHalfWidth":
                 // 半角化(F8): かな読みは半角カタカナへ。
                 _converter.ConvertToTransliteration(c => c.GetHalfKatakana());
                 return Current(true);
             case "ConvertToFullAlphanumeric":
+            case "DisplayAsFullAlphanumeric":
                 _converter.ConvertToTransliteration(c => c.GetFullAscii());
                 return Current(true);
             case "ConvertToHalfAlphanumeric":
+            case "DisplayAsHalfAlphanumeric":
                 _converter.ConvertToTransliteration(c => c.GetHalfAscii());
                 return Current(true);
             case "PredictAndConvert":
-                // サジェスト表示中の Down/Ctrl+Down。予測を変換候補として開く。
+                // サジェスト表示中の Down/Ctrl+Down。表示中の予測(履歴/辞書の前方一致語)を
+                // 確定する。素の prefix を変換し直すと表示されていた候補を失うため。
                 if (_converter.CurrentState == SessionConverter.State.Composition)
                 {
+                    if (HasActiveSuggestion())
+                    {
+                        string? sug = _converter.CommitSuggestion(
+                            0, includeHistory: !_settings.IncognitoMode);
+                        if (sug != null)
+                        {
+                            SnapshotAndClearTyped();
+                            return new SessionResult { Committed = sug, Preedit = "", Consumed = true };
+                        }
+                    }
                     _converter.Convert();
                 }
                 else

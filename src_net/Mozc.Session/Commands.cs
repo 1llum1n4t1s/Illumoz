@@ -32,6 +32,10 @@ public sealed class SessionSettings
     public SpaceForm SpaceForm = SpaceForm.Half;
     // 候補選択ショートカット文字列(config.selection_shortcut。"123456789"/"asdfghjkl"/空)。
     public string SelectionShortcuts = string.Empty;
+    // 個別のサジェストソース可否(history/dictionary/realtime)。Session が選択的に絞る。
+    public bool UseHistorySuggest = true;
+    public bool UseDictionarySuggest = true;
+    public bool UseRealtimeConversion = true;
 }
 
 // スペース字形(InsertSpace コマンド用)。Default は半角扱い。
