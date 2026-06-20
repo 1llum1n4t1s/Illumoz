@@ -45,6 +45,8 @@
             <File Id="KeymapKotoeri" Source="$(var.PublishDir)\keymap\kotoeri.tsv" />
             <File Id="KeymapMobile" Source="$(var.PublishDir)\keymap\mobile.tsv" />
             <File Id="KeymapChromeos" Source="$(var.PublishDir)\keymap\chromeos.tsv" />
+            <!-- overlay_keymaps(Henkan/Muhenkan→IME ON/OFF)。ApplyOverlayKeymaps が解決する。 -->
+            <File Id="KeymapOverlayHenkanMuhenkan" Source="$(var.PublishDir)\keymap\overlay_henkan_muhenkan_to_ime_on_off.tsv" />
           </Component>
         </Directory>
       </Directory>

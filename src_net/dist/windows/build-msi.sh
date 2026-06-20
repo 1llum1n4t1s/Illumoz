@@ -27,6 +27,9 @@ for f in ms-ime atok kotoeri mobile chromeos; do
   need "../../../src/data/keymap/$f.tsv"
   cp "../../../src/data/keymap/$f.tsv" "$PUBLISH/keymap/$f.tsv"
 done
+# overlay_keymaps(Henkan/Muhenkan→IME ON/OFF)も stage する(Mozc.wxs の KeymapDir が参照)。
+need "../../../src/data/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv"
+cp "../../../src/data/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv" "$PUBLISH/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv"
 # Mozc.wxs の RegisterTip カスタムアクションは Util 拡張(Wix4UtilCA_X64)を使うため、
 # ビルド前に拡張を取得し -ext で参照する(欠けると "unresolved reference" でビルド失敗)。
 wix extension add -g WixToolset.Util.wixext/5.0.2

@@ -31,6 +31,10 @@ mkdir -p "$STAGE/usr/lib/mozc/keymap"
 for f in ms-ime atok kotoeri mobile chromeos; do
   cp "../../../src/data/keymap/$f.tsv" "$STAGE/usr/lib/mozc/keymap/$f.tsv"
 done
+# overlay_keymaps(Henkan/Muhenkan→IME ON/OFF)は ApplyOverlayKeymaps が <datadir>/keymap から
+# 解決する。同梱しないとクリーン環境でオーバーレイ有効化が黙って無視される。
+need ../../../src/data/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv
+cp ../../../src/data/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv "$STAGE/usr/lib/mozc/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv"
 # 設定 GUI(mozc.xml の <setup> が /usr/lib/mozc/mozc_tool を参照する)。同梱しないと
 # IBus の「設定」から存在しないファイルを起動してしまう。
 cp ../../Mozc.Gui.App/bin/Release/net10.0/linux-x64/publish/Mozc.Gui.App "$STAGE/usr/lib/mozc/mozc_tool"

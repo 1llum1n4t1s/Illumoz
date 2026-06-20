@@ -36,5 +36,8 @@ for f in ms-ime atok kotoeri mobile chromeos; do
   need "../../../src/data/keymap/$f.tsv"
   cp "../../../src/data/keymap/$f.tsv" "$APP/Contents/Resources/keymap/$f.tsv"
 done
+# overlay_keymaps(Henkan/Muhenkan→IME ON/OFF)も同梱(ApplyOverlayKeymaps が解決)。
+need "../../../src/data/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv"
+cp "../../../src/data/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv" "$APP/Contents/Resources/keymap/overlay_henkan_muhenkan_to_ime_on_off.tsv"
 pkgbuild --root "$APP" --identifier org.mozc.inputmethod.Mozc \
   --version 1.0.0 --install-location "/Library/Input Methods/$APP" Mozc.pkg
