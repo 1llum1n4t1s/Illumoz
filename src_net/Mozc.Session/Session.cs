@@ -185,6 +185,9 @@ public sealed class Session
     {
         if (_suppressSuggestion
             || !_settings.SuggestionEnabled
+            // suggestions_size=0 では候補窓に 1 件も出ない。予測が存在しても Suggestion 状態に
+            // しない(さもないと Down/Shift Enter 等が空の候補窓のまま先頭の隠れ予測を確定する)。
+            || _settings.SuggestionSize <= 0
             || _converter.CurrentState != SessionConverter.State.Composition
             || _typed.Count == 0)
         {
@@ -353,10 +356,15 @@ public sealed class Session
     {
         switch (type)
         {
-            case SessionCommandType.SelectCandidate:
+            // HIGHLIGHT_CANDIDATE は注目だけ移して候補窓を閉じない(ドラッグ中などのフォーカス移動)。
             case SessionCommandType.HighlightCandidate:
                 _converter.SelectCandidate(id);
                 return Current(true);
+            // SELECT_CANDIDATE は候補窓を閉じる=選択候補を確定する(commands.proto: SELECT は
+            // ウィンドウを閉じ、HIGHLIGHT は閉じない)。マウス/タッチのクリック選択がこの経路。
+            // SUBMIT_CANDIDATE と同じ確定処理へ合流する(以前は HIGHLIGHT と同じく選択だけして
+            // 確定しなかったため、クリックしても preedit に残り何も commit されなかった)。
+            case SessionCommandType.SelectCandidate:
             case SessionCommandType.SubmitCandidate:
                 // 入力中(サジェスト)はサジェスト候補を直接確定する。
                 if (_converter.CurrentState == SessionConverter.State.Composition)

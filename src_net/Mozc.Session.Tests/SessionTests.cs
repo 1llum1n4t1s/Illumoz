@@ -385,6 +385,21 @@ public class SessionTests
     }
 
     [Fact]
+    public void ZeroSuggestionSize_DoesNotCommitHiddenSuggestion()
+    {
+        var km = new KeyMap();
+        km.LoadFromString("Suggestion\tShift Enter\tCommitFirstSuggestion");
+        // suggestions_size=0: 候補窓に 1 件も出ないので Suggestion 状態にしない。
+        var settings = new SessionSettings { SuggestionSize = 0 };
+        var s = new Session(Engine(), km, rewriter: null,
+            history: new Prediction.UserHistoryPredictor(), settings: settings);
+        foreach (char c in "watashi") { s.SendKey(c.ToString()); }
+        Assert.Empty(s.GetSuggestions()); // 表示は 0 件。
+        SessionResult r = s.SendKey(new KeyEvent { Special = SpecialKey.Enter, Modifiers = { ModifierKey.Shift } });
+        Assert.Equal("", r.Committed); // 隠れた予測を確定しない。
+    }
+
+    [Fact]
     public void InsertTextDirect_DuringComposition_KeepsLiteral_NoRomaji()
     {
         // preedit 中の DIRECT_INPUT は AS_IS と同じ扱い。ローマ字表変換せず literal を合成する。
