@@ -31,6 +31,10 @@
         <Component Id="MozcKeymap" Guid="*">
           <File Id="MozcKeymapFile" Source="$(var.PublishDir)\keymap.tsv" KeyPath="yes" />
         </Component>
+        <!-- preedit_method=KANA 用のかな配列。同梱しないとかな入力モードがローマ字のままになる。 -->
+        <Component Id="MozcKana" Guid="*">
+          <File Id="MozcKanaFile" Source="$(var.PublishDir)\kana.tsv" KeyPath="yes" />
+        </Component>
         <!-- SET_CONFIG の session_keymap(ATOK/KOTOERI/MOBILE/CHROMEOS/MSIME)プリセットは
              <datadir>\keymap\<preset>.tsv から解決される(KeymapPresets.Load)。プリセット tsv
              一式を同梱しないと、既定以外のキーマップへ切替できない(Linux deb / mac pkg と同じ)。 -->
@@ -53,6 +57,7 @@
       <ComponentRef Id="MozcData" />
       <ComponentRef Id="MozcRoman" />
       <ComponentRef Id="MozcKeymap" />
+      <ComponentRef Id="MozcKana" />
       <ComponentRef Id="MozcKeymapPresets" />
     </Feature>
 

@@ -13,9 +13,12 @@ PUBLISH="${1:-publish}"
 MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
 need "$MOZC_DATA"
 need ../../../src/data/preedit/romanji-hiragana.tsv
+need ../../../src/data/preedit/kana.tsv
 need ../../../src/data/keymap/ms-ime.tsv
 cp "$MOZC_DATA" "$PUBLISH/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$PUBLISH/roman.tsv"
+# preedit_method=KANA 用のかな配列(同梱しないとかな入力がローマ字のままになる)。
+cp ../../../src/data/preedit/kana.tsv "$PUBLISH/kana.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$PUBLISH/keymap.tsv"
 # session_keymap プリセット(ms-ime/atok/kotoeri/mobile/chromeos)を keymap\ サブディレクトリへ
 # stage する(Mozc.wxs の KeymapDir が参照。同梱しないと既定以外へ切替できない)。

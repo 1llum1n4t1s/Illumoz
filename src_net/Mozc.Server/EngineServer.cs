@@ -16,6 +16,10 @@ public sealed class EngineServer
     private readonly string? _dataDir;
     // 構築時のキーマップ。custom/preset が無い config に戻ったとき復元する基準。
     private readonly KeyMap _initialKeyMap;
+    // かな入力配列(kana.tsv)の内容。preedit_method=KANA のとき composer へ読み込む。
+    // dataDir から一度だけ解決してキャッシュする(無ければ null=かな配列なし)。
+    private string? _kanaTableTsv;
+    private bool _kanaTableResolved;
 
     public EngineServer(MozcEngine engine, KeyMap keyMap, IRewriter? rewriter = null, string? dataDir = null)
     {
@@ -93,11 +97,17 @@ public sealed class EngineServer
             _handler.SetKeyMap(_initialKeyMap);
         }
 
-        // カスタムローマ字表(bytes=TSV)が設定されていれば composer に反映する。
-        // 空になった(カスタム解除)なら既定のローマ字表へ戻す。
+        // 入力表(composer)を選ぶ。優先度: カスタムローマ字表 > かな入力(preedit_method=KANA)
+        // > 既定ローマ字表。preedit_method=KANA はかな配列(kana.tsv)を読み込む。これをしないと
+        // かな入力モードを選んでもローマ字変換のままになる(C++ は kana テーブルへ切替える)。
         if (c.CustomRomanTable.Length > 0)
         {
             _engine.SetRomanTable(c.CustomRomanTable.ToStringUtf8());
+        }
+        else if (c.PreeditMethod == Mozc.Config.Config.Types.PreeditMethod.Kana
+            && GetKanaTable() is string kana)
+        {
+            _engine.SetRomanTable(kana);
         }
         else
         {
@@ -197,6 +207,34 @@ public sealed class EngineServer
     };
 
     // CommandRewriter にモード状態を流し込む(pipeline 内を探索)。
+    // かな配列(kana.tsv)の内容を dataDir から解決してキャッシュする(無ければ null)。
+    // 探索先: <dataDir>/kana.tsv(パッケージ同梱の平置き)→ <dataDir>/preedit/kana.tsv(src/data 構成)。
+    private string? GetKanaTable()
+    {
+        if (_kanaTableResolved)
+        {
+            return _kanaTableTsv;
+        }
+        _kanaTableResolved = true;
+        if (_dataDir != null)
+        {
+            string[] candidates =
+            {
+                global::System.IO.Path.Combine(_dataDir, "kana.tsv"),
+                global::System.IO.Path.Combine(_dataDir, "preedit", "kana.tsv"),
+            };
+            foreach (string path in candidates)
+            {
+                if (global::System.IO.File.Exists(path))
+                {
+                    _kanaTableTsv = global::System.IO.File.ReadAllText(path);
+                    break;
+                }
+            }
+        }
+        return _kanaTableTsv;
+    }
+
     private void ApplyConfigToCommandRewriter(Mozc.Config.Config c)
     {
         if (_handler.Rewriter is not RewriterMerger merger)
@@ -230,6 +268,9 @@ public sealed class EngineServer
                 // 絵文字は proto 既定が false。設定で明示有効化したときだけ候補を出す。
                 case EmojiRewriter emoji:
                     emoji.Enabled = c.UseEmojiConversion;
+                    break;
+                case SingleKanjiRewriter sk:
+                    sk.Enabled = c.UseSingleKanjiConversion;
                     break;
             }
         }

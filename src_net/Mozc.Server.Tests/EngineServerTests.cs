@@ -92,6 +92,39 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void SetConfig_KanaPreeditMethod_LoadsKanaTable()
+    {
+        string dataDir = DataDir();
+        Assert.True(dataDir.Length > 0);
+        var engine = new MozcEngine(new DataSetBuilder().Build(new DataSetBuilder.Sources
+        {
+            DictionaryLines = new[] { "わたし\t1\t1\t100\t私" },
+            ConnectionLines = new[] { "2", "0", "0", "0", "0" },
+            IdDefLines = new[] { "0 BOS/EOS,*,*,*,*,*,*", "1 名詞,一般,*,*,*,*,*" },
+            PosMatcherRuleLines = PosRules(),
+        }), RomanTable);
+        var km = new KeyMap();
+        km.LoadFromString("Composition\tSpace\tConvertNext");
+        var server = new EngineServer(engine, km, dataDir: dataDir);
+
+        // 既定(ROMAN): w a → わ
+        ulong a = server.Handler.EvalCommand(new Input { Type = CommandType.CreateSession }).SessionId;
+        server.Handler.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = a, KeyString = "w" });
+        Output ra = server.Handler.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = a, KeyString = "a" });
+        Assert.Equal("わ", ra.Preedit);
+
+        // preedit_method=KANA へ切替 → 新セッションの composer はかな配列を使う。
+        // かな配列は物理かなキー前提で ascii の w/a を わ へ変換しない(=ローマ字のままにならない)。
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.PreeditMethod = Mozc.Config.Config.Types.PreeditMethod.Kana;
+        server.SetConfig(c);
+        ulong b = server.Handler.EvalCommand(new Input { Type = CommandType.CreateSession }).SessionId;
+        server.Handler.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = b, KeyString = "w" });
+        Output rb = server.Handler.EvalCommand(new Input { Type = CommandType.SendKey, SessionId = b, KeyString = "a" });
+        Assert.NotEqual("わ", rb.Preedit);
+    }
+
+    [Fact]
     public void LastFormHistory_SurvivesUnrelatedConfigChange()
     {
         EngineServer server = Server();

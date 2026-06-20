@@ -21,9 +21,12 @@ cp ../../Mozc.Server.Host/bin/Release/net10.0/osx-arm64/publish/Mozc.Server.Host
 MOZC_DATA="${MOZC_DATA:-../../Mozc.Server.Host/mozc.data}"
 need "$MOZC_DATA"
 need ../../../src/data/preedit/romanji-hiragana.tsv
+need ../../../src/data/preedit/kana.tsv
 need ../../../src/data/keymap/ms-ime.tsv
 cp "$MOZC_DATA" "$APP/Contents/Resources/mozc.data"
 cp ../../../src/data/preedit/romanji-hiragana.tsv "$APP/Contents/Resources/roman.tsv"
+# preedit_method=KANA 用のかな配列(同梱しないとかな入力がローマ字のままになる)。
+cp ../../../src/data/preedit/kana.tsv "$APP/Contents/Resources/kana.tsv"
 cp ../../../src/data/keymap/ms-ime.tsv "$APP/Contents/Resources/keymap.tsv"
 # SET_CONFIG の session_keymap(ATOK/KOTOERI/MOBILE/CHROMEOS/MSIME)プリセットは
 # <datadir>/keymap/<preset>.tsv から解決される(KeymapPresets.Load)。プリセット tsv 一式を

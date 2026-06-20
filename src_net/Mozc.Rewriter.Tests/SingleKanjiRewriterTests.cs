@@ -43,4 +43,15 @@ public class SingleKanjiRewriterTests
         var rewriter = new SingleKanjiRewriter(new Dictionary<string, string[]>());
         Assert.False(rewriter.Rewrite(OneSegment("あ", "あ")));
     }
+
+    [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_single_kanji_conversion=false 相当: Enabled=false なら単漢字候補を出さない。
+        var table = new Dictionary<string, string[]> { ["あ"] = new[] { "亜", "阿" } };
+        var rewriter = new SingleKanjiRewriter(table) { Enabled = false };
+        Segments segments = OneSegment("あ", "あ");
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, segments.ConversionSegment(0).CandidatesSize);
+    }
 }

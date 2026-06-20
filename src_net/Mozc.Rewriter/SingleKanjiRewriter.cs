@@ -16,8 +16,15 @@ public sealed class SingleKanjiRewriter : IRewriter
     public static IReadOnlyDictionary<string, string[]> LoadTable(string tsv)
         => Base.SymbolDataParser.ParseSingleKanji(tsv);
 
+    // config.use_single_kanji_conversion=false で単漢字候補を出さない(C++ 相当)。
+    public bool Enabled { get; set; } = true;
+
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         bool modified = false;
         for (int i = 0; i < segments.ConversionSegmentsSize; i++)
         {
