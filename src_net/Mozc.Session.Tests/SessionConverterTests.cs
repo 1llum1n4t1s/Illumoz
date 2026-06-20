@@ -197,6 +197,27 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void SuppressionWord_RemovesSystemDictionaryCandidate()
+    {
+        // システム辞書に存在する「私」を抑制単語に登録すると、変換候補からも除去される。
+        // 同読みの通常ユーザー語「渡し」は残り、文節が空にならないこと。
+        var userDict = new Mozc.Dictionary.UserDictionaryStorage();
+        userDict.Add(new Mozc.Dictionary.UserDictionaryStorage.UserEntry("わたし", "渡し", "名詞", ""));
+        userDict.Add(new Mozc.Dictionary.UserDictionaryStorage.UserEntry(
+            "わたし", "私",
+            Mozc.Dictionary.UserDictionaryStorage.SuppressionWordPos, ""));
+        var sc = new SessionConverter(Engine(), rewriter: null, history: null, userDict: userDict);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+        var cands = sc.GetCandidates();
+        Assert.DoesNotContain("私", cands); // システム辞書由来でも抑制される
+        Assert.Contains("渡し", cands);      // 同読みの通常語は残る
+    }
+
+    [Fact]
     public void SelectByShortcut_SelectsCandidate()
     {
         var sc = new SessionConverter(Engine());

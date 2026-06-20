@@ -148,6 +148,28 @@ public sealed class SessionConverter
         }
     }
 
+    // 抑制単語(Pos=抑制単語)の (読み, 語) に一致する候補を全文節から除去する。
+    // wave-13 ではユーザー辞書由来候補の挿入だけを抑止していたが、システム辞書由来の同一語は
+    // そのまま残っていた。ここで実際の変換候補列から取り除き、登録した語を確実に出さない。
+    private void SuppressFilteredCandidates(Segments segments)
+    {
+        if (_userDict == null || !_userDict.HasSuppressedEntries)
+        {
+            return;
+        }
+        for (int i = 0; i < segments.ConversionSegmentsSize; i++)
+        {
+            Segment seg = segments.ConversionSegment(i);
+            for (int j = seg.CandidatesSize - 1; j >= 0; j--)
+            {
+                if (_userDict.IsSuppressed(seg.Key, seg.Get(j).Value))
+                {
+                    seg.EraseCandidate(j);
+                }
+            }
+        }
+    }
+
     // スペース等で変換開始。
     public bool Convert()
     {
@@ -159,13 +181,24 @@ public sealed class SessionConverter
         _segments = _engine.Convert(query);
         _rewriter?.Rewrite(_segments);
         InsertUserDictionaryCandidates(_segments);
+        // 抑制単語(Pos=抑制単語)に一致する候補をシステム辞書由来も含めて除去する。
+        SuppressFilteredCandidates(_segments);
         int n = _segments.ConversionSegmentsSize;
-        // Viterbi がパスを構築できないと文節は 1 つでも候補 0 件のことがある。候補が
-        // 1 件も無いまま Conversion に入ると GetPreedit が候補 0 を引いて壊れるため弾く。
-        if (n == 0 || _segments.ConversionSegment(0).CandidatesSize == 0)
+        // Viterbi がパスを構築できないと文節は 1 つでも候補 0 件のことがある。また抑制で
+        // 候補が全消しになることもある。いずれかの文節が候補 0 件のまま Conversion に入ると
+        // GetPreedit が空候補を引いて壊れるため弾く(全文節を検査する)。
+        if (n == 0)
         {
             _segments = null;
             return false;
+        }
+        for (int i = 0; i < n; i++)
+        {
+            if (_segments.ConversionSegment(i).CandidatesSize == 0)
+            {
+                _segments = null;
+                return false;
+            }
         }
         _selected = new int[n];
         _focusedSegment = 0;

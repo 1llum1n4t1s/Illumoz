@@ -106,6 +106,36 @@ public sealed class UserDictionaryStorage
         return result;
     }
 
+    // (読み, 語)が抑制単語(Pos=抑制単語)として登録されているか。一致する変換候補は
+    // ユーザー辞書由来かシステム辞書由来かを問わず変換結果から除去すべき(C++ SuppressionDictionary 相当)。
+    public bool IsSuppressed(string reading, string word)
+    {
+        foreach (UserEntry e in _entries)
+        {
+            if (e.Pos == SuppressionWordPos && e.Reading == reading && e.Word == word)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // この辞書に抑制単語が 1 件でも登録されているか(無ければ抑制フィルタ自体をスキップ)。
+    public bool HasSuppressedEntries
+    {
+        get
+        {
+            foreach (UserEntry e in _entries)
+            {
+                if (e.Pos == SuppressionWordPos)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     // 完全一致(変換用)。
     public List<UserEntry> LookupExact(string reading)
     {

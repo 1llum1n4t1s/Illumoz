@@ -482,9 +482,10 @@ public sealed class Session
             SnapshotAndClearTyped();
             return new SessionResult { Committed = committed + text, Preedit = "", Consumed = true };
         }
-        // 入力中(preedit): AS_IS と同じ。生テキストとして合成する(従来 InsertText)。
-        // transliteration を完全に止める as-is 合成は composer 側対応が要る follow-up。
-        return InsertText(text);
+        // 入力中(preedit): C++ 仕様で DIRECT_INPUT は AS_IS と同じ扱い。ローマ字表変換を止めて
+        // literal をそのまま合成する(InsertTextAsIs。'n' やカスタムローマ字規則に当たる文字を
+        // 変換/pending 化させない)。
+        return InsertTextAsIs(text);
     }
 
     // TEST_SEND_KEY の DIRECT_INPUT 判定(セッション状態は変えない)。C++ session.cc:459-466 相当:

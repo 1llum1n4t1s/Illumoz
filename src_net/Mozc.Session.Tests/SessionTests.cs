@@ -347,6 +347,20 @@ public class SessionTests
     }
 
     [Fact]
+    public void InsertTextDirect_DuringComposition_KeepsLiteral_NoRomaji()
+    {
+        // preedit 中の DIRECT_INPUT は AS_IS と同じ扱い。ローマ字表変換せず literal を合成する。
+        Session s = NewSession();
+        s.SendKey("w");
+        s.SendKey("a"); // preedit わ
+        Assert.Equal("わ", s.GetPreedit());
+        SessionResult r = s.InsertTextDirect("e", keyCode: null);
+        Assert.True(r.Consumed);
+        // 'e' はローマ字規則 e→え を適用せず literal で付く(わe であって わえ ではない)。
+        Assert.Equal("わe", s.GetPreedit());
+    }
+
+    [Fact]
     public void PartialCommit_ThenBackspace_DoesNotReintroduceCommittedHead()
     {
         Session s = NewSession();
