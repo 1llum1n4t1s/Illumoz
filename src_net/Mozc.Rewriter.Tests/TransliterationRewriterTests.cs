@@ -41,4 +41,21 @@ public class TransliterationRewriterTests
         seg.AddCandidate().Value = "x";
         Assert.False(rewriter.Rewrite(segments));
     }
+
+    [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_t13n_conversion=false 相当: Enabled=false なら T13n 候補を一切付与しない。
+        var rewriter = new TransliterationRewriter { Enabled = false };
+        var segments = new Segments();
+        Segment seg = segments.AddSegment();
+        seg.SetKey("あいう");
+        Candidate c = seg.AddCandidate();
+        c.Key = "あいう";
+        c.Value = "愛烏";
+        c.ContentKey = "あいう";
+        c.ContentValue = "愛烏";
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, seg.CandidatesSize);
+    }
 }

@@ -15,10 +15,30 @@ public static class KeymapPresets
         _ => null, // CUSTOM/NONE 等はプリセット無し(カスタムテーブルを使う)。
     };
 
+    // config.overlay_keymaps の SessionKeymap(OriginalName)→ overlay TSV ファイル名。
+    // base プリセットの上に追加で重ねるキー割当(Henkan/Muhenkan で IME ON/OFF トグル等)。
+    public static string? OverlayFileNameFor(string overlayKeymapName) => overlayKeymapName switch
+    {
+        "OVERLAY_HENKAN_MUHENKAN_TO_IME_ON_OFF" => "overlay_henkan_muhenkan_to_ime_on_off.tsv",
+        _ => null, // OVERLAY_FOR_TEST 等は対応 TSV 無し。
+    };
+
     // dataDir/keymap/<file> を解決(存在すればフルパス、無ければ null)。
     public static string? ResolvePath(string dataDir, string sessionKeymapName)
     {
         string? file = FileNameFor(sessionKeymapName);
+        if (file == null)
+        {
+            return null;
+        }
+        string path = global::System.IO.Path.Combine(dataDir, "keymap", file);
+        return global::System.IO.File.Exists(path) ? path : null;
+    }
+
+    // overlay TSV のフルパスを解決(存在すれば返す)。
+    public static string? ResolveOverlayPath(string dataDir, string overlayKeymapName)
+    {
+        string? file = OverlayFileNameFor(overlayKeymapName);
         if (file == null)
         {
             return null;

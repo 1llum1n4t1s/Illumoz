@@ -49,6 +49,19 @@ public sealed class KeyMap
         }
     }
 
+    // 既存マップを複製する。共有インスタンス(構築時 keymap)へ overlay を重ねると
+    // 後続セッションへ汚染が残るため、overlay 適用前に複製して使う。
+    public KeyMap Clone()
+    {
+        var copy = new KeyMap();
+        foreach ((string status, Dictionary<string, string> byKey) in _map)
+        {
+            copy._map[status] = new Dictionary<string, string>(byKey);
+            copy.EntryCount += byKey.Count;
+        }
+        return copy;
+    }
+
     // 指定 status・KeyEvent に対応するコマンド名(無ければ null)。
     public string? GetCommand(string status, KeyEvent keyEvent)
     {

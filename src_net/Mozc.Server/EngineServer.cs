@@ -74,28 +74,31 @@ public sealed class EngineServer
 
         // キーマップを反映する。custom_keymap_table(または session_keymap=CUSTOM)が
         // あれば最優先で適用し、無ければ session_keymap のプリセットを src/data から読む。
+        KeyMap baseKeyMap;
         if (c.CustomKeymapTable.Length > 0)
         {
             var km = new KeyMap();
             km.LoadFromString(c.CustomKeymapTable.ToStringUtf8());
             // 不正/空のカスタム表なら構築時キーマップへ戻す(直前のカスタムが残らないように)。
-            _handler.SetKeyMap(km.EntryCount > 0 ? km : _initialKeyMap);
+            baseKeyMap = km.EntryCount > 0 ? km : _initialKeyMap;
         }
         else if (_dataDir != null
             && c.SessionKeymap != Mozc.Config.Config.Types.SessionKeymap.Custom
             && c.SessionKeymap != Mozc.Config.Config.Types.SessionKeymap.None)
         {
             string name = KeymapName(c.SessionKeymap);
-            KeyMap? km = KeymapPresets.Load(_dataDir, name);
             // プリセットが解決できなければ構築時キーマップへフォールバック。
-            _handler.SetKeyMap(km ?? _initialKeyMap);
+            baseKeyMap = KeymapPresets.Load(_dataDir, name) ?? _initialKeyMap;
         }
         else
         {
             // custom 表もプリセットも無い config → 構築時キーマップを復元する。
             // (per-request の一時カスタムキーマップが後続セッションへ残るのを防ぐ)
-            _handler.SetKeyMap(_initialKeyMap);
+            baseKeyMap = _initialKeyMap;
         }
+        // config.overlay_keymaps を base の上に重ねる(Henkan/Muhenkan→IME ON/OFF 等)。
+        // overlay を読まないと、ユーザーが有効化したオーバーレイが無視され素のプリセット挙動になる。
+        _handler.SetKeyMap(ApplyOverlayKeymaps(baseKeyMap, c));
 
         // 入力表(composer)を選ぶ。優先度: カスタムローマ字表 > かな入力(preedit_method=KANA)
         // > 既定ローマ字表。preedit_method=KANA はかな配列(kana.tsv)を読み込む。これをしないと
@@ -272,6 +275,9 @@ public sealed class EngineServer
                 case SingleKanjiRewriter sk:
                     sk.Enabled = c.UseSingleKanjiConversion;
                     break;
+                case TransliterationRewriter t13n:
+                    t13n.Enabled = c.UseT13NConversion;
+                    break;
             }
         }
     }
@@ -295,6 +301,38 @@ public sealed class EngineServer
     };
 
     // protobuf enum → C++ OriginalName 文字列(KeymapPresets が解決する)。
+    // base キーマップに config.overlay_keymaps の各オーバーレイ TSV を重ねた KeyMap を返す。
+    // オーバーレイが無ければ base をそのまま返す。共有インスタンス(_initialKeyMap)を汚さないよう
+    // 重ねる前に複製する。同一シグネチャの行は後から読むオーバーレイが上書きする。
+    private KeyMap ApplyOverlayKeymaps(KeyMap baseKeyMap, Mozc.Config.Config c)
+    {
+        if (_dataDir == null || c.OverlayKeymaps.Count == 0)
+        {
+            return baseKeyMap;
+        }
+        KeyMap? merged = null;
+        foreach (Mozc.Config.Config.Types.SessionKeymap ov in c.OverlayKeymaps)
+        {
+            string name = OverlayName(ov);
+            string? path = KeymapPresets.ResolveOverlayPath(_dataDir, name);
+            if (path == null)
+            {
+                continue; // 対応 TSV の無いオーバーレイは無視。
+            }
+            merged ??= baseKeyMap.Clone();
+            merged.LoadFromFile(path);
+        }
+        return merged ?? baseKeyMap;
+    }
+
+    // SessionKeymap(オーバーレイ)→ TSV 解決用の OriginalName。
+    private static string OverlayName(Mozc.Config.Config.Types.SessionKeymap k) => k switch
+    {
+        Mozc.Config.Config.Types.SessionKeymap.OverlayHenkanMuhenkanToImeOnOff
+            => "OVERLAY_HENKAN_MUHENKAN_TO_IME_ON_OFF",
+        _ => string.Empty,
+    };
+
     private static string KeymapName(Mozc.Config.Config.Types.SessionKeymap k) => k switch
     {
         Mozc.Config.Config.Types.SessionKeymap.Msime => "MSIME",

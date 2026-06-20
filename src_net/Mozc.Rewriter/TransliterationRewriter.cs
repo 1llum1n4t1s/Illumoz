@@ -7,8 +7,16 @@ namespace Mozc.Rewriter;
 // カタカナ・半角カタカナ・全角/半角ローマ字の T13n 候補を生成し挿入する。
 public sealed class TransliterationRewriter : IRewriter
 {
+    // config.use_t13n_conversion で切り替える。false ならカタカナ/半角/全角ローマ字の
+    // T13n 候補を一切付与しない(EngineServer.ApplyConfigToCommandRewriter が配線)。
+    public bool Enabled { get; set; } = true;
+
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         bool modified = false;
         for (int i = 0; i < segments.ConversionSegmentsSize; i++)
         {
