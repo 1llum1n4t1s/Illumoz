@@ -50,6 +50,7 @@ public enum SessionCommandType
     SelectCandidate,
     HighlightCandidate,
     SubmitCandidate,
+    Undo,
 }
 
 public sealed class Input
@@ -66,6 +67,9 @@ public sealed class Input
     // このリクエストでサジェストを抑止するか(commands.proto context.suppress_suggestion /
     // request_suggestion=false。パスワード欄等でクライアントが中間サジェストを止めたいとき)。
     public bool SuppressSuggestion { get; init; }
+    // パスワード入力欄(context.input_field_type=PASSWORD)か。サジェスト抑止に加え、
+    // 確定テキストを共有ユーザー履歴へ学習させない(後続候補窓へ秘密が漏れるのを防ぐ)。
+    public bool IsPasswordField { get; init; }
 }
 
 public sealed class Output

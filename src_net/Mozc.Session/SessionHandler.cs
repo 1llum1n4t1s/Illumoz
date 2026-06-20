@@ -154,6 +154,7 @@ public sealed class SessionHandler
         // このリクエストのサジェスト抑止を session へ伝える(出力から消すだけでなく、ディスパッチ前の
         // keymap 判定でも非表示にして未表示候補の誤確定を防ぐ)。
         session.SetSuggestionSuppressed(input.SuppressSuggestion);
+        session.SetPrivateMode(input.IsPasswordField);
         SessionResult r = session.SendCommand(input.SessionCommand, input.CommandId);
         return ToOutput(input.SessionId, session, r, input.SuppressSuggestion);
     }
@@ -169,6 +170,7 @@ public sealed class SessionHandler
         // このリクエストのサジェスト抑止を session へ伝える(出力から消すだけでなく、ディスパッチ前の
         // keymap 判定でも非表示にして未表示候補の誤確定を防ぐ)。
         session.SetSuggestionSuppressed(input.SuppressSuggestion);
+        session.SetPrivateMode(input.IsPasswordField);
         // SEND_KEY と同じ判定で、key_string 付きの生テキスト(かな/ソフトキーボード/TEXT_INPUT)は
         // テキスト挿入経路の消費可否を返す。さもないと Key だけ見て横取り不可と誤判定し、
         // クライアントがテキストを IME を素通しさせてしまう。
@@ -213,6 +215,7 @@ public sealed class SessionHandler
         // このリクエストのサジェスト抑止を session へ伝える(出力から消すだけでなく、ディスパッチ前の
         // keymap 判定でも非表示にして未表示候補の誤確定を防ぐ)。
         session.SetSuggestionSuppressed(input.SuppressSuggestion);
+        session.SetPrivateMode(input.IsPasswordField);
         // key_string が付いた直接入力(かな入力/ソフトキーボード/TEXT_INPUT)は、特殊キーや
         // 修飾キーを伴わない限り key_string をそのまま「生テキスト」として composer へ入れる。
         // key_code は ASCII フォールバックに過ぎず、優先すると "ぱ" 等の合成文字を取りこぼすため。

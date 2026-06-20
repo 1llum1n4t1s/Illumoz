@@ -273,6 +273,46 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void SegmentFocusLastAndFirst_JumpToEnds()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashinonamae")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        sc.Convert();
+        Assert.True(sc.ConversionSegmentsSize >= 2); // 多文節であること。
+
+        // 最終文節へ一気に移動(End/Ctrl+Right 相当)。1 段移動ではなく末尾に届く。
+        sc.SegmentFocusLast();
+        Assert.Equal(sc.ConversionSegmentsSize - 1, sc.FocusedSegment);
+
+        // 先頭文節へ一気に移動(Home/Ctrl+Left 相当)。
+        sc.SegmentFocusFirst();
+        Assert.Equal(0, sc.FocusedSegment);
+    }
+
+    [Fact]
+    public void LearningSuppressed_DoesNotLearnHistory()
+    {
+        // パスワード欄等(LearningSuppressed=true)では確定しても履歴へ学習しない。
+        var history = new Prediction.UserHistoryPredictor();
+        var sc = new SessionConverter(Engine(), rewriter: null, history: history) { LearningSuppressed = true };
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+        sc.Commit(); // 確定するが学習はしない。
+
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.DoesNotContain(sc.PredictFromHistory(), p => p.Value == "私");
+    }
+
+    [Fact]
     public void CommitHeadToFocusedSegments_CommitsHeadAndKeepsRest()
     {
         var sc = new SessionConverter(Engine());

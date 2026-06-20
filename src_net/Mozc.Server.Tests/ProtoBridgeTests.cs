@@ -205,6 +205,85 @@ public class ProtoBridgeTests
     }
 
     [Fact]
+    public void ExplicitNoSpecialKey_OnPrintableKey_StillInputsCharacter()
+    {
+        // NO_SPECIALKEY(enum 既定値)を明示シリアライズしても、key_code の印字キーは
+        // 特殊キー扱いせず通常入力できる(Special=UndefinedKey にすると 'w''a' が落ちる)。
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        Pb.Output? last = null;
+        foreach (char c in "wa")
+        {
+            last = Call(server, new Pb.Input
+            {
+                Type = Pb.Input.Types.CommandType.SendKey,
+                Id = id,
+                Key = new Pb.KeyEvent
+                {
+                    KeyCode = c,
+                    SpecialKey = Pb.KeyEvent.Types.SpecialKey.NoSpecialkey,
+                },
+            });
+        }
+        // "wa"→わ。NO_SPECIALKEY を特殊キー扱いしていれば印字キーが落ち preedit は空になる。
+        Assert.NotNull(last!.Preedit);
+        Assert.Equal("わ", last.Preedit.Segment[0].Value);
+    }
+
+    [Fact]
+    public void SendCommand_Undo_RestoresPreviousCommit()
+    {
+        // ツールバー/クライアント駆動の UNDO(protobuf SEND_COMMAND)で直前確定を復元する。
+        EngineServer server = Server();
+        ulong id = Call(server, new Pb.Input { Type = Pb.Input.Types.CommandType.CreateSession }).Id;
+        foreach (char c in "watashi")
+        {
+            Call(server, new Pb.Input
+            {
+                Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+                Key = new Pb.KeyEvent { KeyCode = c },
+            });
+        }
+        Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+            Key = new Pb.KeyEvent { SpecialKey = Pb.KeyEvent.Types.SpecialKey.Space },
+        });
+        Pb.Output commit = Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey, Id = id,
+            Key = new Pb.KeyEvent { SpecialKey = Pb.KeyEvent.Types.SpecialKey.Enter },
+        });
+        Assert.Equal("私", commit.Result.Value);
+
+        Pb.Output undo = Call(server, new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendCommand,
+            Id = id,
+            Command = new Pb.SessionCommand { Type = Pb.SessionCommand.Types.CommandType.Undo },
+        });
+        Assert.True(undo.Consumed);
+        // 確定が取り消され、読みが preedit に戻る。
+        Assert.NotNull(undo.Preedit);
+        Assert.Equal("わたし", undo.Preedit.Segment[0].Value);
+    }
+
+    [Fact]
+    public void DecodeInput_PasswordField_SuppressesSuggestionAndMarksPrivate()
+    {
+        // context.input_field_type=PASSWORD を落とさず、サジェスト抑止 + 秘匿モードとして伝える
+        // (履歴学習と中間サジェストで秘密が漏れるのを防ぐ)。
+        var proto = new Pb.Input
+        {
+            Type = Pb.Input.Types.CommandType.SendKey,
+            Context = new Pb.Context { InputFieldType = Pb.Context.Types.InputFieldType.Password },
+        };
+        Input decoded = ProtoBridge.DecodeInput(proto.ToByteArray());
+        Assert.True(decoded.IsPasswordField);
+        Assert.True(decoded.SuppressSuggestion);
+    }
+
+    [Fact]
     public void GarbageProtoRequest_ReturnsErrorOutput()
     {
         EngineServer server = Server();

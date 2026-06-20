@@ -180,11 +180,13 @@ public class SessionTests
     }
 
     [Fact]
-    public void TestInsertTextDirect_Precomposition_NotConsumed()
+    public void TestInsertTextDirect_Precomposition_EchoBackOnlyUnconsumed()
     {
+        // TEST_SEND_KEY は実 send(InsertTextDirect)と消費可否を揃える(状態は不変)。
+        // 半角 ASCII echo back だけ未消費。非 echo-back('あ' 等)は send が確定するため消費を返す。
         var s = NewSession();
-        // TEST_SEND_KEY: precomposition の DIRECT_INPUT は echo back 扱いで未消費(状態不変)。
-        Assert.False(s.TestInsertTextDirect("あ", keyCode: null).Consumed);
+        Assert.False(s.TestInsertTextDirect("a", keyCode: 'a').Consumed);
+        Assert.True(s.TestInsertTextDirect("あ", keyCode: null).Consumed);
     }
 
     [Fact]

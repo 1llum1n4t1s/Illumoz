@@ -269,6 +269,23 @@ public sealed class SessionConverter
         }
     }
 
+    // 注目文節を一気に最終/先頭へ。End/Home 系キーが隣文節までしか動かない不具合の修正。
+    public void SegmentFocusLast()
+    {
+        if (CurrentState == State.Conversion && _segments != null)
+        {
+            _focusedSegment = _segments.ConversionSegmentsSize - 1;
+        }
+    }
+
+    public void SegmentFocusFirst()
+    {
+        if (CurrentState == State.Conversion)
+        {
+            _focusedSegment = 0;
+        }
+    }
+
     // 確定文字列を返し、状態を初期化する。確定時は履歴予測へ学習する。
     // CommandRewriter 由来のコマンド候補(設定トグル等)は、ラベル文字列を
     // 確定テキストとして挿入せず空文字を返す(誤ってラベルが入力される不具合の修正)。
@@ -411,8 +428,15 @@ public sealed class SessionConverter
     }
 
     // 変換中の各文節について (読み, 選択中の表記) を履歴学習する。
+    // 秘匿入力(パスワード欄等)中は履歴学習を止める。Session が SetPrivateMode で切り替える。
+    public bool LearningSuppressed { get; set; }
+
     private void LearnHistory()
     {
+        if (LearningSuppressed)
+        {
+            return;
+        }
         // F6-F10 等の表記変換(T13N)で確定する場合、確定テキストは _t13n(変換後カナ/英数)で
         // あって _segments の選択候補ではない。古い辞書候補を学習すると「ユーザーが確定して
         // いないテキスト」で履歴が訓練されるため、実際に確定する T13N 値を読み(現在の composer
@@ -433,7 +457,7 @@ public sealed class SessionConverter
     // 指定範囲 [start, end) の変換文節だけを履歴学習する(部分確定の学習に使う)。
     private void LearnHistoryRange(int start, int end)
     {
-        if (_history == null || CurrentState != State.Conversion || _segments == null)
+        if (LearningSuppressed || _history == null || CurrentState != State.Conversion || _segments == null)
         {
             return;
         }

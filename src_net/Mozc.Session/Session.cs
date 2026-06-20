@@ -177,6 +177,10 @@ public sealed class Session
 
     public void SetSuggestionSuppressed(bool suppress) => _suppressSuggestion = suppress;
 
+    // パスワード欄など秘匿入力中は、確定テキストを共有ユーザー履歴へ学習させない
+    // (後続の候補窓に秘密が出るのを防ぐ)。SessionHandler がリクエスト毎に設定する。
+    public void SetPrivateMode(bool isPrivate) => _converter.LearningSuppressed = isPrivate;
+
     private bool HasActiveSuggestion()
     {
         if (_suppressSuggestion
@@ -407,6 +411,9 @@ public sealed class Session
                     _typed.Clear();
                 }
                 return Current(true);
+            case SessionCommandType.Undo:
+                // ツールバー/クライアント駆動の取り消しもキーボード Undo と同じ復元処理へ回す。
+                return Undo();
             default:
                 return new SessionResult { Preedit = GetPreedit(), Consumed = false };
         }
@@ -521,9 +528,19 @@ public sealed class Session
     // precomposition の DIRECT_INPUT(INSERT_CHARACTER)は echo back 扱いで未消費を返す。
     public SessionResult TestInsertTextDirect(string text, int? keyCode)
     {
+        if (string.IsNullOrEmpty(text))
+        {
+            return new SessionResult { Preedit = GetPreedit(), Consumed = false };
+        }
         if (_converter.CurrentState == SessionConverter.State.Composition && _typed.Count == 0)
         {
-            return new SessionResult { Preedit = "", Consumed = false };
+            // precomposition: 半角 ASCII 1 文字(echo back)だけ未消費。それ以外の直接テキストは
+            // 実 send パス(InsertTextDirect)が確定して消費するため、test 側も消費を返す。
+            // 全 DIRECT_INPUT を未消費としていると test-before-send クライアントが非 echo-back の
+            // 文字(例 'あ')をアプリへ素通しさせ、サーバ確定と二重入力/取りこぼしになる。
+            return IsHalfWidthAsciiEcho(text, keyCode)
+                ? new SessionResult { Preedit = "", Consumed = false }
+                : new SessionResult { Preedit = "", Consumed = true };
         }
         return TestInsertText(text);
     }
@@ -602,12 +619,19 @@ public sealed class Session
                 _converter.ConvertPrev();
                 return Current(true);
             case "SegmentFocusRight":
-            case "SegmentFocusLast":
                 _converter.SegmentFocusRight();
                 return Current(true);
             case "SegmentFocusLeft":
-            case "SegmentFocusFirst":
                 _converter.SegmentFocusLeft();
+                return Current(true);
+            // End/Ctrl+Right 等は最終文節へ、Home/Ctrl+Left 等は先頭文節へ「一気に」移動する。
+            // 1 段ずつの右/左ハンドラを共有していると、3 文節以上で End/Home が隣の文節までしか
+            // 動かず、その後の選択・確定が意図と違う文節に作用する(C++ SegmentFocusLast/First 相当)。
+            case "SegmentFocusLast":
+                _converter.SegmentFocusLast();
+                return Current(true);
+            case "SegmentFocusFirst":
+                _converter.SegmentFocusFirst();
                 return Current(true);
             case "Cancel":
                 if (_converter.CurrentState == SessionConverter.State.Conversion)

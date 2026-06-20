@@ -49,10 +49,19 @@ public static class ProtoBridge
                 Pb.SessionCommand.Types.CommandType.SelectCandidate => SessionCommandType.SelectCandidate,
                 Pb.SessionCommand.Types.CommandType.HighlightCandidate => SessionCommandType.HighlightCandidate,
                 Pb.SessionCommand.Types.CommandType.SubmitCandidate => SessionCommandType.SubmitCandidate,
+                // ツールバー/クライアント駆動の UNDO(protobuf SEND_COMMAND)を直前確定の復元へ回す。
+                // None に潰すと未消費になり、キーボード以外からの取り消しが効かない。
+                Pb.SessionCommand.Types.CommandType.Undo => SessionCommandType.Undo,
                 _ => SessionCommandType.None,
             };
             commandId = proto.Command.Id;
         }
+
+        // パスワード欄(context.input_field_type=PASSWORD)はサジェスト/履歴学習を止める対象。
+        // この型情報を落とすと、クライアントが suppress_suggestion を併送しない限り中間サジェストが
+        // 出て確定テキストが共有履歴に学習され、後続の候補窓へ秘密が漏れる。
+        bool isPassword = proto.Context != null
+            && proto.Context.InputFieldType == Pb.Context.Types.InputFieldType.Password;
 
         return new Input
         {
@@ -64,9 +73,11 @@ public static class ProtoBridge
             SessionCommand = sessionCommand,
             CommandId = commandId,
             ConfigBytes = configBytes,
-            // context.suppress_suggestion=true、または request_suggestion=false を抑止として扱う。
-            SuppressSuggestion = (proto.Context != null && proto.Context.SuppressSuggestion)
+            // context.suppress_suggestion=true、request_suggestion=false、または PASSWORD 欄を抑止扱い。
+            SuppressSuggestion = isPassword
+                || (proto.Context != null && proto.Context.SuppressSuggestion)
                 || (proto.HasRequestSuggestion && !proto.RequestSuggestion),
+            IsPasswordField = isPassword,
         };
     }
 
@@ -208,7 +219,12 @@ public static class ProtoBridge
                 _ => InputStyle.FollowMode,
             };
         }
-        if (proto.HasSpecialKey)
+        // NO_SPECIALKEY(enum 既定値 0)を明示シリアライズしてきたクライアントでは HasSpecialKey が
+        // true になる。これを特殊キーとして Special=UndefinedKey にすると、印字キー(key_code/
+        // key_string)が特殊キー扱いになり通常文字を入力できなくなる。NO_SPECIALKEY は「特殊キー無し」
+        // を意味するので Special は未設定のままにする。
+        if (proto.HasSpecialKey
+            && proto.SpecialKey != Pb.KeyEvent.Types.SpecialKey.NoSpecialkey)
         {
             // テンキーの数字(NUMPAD0-9)は keymap に行が無く、印字フォールバックも
             // Special!=null だと効かない。'0'-'9' の key_code に正規化して通常入力扱いにする。
