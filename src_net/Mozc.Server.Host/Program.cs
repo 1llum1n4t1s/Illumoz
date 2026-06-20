@@ -78,8 +78,10 @@ internal static class Program
         // SYNC_DATA(クライアントの定期/終了フラッシュ要求)で学習データを永続化する。
         server.OnSyncData = () => ServerHost.SaveHistoryOnly(server, resolvedProfile);
 
-        // .ipc を公開(key/protocol/pid)。クライアントは IpcPathManager.TryLoad で実 pipe 名を得る。
-        IpcPathManager pathManager = IpcPathManager.Create(
+        // .ipc メタデータ(key/protocol/pid)をメモリ上に生成する。クライアントは .ipc の存在+
+        // 生存 PID を「利用可能」とみなすため、リスナーを bind/start してから Publish() で公開する
+        // (先に公開すると listener 生成前にクライアントが接続して最初のキーを取りこぼす)。
+        IpcPathManager pathManager = IpcPathManager.Build(
             pipe, (uint)global::System.Environment.ProcessId);
         string actualPipe = global::System.OperatingSystem.IsWindows()
             ? pathManager.GetWindowsPipeName()
@@ -89,6 +91,7 @@ internal static class Program
         {
             using var ipc = new NamedPipeIpcServer(actualPipe, server.HandleProtoRequest);
             ipc.Start();
+            pathManager.Publish(); // listener が listen 状態になってから .ipc を公開する。
             global::System.Console.WriteLine($"mozc_server (C#) listening on pipe '{pipe}'. Ctrl+C to stop.");
             WaitForever();
         }
@@ -99,6 +102,7 @@ internal static class Program
             byte[] name = pathManager.GetLinuxAbstractSocketName();
             using var ipc = new UnixSocketIpcServer(name, server.HandleProtoRequest);
             ipc.Start();
+            pathManager.Publish(); // listener が listen 状態になってから .ipc を公開する。
             global::System.Console.WriteLine($"mozc_server (C#) listening on abstract socket '{pipe}'. Ctrl+C to stop.");
             WaitForever();
         }
@@ -108,6 +112,7 @@ internal static class Program
             string socketPath = pathManager.GetFileSocketPath();
             using var ipc = new FileSocketIpcServer(socketPath, server.HandleProtoRequest);
             ipc.Start();
+            pathManager.Publish(); // listener が listen 状態になってから .ipc を公開する。
             global::System.Console.WriteLine($"mozc_server (C#) listening on file socket '{socketPath}'. Ctrl+C to stop.");
             WaitForever();
         }

@@ -45,21 +45,38 @@ public sealed class IpcPathManager
     // 起動時にこれを呼び、クライアントが TryLoad で読む。
     public static IpcPathManager Create(string name, uint processId, string productVersion = "1.0.0.0")
     {
-        string key = GenerateKey();
+        IpcPathManager pm = Build(name, processId, productVersion);
+        pm.Publish();
+        return pm;
+    }
+
+    // メタデータ(鍵/protocol/pid)だけをメモリ上に生成する(.ipc ファイルは書かない)。
+    // クライアントは .ipc の存在+生存 PID を「サーバ利用可能」とみなすため、リスナーを bind/start
+    // してから Publish() で公開する必要がある。先に書くと、クライアントが listener 生成前に接続して
+    // 最初のキーイベントを取りこぼす(OS ブリッジは MozcSessionClient の接続リトライを使わない)。
+    public static IpcPathManager Build(string name, uint processId, string productVersion = "1.0.0.0")
+    {
         var info = new IPCPathInfo
         {
-            Key = key,
+            Key = GenerateKey(),
             ProtocolVersion = MozcConstants.IpcProtocolVersion,
             ProductVersion = productVersion,
             ProcessId = processId,
         };
-        string path = MozcPaths.GetIpcKeyFileName(name);
+        return new IpcPathManager { _name = name, _info = info };
+    }
+
+    // 保持しているメタデータを .ipc ファイルへ書き出して公開する(SavePathName 相当)。
+    // リスナーが listen 状態になった後に呼ぶこと。
+    public void Publish()
+    {
+        string path = MozcPaths.GetIpcKeyFileName(_name);
         string? dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
         {
             Directory.CreateDirectory(dir);
         }
-        byte[] payload = info.ToByteArray();
+        byte[] payload = _info.ToByteArray();
         // .ipc は pipe/socket 名を導出する鍵を含むため、書き込み「前」から所有者のみ
         // 読取可で作成する。WriteAllBytes 後に chmod すると、その隙に他ユーザが
         // world-readable な鍵を読める競合があるため、UnixCreateMode で原子的に 0600 にする。
@@ -85,7 +102,6 @@ public sealed class IpcPathManager
             using var fs = new FileStream(path, opts);
             fs.Write(payload, 0, payload.Length);
         }
-        return new IpcPathManager { _name = name, _info = info };
     }
 
     private static string GenerateKey()
