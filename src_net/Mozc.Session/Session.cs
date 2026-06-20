@@ -153,11 +153,21 @@ public sealed class Session
 
     // keymap 照合用の状態名。サジェスト表示中は "Suggestion"(CommitFirstSuggestion 等の
     // Suggestion 固有バインドを到達可能にする。未該当キーは Composition 行へフォールバック)。
-    private string Status()
+    // activatedOverride: TEST_SEND_KEY 等で「セッション状態を変えずに」クライアント宣言の
+    // activated を反映して判定したいときに渡す(null なら現在の _activated)。SendKey は事前に
+    // _activated へ同期するため null で呼ぶ(両経路で判定の source を一致させる)。
+    private string Status(bool? activatedOverride = null)
     {
-        if (!_activated)
+        bool act = activatedOverride ?? _activated;
+        if (!act)
         {
             return "DirectInput"; // IME off。IMEOn 以外は素通し。
+        }
+        // 間接 IME-ON(DIRECT 状態でクライアントが activated=true を宣言): C++ session.cc は
+        // converter の残状態に依らず無条件に PRECOMPOSITION を返す。これに合わせる。
+        if (activatedOverride == true && !_activated)
+        {
+            return "Precomposition";
         }
         return _converter.CurrentState switch
         {
@@ -234,9 +244,12 @@ public sealed class Session
     // IME 側が前処理でキーを横取りすべきか決めるために使う(C++ session TestSendKey 相当)。
     public SessionResult TestSendKey(KeyEvent key)
     {
-        string status = Status();
-        // クライアント宣言の activated を優先(状態は変えない)。直接入力(IME off)中は
-        // 印字キーを消費しない。SendKey 側のガードと一致させ、横取り判定の誤りを防ぐ。
+        // クライアント宣言の activated を「状態を変えずに」反映して状態名を求める(SendKey は
+        // 事前に _activated へ同期するが、TestSendKey はセッションを変えないため override で渡す)。
+        // これで Space 等の IME-off 宣言キーが DirectInput 行で未バインド→非消費となり、
+        // SendKey 側の素通しガード(!_activated)と判定が一致する(IME-off キーの横取り防止)。
+        string status = Status(key.Activated);
+        // 直接入力(IME off)中は印字キーを消費しない。第2項の active も key.Activated 起点に統一。
         bool active = key.Activated ?? _activated;
         bool consumed = _keyMap.GetCommand(status, key) != null
             || (active && key.Special == null && key.KeyCode is int code && code >= 0x20
@@ -542,6 +555,14 @@ public sealed class Session
             case "SwitchKanaType":
             case "CompositionModeSwitchKanaType":
                 // モード状態機械が無いため preedit を保ったまま消費のみ(キー透過を防ぐ)。
+                return new SessionResult { Preedit = GetPreedit(), Consumed = true };
+            case "Reconvert":
+                // 再変換(DirectInput/Precomposition の Henkan 等にバインド)。C++
+                // RequestConvertReverse(session.cc) は PRECOMPOSITION/DIRECT で無条件に
+                // consumed=true にし CONVERT_REVERSE callback を返す。逆変換 API(周辺文書の
+                // 読み取得→再変換)は未移植のため、ここでは少なくともキーを消費してホストへ
+                // 素の Henkan を漏らさない(到達時点で必ず Precomposition/DirectInput=消費が忠実)。
+                // TODO(C7): CONVERT_REVERSE callback 配管 + GetReadingText 相当の逆変換を移植。
                 return new SessionResult { Preedit = GetPreedit(), Consumed = true };
             default:
                 // 未対応 command はキーを消費しない。

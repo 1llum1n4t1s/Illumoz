@@ -92,6 +92,26 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void LastFormHistory_SurvivesUnrelatedConfigChange()
+    {
+        EngineServer server = Server();
+        // 変換結果から半角 ASCII を学習(LAST_FORM の "A" グループ → HalfWidth を記憶)。
+        server.ConversionFormManager.GuessAndSetCharacterForm("abc");
+        Assert.Equal(Mozc.Base.CharacterForm.HalfWidth,
+            server.ConversionFormManager.GetCharacterForm("A"));
+
+        // 字形と無関係な設定変更(句読点方式)を適用する。
+        Mozc.Config.Config c = server.Config.GetConfig();
+        c.PunctuationMethod = Mozc.Config.Config.Types.PunctuationMethod.CommaPeriod;
+        server.SetConfig(c);
+
+        // ApplyConfig で ConversionFormManager のルールが作り直されても、学習した LAST_FORM の
+        // 好み(_lastFormStorage)は保持される(無関係な設定変更で半角学習が消えない)。
+        Assert.Equal(Mozc.Base.CharacterForm.HalfWidth,
+            server.ConversionFormManager.GetCharacterForm("A"));
+    }
+
+    [Fact]
     public void Config_PunctuationMethod_AppliesToComposer()
     {
         EngineServer server = Server();

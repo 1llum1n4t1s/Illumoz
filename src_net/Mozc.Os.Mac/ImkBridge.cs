@@ -82,6 +82,17 @@ public static class ImkBridge
     {
         try
         {
+            // Command(⌘)修飾のキー(Cmd+C/Cmd+V 等)は macOS アプリのショートカットであり IME の
+            // 対象外。サーバへ送ると修飾無しの印字キーとして合成/消費されショートカットを横取り
+            // するため、未消費(0)を返してアプリへ委ねる(C++ KeyCodeMap が Command で return NO
+            // する挙動に一致)。進行中の preedit(marked text)は保持し、確定済み文字列と候補だけ
+            // 消す(残すと native が直後の get_commit で前回確定を二重挿入するため)。
+            if (MacKeyTranslator.HasCommand(modifiers))
+            {
+                _commit = string.Empty;
+                _candidates = string.Empty;
+                return 0;
+            }
             if (_controller == null)
             {
                 EnsureController();

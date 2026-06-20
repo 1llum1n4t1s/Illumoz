@@ -93,6 +93,40 @@ public class SessionTests
     }
 
     [Fact]
+    public void TestSendKey_ActivatedFalse_DoesNotConsumeImeOffKeyInComposition()
+    {
+        // composition 活性中でも、クライアントが activated=false を宣言したキー(間接 IME off)は
+        // SEND_KEY 側で素通しされる。TEST_SEND_KEY もこれと一致して「消費しない」を返すべき
+        // (一致しないと IME がキーを横取りし、アプリの Space 等が効かなくなる)。
+        var s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        // activated=false 宣言の Space は非消費(DirectInput 行に未バインド + active=false)。
+        var spaceOff = new KeyEvent { Special = SpecialKey.Space, Activated = false };
+        Assert.False(s.TestSendKey(spaceOff).Consumed);
+        // 一方 activated=true 宣言なら従来どおり Composition の ConvertNext として消費する
+        // (override が判定を変えていることの裏取り)。状態は TEST_SEND_KEY なので不変。
+        var spaceOn = new KeyEvent { Special = SpecialKey.Space, Activated = true };
+        Assert.True(s.TestSendKey(spaceOn).Consumed);
+    }
+
+    [Fact]
+    public void TestSendKey_ActivatedNull_PreservesLegacyBehavior()
+    {
+        // activated 未宣言(null)のクライアントは従来挙動を維持する(_activated=true 既定なので
+        // composition 中の Space は ConvertNext として消費)。
+        var s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        var space = new KeyEvent { Special = SpecialKey.Space, Activated = null };
+        Assert.True(s.TestSendKey(space).Consumed);
+    }
+
+    [Fact]
     public void GetSuggestions_DuringComposition()
     {
         var history = new Prediction.UserHistoryPredictor();

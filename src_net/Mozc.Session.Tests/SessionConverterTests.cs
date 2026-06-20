@@ -118,6 +118,32 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void Commit_T13N_LearnsTransliteratedValue_NotStaleCandidate()
+    {
+        // 変換中に F7(全角カナ)で表記変換してから確定すると、確定テキストは「ワタシ」。
+        // 履歴は古い選択候補「私」ではなく、実際に確定した T13N 値を学習すべき(誤学習防止)。
+        var history = new Prediction.UserHistoryPredictor();
+        var sc = new SessionConverter(Engine(), rewriter: null, history: history);
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        Assert.True(sc.Convert());
+        sc.ConvertToTransliteration(c => c.GetFullKatakana()); // F7 相当 → ワタシ
+        Assert.Equal("ワタシ", sc.Commit());
+
+        // 同じ読みを再入力すると、確定した「ワタシ」が履歴予測に出る。
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        var preds = sc.PredictFromHistory();
+        Assert.Contains(preds, p => p.Value == "ワタシ" && p.Key == "わたし");
+        // 確定していない「私」は履歴に刻まれない。
+        Assert.DoesNotContain(preds, p => p.Value == "私");
+    }
+
+    [Fact]
     public void GetCandidateDescriptions_MatchesUserDictionary()
     {
         var userDict = new Mozc.Dictionary.UserDictionaryStorage();
@@ -240,6 +266,29 @@ public class SessionConverterTests
         Assert.Equal(SessionConverter.State.Composition, sc.CurrentState);
         // かなは保持。
         Assert.Equal("わたし", sc.GetPreedit());
+    }
+
+    [Fact]
+    public void Cancel_ClearsTransliterationOverride()
+    {
+        // 変換中に表記変換(F7 等)→ Esc(Cancel)で T13N オーバーライドが残り、
+        // 後続 Commit が破棄したはずの override を確定してしまう回帰を防ぐ。
+        // C++ EngineConverter::Cancel→ResetState の candidate_list_.Clear() 相当。
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashi")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        sc.Convert();
+        Assert.Equal(SessionConverter.State.Conversion, sc.CurrentState);
+        sc.ConvertToTransliteration(c => c.GetFullKatakana());
+        Assert.Equal("ワタシ", sc.GetPreedit());
+        sc.Cancel();
+        Assert.Equal(SessionConverter.State.Composition, sc.CurrentState);
+        // override は破棄され composer のかなへ戻る。
+        Assert.Equal("わたし", sc.GetPreedit());
+        // 直後の Commit も override を確定しない(かなを確定)。
+        Assert.Equal("わたし", sc.Commit());
     }
 
     [Fact]

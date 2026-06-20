@@ -51,4 +51,25 @@ public class ImkBridgeTests
         var committed = ImkBridge.ProcessKeyManaged(36, "", 0); // Return
         Assert.Equal("私", committed.Commit);
     }
+
+    [Fact]
+    public void CommandShortcut_NotConsumed_PreservesPreedit()
+    {
+        // Cmd(⌘)修飾のキー(Cmd+C 等)は IME 対象外。サーバへ送らず未消費で素通しし、
+        // 進行中の preedit(marked text)は保持する(C++ KeyCodeMap の return NO 相当)。
+        const uint Command = 1u << 20; // NSEventModifierFlagCommand
+        ImkBridge.InitForTest(Server().HandleProtoRequest);
+        (string Preedit, string Commit, bool Consumed) last = default;
+        foreach (char c in "watashi")
+        {
+            last = ImkBridge.ProcessKeyManaged(0, c.ToString(), 0);
+        }
+        Assert.Equal("わたし", last.Preedit);
+
+        // Cmd+C(keyCode 8='c')は未消費で返り、合成中の preedit は消えない。
+        var cmdC = ImkBridge.ProcessKeyManaged(8, "c", Command);
+        Assert.False(cmdC.Consumed);
+        Assert.Equal("わたし", cmdC.Preedit);
+        Assert.Equal(string.Empty, cmdC.Commit);
+    }
 }

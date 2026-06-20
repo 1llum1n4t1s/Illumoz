@@ -11,6 +11,12 @@ public static class MacKeyTranslator
     private const uint Shift = 1u << 17;
     private const uint Control = 1u << 18;
     private const uint Option = 1u << 19; // Alt
+    private const uint Command = 1u << 20; // ⌘(NSEventModifierFlagCommand)
+
+    // Command(⌘)修飾を含むか。Cmd+C/Cmd+V 等は IME ではなくアプリのショートカットであり、
+    // この変換器は Command を KeyEvent へマップしない(送ると修飾無しの印字キーとして
+    // 誤って合成/消費される)。ImkBridge がサーバへ送らず未消費で素通しする判定に使う。
+    public static bool HasCommand(uint modifierFlags) => (modifierFlags & Command) != 0;
 
     // 代表的な仮想キーコード(HIToolbox Events.h)。
     private static readonly Dictionary<ushort, Pb.KeyEvent.Types.SpecialKey> Special = new()

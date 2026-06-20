@@ -283,6 +283,16 @@ public sealed class SessionConverter
     // 変換中の各文節について (読み, 選択中の表記) を履歴学習する。
     private void LearnHistory()
     {
+        // F6-F10 等の表記変換(T13N)で確定する場合、確定テキストは _t13n(変換後カナ/英数)で
+        // あって _segments の選択候補ではない。古い辞書候補を学習すると「ユーザーが確定して
+        // いないテキスト」で履歴が訓練されるため、実際に確定する T13N 値を読み(現在の composer
+        // クエリ)に紐づけて学習する。状態ガードより前に置くことで Composition 中の T13N 確定も拾う。
+        // (単文節 T13N は C++ と表示・学習とも一致。多文節 Conversion 中 T13N の per-segment 学習は対象外)
+        if (_t13n != null)
+        {
+            _history?.Learn(_composer.GetQueryForConversion(), _t13n);
+            return;
+        }
         if (_history == null || CurrentState != State.Conversion || _segments == null)
         {
             return;
@@ -403,7 +413,10 @@ public sealed class SessionConverter
     // 変換を取り消して入力状態へ戻る(かなは保持)。
     public void Cancel()
     {
+        // C++ EngineConverter::Cancel→ResetState 相当: キャンセル時は candidate_list_ を
+        // Clear するので、表記変換(F6-F10)オーバーライドもここで破棄して composer のかなへ戻す。
         _segments = null;
+        _t13n = null;
         CurrentState = State.Composition;
     }
 

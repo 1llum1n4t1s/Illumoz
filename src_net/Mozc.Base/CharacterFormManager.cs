@@ -27,20 +27,25 @@ public sealed class CharacterFormManager
     public static CharacterFormManager CreatePreeditDefault()
     {
         var m = new CharacterFormManager();
-        m.AddRule("ア", CharacterForm.FullWidth);
-        m.AddRule("A", CharacterForm.FullWidth);
-        m.AddRule("0", CharacterForm.FullWidth);
-        m.AddRule("(){}[]", CharacterForm.FullWidth);
-        m.AddRule(".,", CharacterForm.FullWidth);
-        m.AddRule("。、", CharacterForm.FullWidth);
-        m.AddRule("・「」", CharacterForm.FullWidth);
-        m.AddRule("\"'", CharacterForm.FullWidth);
-        m.AddRule(":;", CharacterForm.FullWidth);
-        m.AddRule("#%&@$^_|`\\", CharacterForm.FullWidth);
-        m.AddRule("~", CharacterForm.FullWidth);
-        m.AddRule("<>=+-/*", CharacterForm.FullWidth);
-        m.AddRule("?!", CharacterForm.FullWidth);
+        m.ApplyPreeditDefaultRules();
         return m;
+    }
+
+    private void ApplyPreeditDefaultRules()
+    {
+        AddRule("ア", CharacterForm.FullWidth);
+        AddRule("A", CharacterForm.FullWidth);
+        AddRule("0", CharacterForm.FullWidth);
+        AddRule("(){}[]", CharacterForm.FullWidth);
+        AddRule(".,", CharacterForm.FullWidth);
+        AddRule("。、", CharacterForm.FullWidth);
+        AddRule("・「」", CharacterForm.FullWidth);
+        AddRule("\"'", CharacterForm.FullWidth);
+        AddRule(":;", CharacterForm.FullWidth);
+        AddRule("#%&@$^_|`\\", CharacterForm.FullWidth);
+        AddRule("~", CharacterForm.FullWidth);
+        AddRule("<>=+-/*", CharacterForm.FullWidth);
+        AddRule("?!", CharacterForm.FullWidth);
     }
 
     // 変換結果用の既定マネージャ(C++ character_form_manager.cc の conversion 既定)。
@@ -49,20 +54,25 @@ public sealed class CharacterFormManager
     public static CharacterFormManager CreateConversionDefault()
     {
         var m = new CharacterFormManager();
-        m.AddRule("ア", CharacterForm.FullWidth);
-        m.AddRule("A", CharacterForm.LastForm);
-        m.AddRule("0", CharacterForm.LastForm);
-        m.AddRule("(){}[]", CharacterForm.LastForm);
-        m.AddRule(".,", CharacterForm.LastForm);
-        m.AddRule("。、", CharacterForm.FullWidth);
-        m.AddRule("・「」", CharacterForm.FullWidth);
-        m.AddRule("\"'", CharacterForm.LastForm);
-        m.AddRule(":;", CharacterForm.LastForm);
-        m.AddRule("#%&@$^_|`\\", CharacterForm.LastForm);
-        m.AddRule("~", CharacterForm.LastForm);
-        m.AddRule("<>=+-/*", CharacterForm.LastForm);
-        m.AddRule("?!", CharacterForm.LastForm);
+        m.ApplyConversionDefaultRules();
         return m;
+    }
+
+    private void ApplyConversionDefaultRules()
+    {
+        AddRule("ア", CharacterForm.FullWidth);
+        AddRule("A", CharacterForm.LastForm);
+        AddRule("0", CharacterForm.LastForm);
+        AddRule("(){}[]", CharacterForm.LastForm);
+        AddRule(".,", CharacterForm.LastForm);
+        AddRule("。、", CharacterForm.FullWidth);
+        AddRule("・「」", CharacterForm.FullWidth);
+        AddRule("\"'", CharacterForm.LastForm);
+        AddRule(":;", CharacterForm.LastForm);
+        AddRule("#%&@$^_|`\\", CharacterForm.LastForm);
+        AddRule("~", CharacterForm.LastForm);
+        AddRule("<>=+-/*", CharacterForm.LastForm);
+        AddRule("?!", CharacterForm.LastForm);
     }
 
     // config.character_form_rules 相当(group 文字列 + form)からまとめて構築する。
@@ -72,14 +82,45 @@ public sealed class CharacterFormManager
         global::System.Collections.Generic.IEnumerable<(string Group, CharacterForm Form)> rules)
     {
         var m = new CharacterFormManager();
+        m.ApplyRules(rules);
+        return m;
+    }
+
+    private void ApplyRules(
+        global::System.Collections.Generic.IEnumerable<(string Group, CharacterForm Form)> rules)
+    {
         foreach ((string group, CharacterForm form) in rules)
         {
             if (!string.IsNullOrEmpty(group))
             {
-                m.AddRule(group, form);
+                AddRule(group, form);
             }
         }
-        return m;
+    }
+
+    // --- in-place ルール再構築(C++ CharacterFormManager::Clear 相当) ---
+    // ルール表(_table)だけを作り直し、LAST_FORM 学習(_lastFormStorage)は保持する。
+    // config 変更のたびにインスタンスを new し直すと、character_form.db から読んだ・入力中に
+    // 学習した半/全角の好みが捨てられ、保存時に空履歴で上書きされるため(無関係な設定変更で
+    // 学習が消える不具合)、同一インスタンスのルールだけ差し替える。C++ も Clear() はルール
+    // table のみクリアし storage_(履歴)は残す。
+    public void ReloadPreeditDefault()
+    {
+        _table.Clear();
+        ApplyPreeditDefaultRules();
+    }
+
+    public void ReloadConversionDefault()
+    {
+        _table.Clear();
+        ApplyConversionDefaultRules();
+    }
+
+    public void ReloadRules(
+        global::System.Collections.Generic.IEnumerable<(string Group, CharacterForm Form)> rules)
+    {
+        _table.Clear();
+        ApplyRules(rules);
     }
 
     // input の各文字を正規化代表へ畳んで form を登録する。

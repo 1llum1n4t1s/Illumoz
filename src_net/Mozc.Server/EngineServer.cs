@@ -138,14 +138,18 @@ public sealed class EngineServer
     // config.character_form_rules から preedit / conversion の文字形マネージャを構築。
     private void BuildCharacterFormManagers(Mozc.Config.Config c)
     {
+        // 既存インスタンスのルール(_table)だけを差し替える。new で作り直すと
+        // character_form.db から読んだ/入力中に学習した LAST_FORM の好み(_lastFormStorage)が
+        // 捨てられ、保存時に空履歴で上書きされる(無関係な設定変更で学習が消える不具合)。
+        // C++ も ReloadConfig は Clear()(ルールのみ)+ルール再追加で storage(履歴)を保持する。
         if (c.CharacterFormRules.Count == 0)
         {
-            // ルールが空(初期化 or 後から解除)なら既定マネージャへ戻す。前の config の
+            // ルールが空(初期化 or 後から解除)なら既定ルールへ戻す。前の config の
             // 幅設定が残り続ける不具合を防ぐため、解除時も必ず再構築・伝播する。
-            PreeditFormManager = Mozc.Base.CharacterFormManager.CreatePreeditDefault();
+            PreeditFormManager.ReloadPreeditDefault();
             // 変換側は preedit と別の既定(ASCII/数字/記号は LAST_FORM)。preedit 既定を流用すると
             // abc/123 等が常に全角へ書き換わり、半角候補を選んでも記憶されない。
-            ConversionFormManager = Mozc.Base.CharacterFormManager.CreateConversionDefault();
+            ConversionFormManager.ReloadConversionDefault();
             PropagateConversionFormManager();
             return;
         }
@@ -156,8 +160,8 @@ public sealed class EngineServer
             preedit.Add((rule.Group, MapForm(rule.PreeditCharacterForm)));
             conversion.Add((rule.Group, MapForm(rule.ConversionCharacterForm)));
         }
-        PreeditFormManager = Mozc.Base.CharacterFormManager.FromRules(preedit);
-        ConversionFormManager = Mozc.Base.CharacterFormManager.FromRules(conversion);
+        PreeditFormManager.ReloadRules(preedit);
+        ConversionFormManager.ReloadRules(conversion);
         PropagateConversionFormManager();
     }
 
