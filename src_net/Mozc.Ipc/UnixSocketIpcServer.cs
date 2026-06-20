@@ -46,6 +46,13 @@ public sealed class UnixSocketIpcServer : IDisposable
             {
                 conn = await _listener!.AcceptAsync(token).ConfigureAwait(false);
 
+                // 別ユーザのなりすまし接続を弾く(C++ unix_ipc.cc の SO_PEERCRED uid 検証相当)。
+                if (!PeerCredential.IsSameUser(conn, out string reason))
+                {
+                    Mozc.Base.MozcLog.Error($"UnixSocket reject peer ({reason})");
+                    continue; // finally で conn を破棄
+                }
+
                 byte[] request = await ReadToEofAsync(conn, token).ConfigureAwait(false);
                 if (request.Length > 0)
                 {

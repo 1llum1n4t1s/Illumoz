@@ -57,6 +57,12 @@ public static class ImkBridge
             {
                 throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
             }
+            // サーバの protocol_version が一致しないなら接続しない(ワイヤー非互換の誤接続防止)。
+            if (!pm.IsCompatibleProtocolVersion())
+            {
+                throw new Mozc.Ipc.IpcException(
+                    $"incompatible IPC protocol version (server={pm.ServerProtocolVersion})");
+            }
             using var client = new Mozc.Ipc.FileSocketIpcClient(pm.GetFileSocketPath());
             return client.Call(request, TimeSpan.FromSeconds(30));
         };

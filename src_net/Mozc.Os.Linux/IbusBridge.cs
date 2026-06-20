@@ -63,6 +63,12 @@ public static class IbusBridge
             {
                 throw new Mozc.Ipc.IpcException($"cannot load .ipc metadata for '{name}'");
             }
+            // サーバの protocol_version が一致しないなら接続しない(ワイヤー非互換の誤接続防止)。
+            if (!pm.IsCompatibleProtocolVersion())
+            {
+                throw new Mozc.Ipc.IpcException(
+                    $"incompatible IPC protocol version (server={pm.ServerProtocolVersion})");
+            }
             using var client = new Mozc.Ipc.UnixSocketIpcClient(pm.GetLinuxAbstractSocketName());
             return client.Call(request, TimeSpan.FromSeconds(30));
         };

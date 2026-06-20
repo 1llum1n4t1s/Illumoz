@@ -35,6 +35,19 @@ public sealed class FileSocketIpcServer : IDisposable
         }
         _listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         _listener.Bind(new UnixDomainSocketEndPoint(_path));
+        // socket ファイルを所有者のみ(0600)に絞る。/tmp は全ユーザ可視のため、connect 権限を
+        // 所有者に限定して別ユーザの接続を防ぐ(peer uid 検証と二重化)。Windows は対象外。
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.SetUnixFileMode(_path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            catch (IOException ex)
+            {
+                Mozc.Base.MozcLog.Error("FileSocket chmod", ex);
+            }
+        }
         _listener.Listen(16);
         _loop = Task.Run(() => AcceptLoopAsync(_cts.Token));
     }
@@ -47,6 +60,12 @@ public sealed class FileSocketIpcServer : IDisposable
             try
             {
                 conn = await _listener!.AcceptAsync(token).ConfigureAwait(false);
+                // 別ユーザのなりすまし接続を弾く(mac は getpeereid で uid 検証)。
+                if (!PeerCredential.IsSameUser(conn, out string reason))
+                {
+                    Mozc.Base.MozcLog.Error($"FileSocket reject peer ({reason})");
+                    continue; // finally で conn を破棄
+                }
                 byte[] request = await ReadToEofAsync(conn, token).ConfigureAwait(false);
                 if (request.Length > 0)
                 {
