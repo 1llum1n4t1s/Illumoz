@@ -309,18 +309,24 @@ public sealed class EngineServer
                 // クライアントがリクエストに config を添付(MozcSessionClient.Preferences 経由の
                 // per-request 設定)していれば、このリクエストの間だけ適用する。共有 ConfigManager を
                 // 恒久的に書き換えると他クライアントへ漏れたり shutdown 時に保存されるため、
-                // 評価後に元の config へ必ず戻す。
-                byte[]? savedConfig = null;
+                // ConfigManager.BeginTransient で永続 config を退避し、評価後に EndTransient で必ず戻す。
+                // 退避中は Serialize(=保存/GET_CONFIG)が永続値を返すので、リクエスト処理中に
+                // ProcessExit が走っても一時 config がプロファイルへ焼き付かない(B1-A2/B1-E1)。
+                bool transient = false;
                 if (input.ConfigBytes.Length != 0)
                 {
                     try
                     {
-                        savedConfig = _config.Serialize();
-                        SetConfig(Mozc.Config.Config.Parser.ParseFrom(input.ConfigBytes));
+                        // 先に parse して壊れた config を弾く(BeginTransient 前に弾けば退避不要)。
+                        Mozc.Config.Config requestConfig =
+                            Mozc.Config.Config.Parser.ParseFrom(input.ConfigBytes);
+                        _config.BeginTransient();
+                        transient = true;
+                        SetConfig(requestConfig);
                     }
                     catch (Google.Protobuf.InvalidProtocolBufferException)
                     {
-                        savedConfig = null; // 壊れた config は無視して通常処理を続ける。
+                        // 壊れた config は無視して通常処理を続ける(退避は行っていない)。
                     }
                 }
                 try
@@ -339,9 +345,12 @@ public sealed class EngineServer
                 }
                 finally
                 {
-                    if (savedConfig != null)
+                    if (transient)
                     {
-                        SetConfig(Mozc.Config.Config.Parser.ParseFrom(savedConfig));
+                        // 実効 config を永続値へ戻し(EndTransient)、エンジン状態(keymap/roman/
+                        // formManager 等)も永続 config で再構築する(ApplyConfig)。
+                        _config.EndTransient();
+                        ApplyConfig();
                     }
                 }
             }

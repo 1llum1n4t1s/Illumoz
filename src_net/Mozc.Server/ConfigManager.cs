@@ -10,6 +10,9 @@ public sealed class ConfigManager
 {
     private readonly object _lock = new();
     private Pb.Config _config;
+    // per-request の一時 config を適用している間、退避しておく「永続(恒久)config」。
+    // non-null の間は Serialize(=保存)がこちらを返し、一時設定がプロファイルへ焼き付くのを防ぐ。
+    private Pb.Config? _persistent;
 
     public ConfigManager() => _config = CreateDefault();
 
@@ -45,12 +48,36 @@ public sealed class ConfigManager
         }
     }
 
-    // protobuf binary でシリアライズ。
+    // protobuf binary でシリアライズ。一時 config 適用中(BeginTransient 後)は永続値を返す
+    // (ProcessExit 等の保存が一時 config を焼き付けないように)。保存・GET_CONFIG 応答の両方に使う。
     public byte[] Serialize()
     {
         lock (_lock)
         {
-            return _config.ToByteArray();
+            return (_persistent ?? _config).ToByteArray();
+        }
+    }
+
+    // per-request の一時 config 適用を開始する。現在の永続 config を退避する(多重呼び出しは無害)。
+    // 以降の SetConfig は実効(評価用)の _config だけを変え、保存は退避した永続値を使う。
+    public void BeginTransient()
+    {
+        lock (_lock)
+        {
+            _persistent ??= _config.Clone();
+        }
+    }
+
+    // 一時 config 適用を終了し、実効 config を退避した永続値へ戻す。
+    public void EndTransient()
+    {
+        lock (_lock)
+        {
+            if (_persistent != null)
+            {
+                _config = _persistent;
+                _persistent = null;
+            }
         }
     }
 
