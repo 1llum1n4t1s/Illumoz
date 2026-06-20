@@ -296,6 +296,32 @@ public class SessionConverterTests
     }
 
     [Fact]
+    public void CommitFirstSegment_CommitsHeadAndExposesReadings()
+    {
+        var sc = new SessionConverter(Engine());
+        foreach (char c in "watashinonamae")
+        {
+            sc.InsertCharacter(c.ToString());
+        }
+        sc.Convert();
+        Assert.True(sc.ConversionSegmentsSize >= 2);
+        string fullPreedit = sc.GetPreedit();
+        int convSize = sc.ConversionSegmentsSize;
+
+        // 注目位置に依らず先頭文節のみ確定する(CommitOnlyFirstSegment キーバインド相当)。
+        sc.SegmentFocusRight(); // 注目を 2 文節目へ動かしても先頭が確定対象。
+        string head = sc.CommitFirstSegment();
+
+        Assert.NotEqual(string.Empty, head);
+        Assert.Equal(SessionConverter.State.Conversion, sc.CurrentState);
+        Assert.Equal(convSize - 1, sc.ConversionSegmentsSize);
+        Assert.Equal(fullPreedit, head + sc.GetPreedit());
+        // 確定済み先頭読みと残り読みが公開され、Session の _typed 再同期に使える。
+        Assert.NotEqual(string.Empty, sc.LastHeadReading);
+        Assert.NotEqual(string.Empty, sc.ComposerReading);
+    }
+
+    [Fact]
     public void SelectCandidate_ByIndex()
     {
         var sc = new SessionConverter(Engine());

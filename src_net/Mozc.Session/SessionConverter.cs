@@ -62,6 +62,17 @@ public sealed class SessionConverter
         _composer.InsertCharacter(key);
     }
 
+    // input_style=AS_IS の文字をローマ字変換せずそのまま composer へ入れる。
+    public void InsertCharacterAsIs(string ch)
+    {
+        if (CurrentState == State.Conversion)
+        {
+            Commit();
+        }
+        _t13n = null;
+        _composer.InsertCharacterAsIs(ch);
+    }
+
     // composer の表記変換(ひらがな/全角カナ/半角カナ/全角英数/半角英数)を選んで
     // preedit に反映する(C++ session の ConvertToHiragana 等に相当)。
     public void ConvertToTransliteration(global::System.Func<Composer.Composer, string> picker)
@@ -249,49 +260,66 @@ public sealed class SessionConverter
         return result;
     }
 
+    // 直前の部分確定で確定した先頭側の読み(確定済み文節 Key の連結)。Session が _typed/_lastCommitted
+    // の再同期に使う(部分確定後に古い全入力が残って既確定テキストが復活するのを防ぐ)。
+    public string LastHeadReading { get; private set; } = string.Empty;
+
+    // 現在の composer 読み(部分確定後は残り読みになっている)。Session の _typed 再構築に使う。
+    public string ComposerReading => _composer.GetStringForPreedit();
+
     // SUBMIT_CANDIDATE(変換中): 注目文節までを確定し、後続文節は変換状態のまま残す
     // (C++ session_converter の「先頭〜注目文節をコミットし残りを変換継続」相当)。
-    // 単文節・注目が最終文節・コマンド候補が絡む場合は通常の全体 Commit に委ねる。
-    public string CommitHeadToFocusedSegments()
+    public string CommitHeadToFocusedSegments() => CommitHeadSegments(_focusedSegment);
+
+    // CommitOnlyFirstSegment キーバインド: 先頭文節のみ確定し残りを変換継続する(C++ 同名コマンド相当)。
+    public string CommitFirstSegment() => CommitHeadSegments(0);
+
+    // 先頭から lastIndex までの文節を確定し、後続を変換状態で残す共通実装。
+    // 単文節・lastIndex が最終文節・コマンド候補が絡む場合は通常の全体 Commit に委ねる。
+    private string CommitHeadSegments(int lastIndex)
     {
+        LastHeadReading = string.Empty;
         if (CurrentState != State.Conversion || _segments == null)
         {
             return Commit();
         }
         int convSize = _segments.ConversionSegmentsSize;
-        if (convSize <= 1 || _focusedSegment >= convSize - 1 || SelectedCandidateIsCommand())
+        if (convSize <= 1 || lastIndex >= convSize - 1 || SelectedCandidateIsCommand())
         {
             return Commit();
         }
 
-        // 注目文節までの確定テキストを組み立てる。
+        // 確定テキストと確定済み読み([0..lastIndex])を組み立てる。
         var sb = new global::System.Text.StringBuilder();
-        for (int i = 0; i <= _focusedSegment; i++)
+        var headReading = new global::System.Text.StringBuilder();
+        for (int i = 0; i <= lastIndex; i++)
         {
             sb.Append(_segments.ConversionSegment(i).Get(_selected[i]).Value);
+            headReading.Append(_segments.ConversionSegment(i).Key);
         }
         string committed = sb.ToString();
+        LastHeadReading = headReading.ToString();
 
-        // 確定する先頭文節群([0.._focusedSegment])だけ履歴学習する。
-        LearnHistoryRange(0, _focusedSegment + 1);
+        // 確定する先頭文節群([0..lastIndex])だけ履歴学習する。
+        LearnHistoryRange(0, lastIndex + 1);
 
         // 残り文節の読みを退避してから先頭文節群を除去し、composer を残り読みで再同期する
         // (composer が確定済み読みを保持したままだと、次の打鍵/確定で先頭読みが混入する)。
         var remainingReading = new global::System.Text.StringBuilder();
-        for (int i = _focusedSegment + 1; i < convSize; i++)
+        for (int i = lastIndex + 1; i < convSize; i++)
         {
             remainingReading.Append(_segments.ConversionSegment(i).Key);
         }
 
         int historySize = _segments.HistorySegmentsSize;
-        _segments.EraseSegments(historySize, _focusedSegment + 1);
+        _segments.EraseSegments(historySize, lastIndex + 1);
 
         // _selected を残存文節へ詰め替え、注目を先頭へ戻す。
         int remaining = _segments.ConversionSegmentsSize;
         var newSelected = new int[remaining];
         for (int i = 0; i < remaining; i++)
         {
-            newSelected[i] = _selected[i + _focusedSegment + 1];
+            newSelected[i] = _selected[i + lastIndex + 1];
         }
         _selected = newSelected;
         _focusedSegment = 0;

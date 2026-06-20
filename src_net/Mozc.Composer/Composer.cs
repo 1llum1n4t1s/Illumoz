@@ -19,6 +19,14 @@ public sealed class Composer
         _composition.InsertInput(CompositionInput.FromRaw(key));
     }
 
+    // input_style=AS_IS の文字を「そのまま」投入する(ローマ字表変換を一切かけない)。
+    // 文字を raw=conversion かつ IsAsis で与えると、CharChunk が確定文字として固定し、
+    // 'n' 等が次打鍵待ちの pending romaji にならず literal のまま保持される。
+    public void InsertCharacterAsIs(string ch)
+    {
+        _composition.InsertInput(new CompositionInput { Raw = ch, Conversion = ch, IsAsis = true });
+    }
+
     public void InsertCharacters(string keys)
     {
         foreach (char c in keys)

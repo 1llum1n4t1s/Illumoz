@@ -216,10 +216,13 @@ public sealed class SessionHandler
             // 間接 IME-ON/OFF をディスパッチ前に同期する(SendKey(KeyEvent) と判定 source を揃える)。
             session.SyncIndirectImeOnOff(input.Key!.Activated);
             // input_style=DIRECT_INPUT の key_string は precomposition で即時確定する(直接入力)。
-            // それ以外は keymap 構文として再解釈せず、生テキストとして composer へ入れる。
-            r = input.Key!.InputStyle == InputStyle.DirectInput
-                ? session.InsertTextDirect(input.KeyString, input.Key.KeyCode)
-                : session.InsertText(input.KeyString);
+            // AS_IS はローマ字変換せず literal を保持する。それ以外は生テキストとして composer へ入れる。
+            r = input.Key!.InputStyle switch
+            {
+                InputStyle.DirectInput => session.InsertTextDirect(input.KeyString, input.Key.KeyCode),
+                InputStyle.AsIs => session.InsertTextAsIs(input.KeyString),
+                _ => session.InsertText(input.KeyString),
+            };
         }
         else if (input.Key != null)
         {

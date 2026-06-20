@@ -41,6 +41,25 @@ public sealed class Session
         _suggestionCacheKey = null;
     }
 
+    // 部分確定(CommitHeadToFocusedSegments / CommitFirstSegment)後に Session 側の入力バッファを
+    // 再同期する。_typed を残り読みへ、_lastCommitted を確定済み先頭読みへ揃えることで、
+    // 後続の Backspace 再構築や Undo が古い全入力から既確定テキストを復活させないようにする。
+    private void ResyncAfterPartialCommit()
+    {
+        _typed.Clear();
+        foreach (global::System.Text.Rune r in _converter.ComposerReading.EnumerateRunes())
+        {
+            _typed.Add(r.ToString());
+        }
+        // Undo は直前確定の読みを composition へ戻す。部分確定では先頭側の読みを記録する。
+        _lastCommitted = new List<string>();
+        foreach (global::System.Text.Rune r in _converter.LastHeadReading.EnumerateRunes())
+        {
+            _lastCommitted.Add(r.ToString());
+        }
+        _suggestionCacheKey = null;
+    }
+
     // 直前の確定を取り消し、確定前の composition を復元する(C++ Undo 相当)。
     public SessionResult Undo()
     {
@@ -183,6 +202,17 @@ public sealed class Session
         // (commands.proto KeyEvent.activated。間接 IME off の印字キーを素通しさせる)。
         if (key.Activated.HasValue)
         {
+            // 間接 IME OFF への遷移は状態遷移として扱う。入力中/変換中の preedit があれば確定して
+            // から無効化する(C++ IMEOff と同じ)。確定せず _activated だけ false にすると、打鍵が
+            // _typed に隠れたまま残り、後続の ON で stale テキストが復活/変換されてしまう。
+            if (!key.Activated.Value && _activated
+                && (_converter.CurrentState == SessionConverter.State.Conversion || _typed.Count > 0))
+            {
+                string flushed = _converter.Commit();
+                SnapshotAndClearTyped();
+                _activated = false;
+                return new SessionResult { Committed = flushed, Preedit = "", Consumed = true };
+            }
             _activated = key.Activated.Value;
         }
         string status = Status();
@@ -316,7 +346,10 @@ public sealed class Session
                     string head = _converter.CommitHeadToFocusedSegments();
                     if (_converter.CurrentState == SessionConverter.State.Conversion)
                     {
-                        // 部分確定: 確定テキストを返しつつ残り変換を継続(_typed は維持)。
+                        // 部分確定: 確定テキストを返しつつ残り変換を継続する。_typed/_lastCommitted を
+                        // 残り読み・確定済み読みへ再同期し、後続の Backspace/Undo が古い全入力から
+                        // 既確定の先頭テキストを復活させないようにする。
+                        ResyncAfterPartialCommit();
                         return new SessionResult
                         {
                             Committed = head,
@@ -379,6 +412,43 @@ public sealed class Session
             Consumed = last.Consumed,
             Command = last.Command,
         };
+    }
+
+    // input_style=AS_IS の key_string 挿入。ローマ字表変換をかけず literal を保持する
+    // (AS_IS クライアントが意図的に Latin テキストやカスタムローマ字規則に当たる文字を
+    // 送ったとき、変換/pending 化させずそのまま composer へ入れる)。
+    public SessionResult InsertTextAsIs(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return new SessionResult { Preedit = GetPreedit(), Consumed = false };
+        }
+        string committed = string.Empty;
+        SessionResult last = Current(true);
+        foreach (global::System.Text.Rune rune in text.EnumerateRunes())
+        {
+            last = InsertCharAsIs(rune.ToString());
+            committed += last.Committed;
+        }
+        return new SessionResult
+        {
+            Committed = committed,
+            Preedit = last.Preedit,
+            Consumed = last.Consumed,
+        };
+    }
+
+    private SessionResult InsertCharAsIs(string ch)
+    {
+        string committed = string.Empty;
+        if (_converter.CurrentState == SessionConverter.State.Conversion)
+        {
+            committed = _converter.Commit();
+            SnapshotAndClearTyped();
+        }
+        _converter.InsertCharacterAsIs(ch);
+        _typed.Add(ch);
+        return new SessionResult { Committed = committed, Preedit = GetPreedit(), Consumed = true };
     }
 
     // input_style=DIRECT_INPUT の key_string 処理(C++ session.cc:1486-1544 相当)。
@@ -458,11 +528,22 @@ public sealed class Session
                 return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
             }
             case "CommitOnlyFirstSegment":
-                // 第一文節のみ確定は未実装(文節分割編集が前提)。変換中は全体確定として
-                // 消費し、キーがアプリへ抜けないようにする(単一文節では等価)。
+                // 先頭文節のみ確定し、残り文節は変換状態のまま編集を継続する(C++ 同名コマンド相当)。
+                // 単一文節・最終文節では CommitFirstSegment が全体確定にフォールバックする。
                 if (_converter.CurrentState == SessionConverter.State.Conversion)
                 {
-                    string committed = _converter.Commit();
+                    string committed = _converter.CommitFirstSegment();
+                    if (_converter.CurrentState == SessionConverter.State.Conversion)
+                    {
+                        // 部分確定: 残りを変換継続(_typed/_lastCommitted を再同期)。
+                        ResyncAfterPartialCommit();
+                        return new SessionResult
+                        {
+                            Committed = committed,
+                            Preedit = _converter.GetPreedit(),
+                            Consumed = true,
+                        };
+                    }
                     SnapshotAndClearTyped();
                     return new SessionResult { Committed = committed, Preedit = "", Consumed = true };
                 }

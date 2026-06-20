@@ -316,4 +316,58 @@ public class SessionTests
         SessionResult r = s.SendKey("Enter");
         Assert.False(r.Consumed);
     }
+
+    [Fact]
+    public void SendKey_IndirectImeOff_CommitsPendingPreedit()
+    {
+        // 間接 IME OFF(activated=false 宣言キー)は、入力中 preedit を確定してから無効化する。
+        // 確定せず _activated だけ落とすと打鍵が _typed に隠れ、後続 ON で stale テキストが復活する。
+        Session s = NewSession();
+        foreach (char c in "watashi")
+        {
+            s.SendKey(c.ToString());
+        }
+        SessionResult r = s.SendKey(new KeyEvent { Activated = false });
+        Assert.True(r.Consumed);
+        Assert.Equal("わたし", r.Committed);
+        Assert.Equal("", r.Preedit);
+        Assert.False(s.Activated);
+    }
+
+    [Fact]
+    public void InsertTextAsIs_KeepsLiteral_NoRomajiConversion()
+    {
+        // AS_IS の key_string はローマ字表変換をかけず literal を保持する。
+        Session s = NewSession();
+        SessionResult r = s.InsertTextAsIs("e");
+        Assert.True(r.Consumed);
+        Assert.Equal("e", r.Preedit);
+        // 対比: 通常の生テキスト経路はローマ字規則 e→え を適用する。
+        Assert.Equal("え", NewSession().InsertText("e").Preedit);
+    }
+
+    [Fact]
+    public void PartialCommit_ThenBackspace_DoesNotReintroduceCommittedHead()
+    {
+        Session s = NewSession();
+        foreach (char c in "watashinonamae")
+        {
+            s.SendKey(c.ToString());
+        }
+        s.SendKey("Space"); // 変換開始(私 の 名前)
+        Assert.True(s.Converter.ConversionSegmentsSize >= 2);
+
+        // SUBMIT_CANDIDATE で先頭文節のみ部分確定し、残りは変換継続。
+        SessionResult r = s.SendCommand(SessionCommandType.SubmitCandidate, 0);
+        Assert.Equal("私", r.Committed);
+        Assert.Equal(SessionConverter.State.Conversion, s.Converter.CurrentState);
+
+        // 残りをキャンセルして composition へ戻すと、preedit は残り読みのみ(先頭は含まない)。
+        s.SendKey("Escape");
+        Assert.DoesNotContain("私", s.GetPreedit());
+
+        // Backspace で末尾を削っても、_typed 再同期により既確定の先頭が復活しない。
+        s.SendKey("Backspace");
+        Assert.DoesNotContain("私", s.GetPreedit());
+    }
 }
