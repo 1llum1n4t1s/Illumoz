@@ -32,8 +32,15 @@ public sealed class SymbolRewriter : IRewriter
     public static IReadOnlyDictionary<string, string[]> LoadTable(string tsv)
         => Base.SymbolDataParser.ParseSymbol(tsv);
 
+    // config.use_symbol_conversion=false で記号変換候補を出さない(C++ use_symbol_conversion() 相当)。
+    public bool Enabled { get; set; } = true;
+
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         bool modified = false;
         for (int i = 0; i < segments.ConversionSegmentsSize; i++)
         {

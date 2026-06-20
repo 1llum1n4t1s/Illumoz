@@ -75,6 +75,8 @@ internal static class Program
         ServerHost.LoadProfile(server, resolvedProfile);
         global::System.AppDomain.CurrentDomain.ProcessExit +=
             (_, _) => ServerHost.SaveProfile(server, resolvedProfile);
+        // SYNC_DATA(クライアントの定期/終了フラッシュ要求)で学習データを永続化する。
+        server.OnSyncData = () => ServerHost.SaveHistoryOnly(server, resolvedProfile);
 
         // .ipc を公開(key/protocol/pid)。クライアントは IpcPathManager.TryLoad で実 pipe 名を得る。
         IpcPathManager pathManager = IpcPathManager.Create(

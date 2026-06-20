@@ -20,6 +20,19 @@ public class DateRewriterTests
     }
 
     [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_date_conversion=false 相当: Enabled=false なら日付変換候補を出さない。
+        var rewriter = new DateRewriter(new FixedClock(new global::System.DateTime(2026, 6, 19)))
+        {
+            Enabled = false,
+        };
+        Segments segments = OneSegment("きょう", "今日");
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, segments.ConversionSegment(0).CandidatesSize);
+    }
+
+    [Fact]
     public void RewriteToday_InsertsDateFormats()
     {
         var clock = new FixedClock(new global::System.DateTime(2026, 6, 19, 0, 0, 0)); // 金曜

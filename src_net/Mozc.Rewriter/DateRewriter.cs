@@ -49,8 +49,15 @@ public sealed class DateRewriter : IRewriter
 
     public DateRewriter(IClock clock) => _clock = clock;
 
+    // config.use_date_conversion=false で日付変換候補を出さない(C++ use_date_conversion() 相当)。
+    public bool Enabled { get; set; } = true;
+
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         bool modified = false;
         for (int i = 0; i < segments.ConversionSegmentsSize; i++)
         {

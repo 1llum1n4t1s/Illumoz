@@ -50,6 +50,23 @@ public class NumberRewriterTests
     }
 
     [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_number_conversion=false 相当: Enabled=false なら数字変換候補を出さない。
+        var rewriter = new NumberRewriter { Enabled = false };
+        var segments = new Segments();
+        Segment seg = segments.AddSegment();
+        seg.SetKey("1234");
+        Candidate c = seg.AddCandidate();
+        c.Key = "1234";
+        c.Value = "1234";
+        c.ContentKey = "1234";
+        c.ContentValue = "1234";
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, seg.CandidatesSize);
+    }
+
+    [Fact]
     public void Rewrite_InsertsNumberVariants()
     {
         var rewriter = new NumberRewriter();

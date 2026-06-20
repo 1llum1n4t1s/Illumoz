@@ -29,6 +29,10 @@ public sealed class EngineServer
     public SessionHandler Handler => _handler;
     public ConfigManager Config => _config;
 
+    // SYNC_DATA 受信時に履歴/辞書を永続化するためのフック(Program.cs が登録する)。
+    // C++ session_handler は SYNC_DATA で UserHistoryPredictor::Sync 等を呼ぶ。
+    public global::System.Action? OnSyncData { get; set; }
+
     // config.character_form_rules から構築した文字形マネージャ(preedit / conversion)。
     // ApplyConfig で更新される。既定は C++ Preedit 既定ルール。
     public Mozc.Base.CharacterFormManager PreeditFormManager { get; private set; }
@@ -201,12 +205,28 @@ public sealed class EngineServer
         }
         foreach (IRewriter r in merger.Rewriters)
         {
-            if (r is CommandRewriter cmd)
+            switch (r)
             {
-                cmd.IncognitoMode = c.IncognitoMode;
-                cmd.PresentationMode = c.PresentationMode;
-                cmd.SuggestionEnabled =
-                    c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion;
+                case CommandRewriter cmd:
+                    cmd.IncognitoMode = c.IncognitoMode;
+                    cmd.PresentationMode = c.PresentationMode;
+                    cmd.SuggestionEnabled =
+                        c.UseHistorySuggest || c.UseDictionarySuggest || c.UseRealtimeConversion;
+                    break;
+                // 変換種別の有効/無効を該当 rewriter へ伝播する(C++ use_*_conversion() 相当)。
+                // config で無効化した記号/数字/日付/計算の候補が以後出ないようにする。
+                case SymbolRewriter sym:
+                    sym.Enabled = c.UseSymbolConversion;
+                    break;
+                case NumberRewriter num:
+                    num.Enabled = c.UseNumberConversion;
+                    break;
+                case DateRewriter date:
+                    date.Enabled = c.UseDateConversion;
+                    break;
+                case CalculatorRewriter calc:
+                    calc.Enabled = c.UseCalculator;
+                    break;
             }
         }
     }
@@ -308,6 +328,10 @@ public sealed class EngineServer
                 {
                     return Capture(new Output { ErrorOccured = true });
                 }
+            case CommandType.SyncData:
+                // 永続化フラッシュ(履歴/辞書)を発火してから SessionHandler の受理応答を返す。
+                OnSyncData?.Invoke();
+                return Capture(_handler.EvalCommand(input));
             default:
             {
                 // クライアントがリクエストに config を添付(MozcSessionClient.Preferences 経由の

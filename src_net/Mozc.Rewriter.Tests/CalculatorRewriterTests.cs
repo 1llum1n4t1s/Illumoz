@@ -44,6 +44,16 @@ public class CalculatorRewriterTests
     }
 
     [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_calculator=false 相当: Enabled=false なら計算候補を出さない。
+        var rewriter = new CalculatorRewriter { Enabled = false };
+        Segments segments = OneSegment("1+2=");
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, segments.ConversionSegment(0).CandidatesSize);
+    }
+
+    [Fact]
     public void Rewrite_InsertsResultCandidates()
     {
         var rewriter = new CalculatorRewriter();

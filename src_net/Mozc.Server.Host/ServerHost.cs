@@ -188,6 +188,16 @@ public static class ServerHost
             () => server.ConversionFormManager.SaveHistory(global::System.IO.Path.Combine(dir, CharacterFormFile)));
     }
 
+    // SYNC_DATA 受信時のフラッシュ。C++ SessionHandler::SyncData は学習データ(履歴・ユーザー辞書)を
+    // 永続化する(設定/字形は終了時 SaveProfile に委ねる)。各 Save は独立 try/catch で守る。
+    public static void SaveHistoryOnly(EngineServer server, string dir)
+    {
+        global::System.IO.Directory.CreateDirectory(dir);
+        SaveQuietly("history", () => server.Handler.SaveHistory(global::System.IO.Path.Combine(dir, HistoryFile)));
+        SaveQuietly("user_dictionary",
+            () => server.Handler.SaveUserDictionary(global::System.IO.Path.Combine(dir, UserDictionaryFile)));
+    }
+
     // 1 ファイルの保存を実行し、失敗しても stderr に記録して継続する(他ファイルの保存を守る)。
     private static void SaveQuietly(string what, global::System.Action save)
     {

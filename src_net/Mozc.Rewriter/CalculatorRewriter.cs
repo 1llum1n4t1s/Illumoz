@@ -11,8 +11,15 @@ public sealed class CalculatorRewriter : IRewriter
 {
     private const int InsertIndex = 0; // 計算結果は先頭付近に出す。
 
+    // config.use_calculator=false で計算候補を出さない(C++ use_calculator() 相当)。
+    public bool Enabled { get; set; } = true;
+
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         // 計算は単一変換セグメントのときのみ(C++ も conversion_segments_size()==1 を要求)。
         if (segments.ConversionSegmentsSize != 1)
         {

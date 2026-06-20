@@ -20,6 +20,16 @@ public class SymbolRewriterTests
     }
 
     [Fact]
+    public void Rewrite_Disabled_NoOp()
+    {
+        // config.use_symbol_conversion=false 相当: Enabled=false なら記号変換候補を出さない。
+        var rewriter = new SymbolRewriter { Enabled = false };
+        Segments segments = OneSegment("やじるし", "矢印");
+        Assert.False(rewriter.Rewrite(segments));
+        Assert.Equal(1, segments.ConversionSegment(0).CandidatesSize);
+    }
+
+    [Fact]
     public void Rewrite_InsertsArrowSymbols()
     {
         var rewriter = new SymbolRewriter();

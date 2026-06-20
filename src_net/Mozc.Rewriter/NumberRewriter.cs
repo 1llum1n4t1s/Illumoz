@@ -7,8 +7,15 @@ namespace Mozc.Rewriter;
 // 全角/区切り/漢数字/大字の各表記を候補として挿入する。
 public sealed class NumberRewriter : IRewriter
 {
+    // config.use_number_conversion=false で数字変換候補を出さない(C++ use_number_conversion() 相当)。
+    public bool Enabled { get; set; } = true;
+
     public bool Rewrite(Segments segments)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
         bool modified = false;
         for (int i = 0; i < segments.ConversionSegmentsSize; i++)
         {

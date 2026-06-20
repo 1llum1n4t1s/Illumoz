@@ -305,6 +305,19 @@ public class EngineServerTests
     }
 
     [Fact]
+    public void SyncData_InvokesOnSyncData_AndSucceeds()
+    {
+        EngineServer server = Server();
+        int flushed = 0;
+        server.OnSyncData = () => flushed++;
+
+        Output o = RoundTrip(server, new Input { Type = CommandType.SyncData });
+        Assert.True(o.Consumed);
+        Assert.False(o.ErrorOccured);
+        Assert.Equal(1, flushed); // SYNC_DATA で永続化フックが発火する。
+    }
+
+    [Fact]
     public void Codec_RoundTrip_Output()
     {
         var output = new Output
