@@ -43,6 +43,8 @@ MODULE.bazel.lock
 /oss
 /src-*
 /src_*
+# .NET 10 移行ツリーは正式な追跡対象（/src_* の除外を解除）
+!/src_net/
 
 # Mozc build artifacts by Bazel (symbolic links)
 /src/bazel-bin
@@ -75,3 +77,6 @@ MODULE.bazel.lock
 /src/android/resources/res
 /src/android/tests/AndroidManifest.xml
 /src/android/tests/libs/
+
+# 生成物(GenerateMozcData が publish 時に出力する辞書データ。コミットしない)
+src_net/**/mozc.data

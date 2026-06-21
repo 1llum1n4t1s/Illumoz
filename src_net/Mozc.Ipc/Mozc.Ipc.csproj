@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/ipc 相当。IPC ワイヤープロトコルの C# 再実装(パスマネージャ/各OSクライアント) -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Ipc</RootNamespace>
+    <!-- peer 認証の LibraryImport(getsockopt/getpeereid)がソース生成でポインタを使うため。 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mozc.Ipc.Tests" />
+  </ItemGroup>
+
+</Project>

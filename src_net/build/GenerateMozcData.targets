@@ -1,0 +1,44 @@
+<Project>
+  <!--
+    Bazel genrule(mozc_data.bzl)の代替。Mozc.DataGen CLI を呼んで src/data から
+    mozc.data を生成する MSBuild Target。Engine/Server を含むアプリの .csproj から
+    <Import Project="..\build\GenerateMozcData.targets" /> して使う。
+
+    必要プロパティ(呼び出し側 .csproj で上書き可):
+      MozcDataOutput      生成する mozc.data の出力先
+      MozcSrcDataDir      src/data ルート
+      MozcDataGenDll      Mozc.DataGen.dll のパス
+    既定は src_net/build からの相対で解決する。Bazel は一切不要。
+  -->
+  <PropertyGroup>
+    <!-- パス区切りは forward slash で統一する(.NET の File API は Windows でも '/' を
+         受け付ける一方、'\' は Unix シェルで区切りにならずリテラル化して publish が失敗する)。 -->
+    <MozcSrcDataDir Condition="'$(MozcSrcDataDir)' == ''">$(MSBuildThisFileDirectory)../../src/data</MozcSrcDataDir>
+    <MozcDataOutput Condition="'$(MozcDataOutput)' == ''">$(MSBuildProjectDirectory)/mozc.data</MozcDataOutput>
+    <MozcDataGenDll Condition="'$(MozcDataGenDll)' == ''">$(MSBuildThisFileDirectory)../Mozc.DataGen/bin/$(Configuration)/net10.0/Mozc.DataGen.dll</MozcDataGenDll>
+    <!-- 生成タイミング。既定は BeforeBuild。通常のソリューションビルド/テストと
+         DataGen 実行(dotnet dll)の出力ロックが競合する構成では、呼び出し側で
+         "Publish" 等に上書きしてビルド本体と切り離す。 -->
+    <MozcDataGenTrigger Condition="'$(MozcDataGenTrigger)' == ''">BeforeBuild</MozcDataGenTrigger>
+  </PropertyGroup>
+
+  <!--
+    実 src/data のソース割り当て(OSS 版)。dictionary_oss の dictionary00-09 を結合、
+    connection_single_column.txt(先頭行 = pos_size)、rules/id.def 等を渡す。
+    ファイル名はリポジトリ構成に合わせて呼び出し側で上書き可能。
+  -->
+  <ItemGroup>
+    <MozcDictFile Include="$(MozcSrcDataDir)/dictionary_oss/dictionary0*.txt" />
+  </ItemGroup>
+
+  <Target Name="GenerateMozcData"
+          BeforeTargets="$(MozcDataGenTrigger)"
+          Inputs="@(MozcDictFile);$(MozcSrcDataDir)/dictionary_oss/connection_single_column.txt;$(MozcSrcDataDir)/dictionary_oss/id.def;$(MozcSrcDataDir)/rules/pos_matcher_rule.def;$(MozcSrcDataDir)/rules/segmenter.def;$(MozcSrcDataDir)/rules/boundary.def;$(MozcSrcDataDir)/rules/special_pos.def;$(MozcSrcDataDir)/symbol/symbol.tsv;$(MozcSrcDataDir)/single_kanji/single_kanji.tsv;$(MozcSrcDataDir)/emoji/emoji_data.tsv"
+          Outputs="$(MozcDataOutput)">
+    <PropertyGroup>
+      <_MozcDictArgs>@(MozcDictFile->'--dict &quot;%(FullPath)&quot;', ' ')</_MozcDictArgs>
+    </PropertyGroup>
+    <Message Importance="high" Text="[Mozc] Generating mozc.data (Bazel-free) -> $(MozcDataOutput)" />
+    <Exec Command="dotnet &quot;$(MozcDataGenDll)&quot; --out &quot;$(MozcDataOutput)&quot; $(_MozcDictArgs) --connection &quot;$(MozcSrcDataDir)/dictionary_oss/connection_single_column.txt&quot; --id-def &quot;$(MozcSrcDataDir)/dictionary_oss/id.def&quot; --pos-matcher-rule &quot;$(MozcSrcDataDir)/rules/pos_matcher_rule.def&quot; --segmenter-rule &quot;$(MozcSrcDataDir)/rules/segmenter.def&quot; --boundary &quot;$(MozcSrcDataDir)/rules/boundary.def&quot; --special-pos &quot;$(MozcSrcDataDir)/rules/special_pos.def&quot; --symbol &quot;$(MozcSrcDataDir)/symbol/symbol.tsv&quot; --single-kanji &quot;$(MozcSrcDataDir)/single_kanji/single_kanji.tsv&quot; --emoji &quot;$(MozcSrcDataDir)/emoji/emoji_data.tsv&quot;" />
+  </Target>
+</Project>

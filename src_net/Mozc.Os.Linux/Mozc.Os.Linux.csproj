@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/unix/ibus 相当。IBusEngine ロジックは C#(ImeClient 共有)。
+       GObject signal handler stub のみ実機で native(極薄)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Os.Linux</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Client\Mozc.Client.csproj" />
+    <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
+    <ProjectReference Include="..\Mozc.Protocol\Mozc.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

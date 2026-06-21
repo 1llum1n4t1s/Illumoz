@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/converter 相当。連接コスト/ラティス/Viterbi/変換中核。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Converter</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Storage\Mozc.Storage.csproj" />
+    <ProjectReference Include="..\Mozc.Dictionary\Mozc.Dictionary.csproj" />
+  </ItemGroup>
+
+</Project>

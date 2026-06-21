@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Avalonia デスクトップアプリ(GUI ツール群の実 View)。C++ src/gui の Qt を置換。
+       単一バイナリ + 内部 mode 分岐(mode=word_register / config_dialog / dictionary_tool)。 -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- NativeAOT 自己完結配布(プラン C7)。compiled bindings 既定 ON で AOT 前提を満たす。
+         publish 時のみ native 化し、build/test には影響しない(RID 指定 publish は各 OS runner)。 -->
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
+    <!-- Avalonia(Linux backend)推移依存の脆弱性(GHSA-xrw6-gwf8-vvr9)回避のため
+         パッチ版を直接固定。0.90.3 -> 0.94.2 -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Gui\Mozc.Gui.csproj" />
+  </ItemGroup>
+
+</Project>

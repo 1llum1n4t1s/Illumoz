@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ mozc_server 実行ファイル相当。mozc.data をロードした EngineServer を
+       NamedPipe(Windows)/Unix socket(Linux/mac)で公開する常駐プロセス。NativeAOT 配布。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Mozc.Server.Host</RootNamespace>
+    <!-- NativeAOT 自己完結配布(プラン C7)。publish 時のみ native 化し、build/test には影響しない。
+         実 native コンパイルは RID 指定の `dotnet publish -r <rid>` が各 OS runner 上で行う。 -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Server\Mozc.Server.csproj" />
+    <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
+    <ProjectReference Include="..\Mozc.Session\Mozc.Session.csproj" />
+    <ProjectReference Include="..\Mozc.Rewriter\Mozc.Rewriter.csproj" />
+    <ProjectReference Include="..\Mozc.Ipc\Mozc.Ipc.csproj" />
+    <!-- mozc.data 生成 CLI。リンクはしないが、GenerateMozcData が dll を呼ぶ前に
+         必ずビルドされるよう参照だけ張る(ReferenceOutputAssembly=false)。 -->
+    <ProjectReference Include="..\Mozc.DataGen\Mozc.DataGen.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- publish 時に src/data から mozc.data を生成し、サーバ直下へ出力する。
+       build-deb.sh 等のパッケージングはこの出力(../../Mozc.Server.Host/mozc.data)を同梱する。
+       通常ビルド/テストでは生成しない(DataGen 実行と出力コピーのロック競合を避けるため、
+       BeforeBuild ではなく Publish をトリガにする)。 -->
+  <PropertyGroup>
+    <MozcDataGenTrigger>Publish</MozcDataGenTrigger>
+  </PropertyGroup>
+  <Import Project="..\build\GenerateMozcData.targets" />
+
+</Project>

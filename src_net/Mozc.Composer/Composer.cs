@@ -1,0 +1,61 @@
+namespace Mozc.Composer;
+
+// C++ composer::Composer 相当(中核フローのみ)。Table を使って打鍵列を保持し、
+// preedit(表示)と変換用クエリ(確定)を返す。番号変換・全半角変換等の後処理は後続。
+public sealed class Composer
+{
+    private readonly Composition _composition;
+
+    public Composer(Table table)
+    {
+        _composition = new Composition(table);
+    }
+
+    public void Reset() => _composition.Erase();
+
+    // 1 打鍵分の生入力を投入(ローマ字 1 文字等)。
+    public void InsertCharacter(string key)
+    {
+        _composition.InsertInput(CompositionInput.FromRaw(key));
+    }
+
+    // input_style=AS_IS の文字を「そのまま」投入する(ローマ字表変換を一切かけない)。
+    // 文字を raw=conversion かつ IsAsis で与えると、CharChunk が確定文字として固定し、
+    // 'n' 等が次打鍵待ちの pending romaji にならず literal のまま保持される。
+    public void InsertCharacterAsIs(string ch)
+    {
+        _composition.InsertInput(new CompositionInput { Raw = ch, Conversion = ch, IsAsis = true });
+    }
+
+    public void InsertCharacters(string keys)
+    {
+        foreach (char c in keys)
+        {
+            InsertCharacter(c.ToString());
+        }
+    }
+
+    // preedit 表示用文字列(未確定 pending を含む)。
+    public string GetStringForPreedit() => _composition.GetString();
+
+    // 変換にかけるクエリ(pending を確定扱いにトリム)。
+    public string GetQueryForConversion() => _composition.GetStringWithTrimMode(TrimMode.Fix);
+
+    // 打鍵そのもの(ローマ字等の生入力)。language-aware 判定や生クエリ提案に使う。
+    public string GetRawString() => _composition.GetRawString();
+
+    // 予測用クエリ(末尾の未確定 pending をトリムし半角ASCII化)。
+    public string GetQueryForPrediction() => _composition.GetQueryForPrediction();
+
+    // 表記変換候補(F6=ひらがな/F7=全角カナ/F8=半角カナ/F9=全角英数/F10=半角英数)。
+    public string GetStringForType(Transliterator t12r)
+        => _composition.GetStringWithTransliterator(t12r);
+
+    public string GetHiragana() => GetStringForType(Transliterator.Hiragana);
+    public string GetFullKatakana() => GetStringForType(Transliterator.FullKatakana);
+    public string GetHalfKatakana() => GetStringForType(Transliterator.HalfKatakana);
+    public string GetFullAscii() => GetStringForType(Transliterator.FullAscii);
+    public string GetHalfAscii() => GetStringForType(Transliterator.HalfAscii);
+
+    public Composition Composition => _composition;
+}

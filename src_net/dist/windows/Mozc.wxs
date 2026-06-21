@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WiX インストーラ定義の骨格(C++ src/win32/installer 相当)。
+     TIP DLL(NativeAOT)/ mozc_server / renderer / GUI を同梱し CLSID/プロファイル登録する。
+     実際の RegisterTextService は実機 Windows でのカスタムアクション/登録 API。 -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Mozc (.NET)" Manufacturer="Mozc .NET migration"
+           Version="1.0.0.0" UpgradeCode="9E3B7C1A-0000-0000-0000-000000000001">
+    <MajorUpgrade DowngradeErrorMessage="新しいバージョンが既にインストールされています。" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Mozc">
+        <Component Id="MozcTip" Guid="*">
+          <File Id="MozcTipDll" Source="$(var.PublishDir)\Mozc.Os.Windows.dll" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcServer" Guid="*">
+          <File Id="MozcServerExe" Source="$(var.PublishDir)\Mozc.Server.Host.exe" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcTool" Guid="*">
+          <File Id="MozcToolExe" Source="$(var.PublishDir)\Mozc.Gui.App.exe" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcData" Guid="*">
+          <File Id="MozcDataFile" Source="$(var.PublishDir)\mozc.data" KeyPath="yes" />
+        </Component>
+        <!-- TIP は mozc_server 未起動時に ServerLauncher で引数なし spawn する。Program.cs は引数
+             省略時に実行ファイル(INSTALLFOLDER)と同じディレクトリの同梱データへフォールバックする
+             ため、mozc.data/roman.tsv/keymap.tsv をここに同梱する(service/Run 登録は不要=C++ 忠実)。 -->
+        <Component Id="MozcRoman" Guid="*">
+          <File Id="MozcRomanFile" Source="$(var.PublishDir)\roman.tsv" KeyPath="yes" />
+        </Component>
+        <Component Id="MozcKeymap" Guid="*">
+          <File Id="MozcKeymapFile" Source="$(var.PublishDir)\keymap.tsv" KeyPath="yes" />
+        </Component>
+        <!-- preedit_method=KANA 用のかな配列。同梱しないとかな入力モードがローマ字のままになる。 -->
+        <Component Id="MozcKana" Guid="*">
+          <File Id="MozcKanaFile" Source="$(var.PublishDir)\kana.tsv" KeyPath="yes" />
+        </Component>
+        <!-- SET_CONFIG の session_keymap(ATOK/KOTOERI/MOBILE/CHROMEOS/MSIME)プリセットは
+             <datadir>\keymap\<preset>.tsv から解決される(KeymapPresets.Load)。プリセット tsv
+             一式を同梱しないと、既定以外のキーマップへ切替できない(Linux deb / mac pkg と同じ)。 -->
+        <Directory Id="KeymapDir" Name="keymap">
+          <Component Id="MozcKeymapPresets" Guid="*">
+            <File Id="KeymapMsime" Source="$(var.PublishDir)\keymap\ms-ime.tsv" KeyPath="yes" />
+            <File Id="KeymapAtok" Source="$(var.PublishDir)\keymap\atok.tsv" />
+            <File Id="KeymapKotoeri" Source="$(var.PublishDir)\keymap\kotoeri.tsv" />
+            <File Id="KeymapMobile" Source="$(var.PublishDir)\keymap\mobile.tsv" />
+            <File Id="KeymapChromeos" Source="$(var.PublishDir)\keymap\chromeos.tsv" />
+            <!-- overlay_keymaps(Henkan/Muhenkan→IME ON/OFF)。ApplyOverlayKeymaps が解決する。 -->
+            <File Id="KeymapOverlayHenkanMuhenkan" Source="$(var.PublishDir)\keymap\overlay_henkan_muhenkan_to_ime_on_off.tsv" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentRef Id="MozcTip" />
+      <ComponentRef Id="MozcServer" />
+      <ComponentRef Id="MozcTool" />
+      <ComponentRef Id="MozcData" />
+      <ComponentRef Id="MozcRoman" />
+      <ComponentRef Id="MozcKeymap" />
+      <ComponentRef Id="MozcKana" />
+      <ComponentRef Id="MozcKeymapPresets" />
+    </Feature>
+
+    <!-- TIP の CLSID/TSF 言語プロファイルを登録する。これが無いと Windows は
+         テキストサービスを一覧/インスタンス化できない(手動登録が必要になる)。
+         regsvr32 で Mozc.Os.Windows.dll の DllRegisterServer/DllUnregisterServer を呼ぶ。 -->
+    <SetProperty Id="RegisterTip" Value="&quot;[SystemFolder]regsvr32.exe&quot; /s &quot;[INSTALLFOLDER]Mozc.Os.Windows.dll&quot;"
+                 Before="RegisterTip" Sequence="execute" />
+    <SetProperty Id="UnregisterTip" Value="&quot;[SystemFolder]regsvr32.exe&quot; /s /u &quot;[INSTALLFOLDER]Mozc.Os.Windows.dll&quot;"
+                 Before="UnregisterTip" Sequence="execute" />
+    <CustomAction Id="RegisterTip" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="UnregisterTip" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="RegisterTip" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="UnregisterTip" Before="RemoveFiles" Condition="Installed AND (REMOVE=&quot;ALL&quot;)" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

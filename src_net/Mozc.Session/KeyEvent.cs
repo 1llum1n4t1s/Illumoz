@@ -1,0 +1,65 @@
+using System.Text;
+
+namespace Mozc.Session;
+
+// C++ commands::KeyEvent::SpecialKey の主要部。
+public enum SpecialKey
+{
+    On, Off, Left, Down, Up, Right, Enter, Escape, Del, Backspace,
+    Henkan, Muhenkan, Kana, Katakana, Eisu, Home, End, Space, TextInput,
+    Tab, PageUp, PageDown, Insert, Hankaku, Kanji, Zenkaku,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
+    Numpad0, Numpad1, Numpad2, Numpad3, Numpad4,
+    Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+    Multiply, Add, Separator, Subtract, Decimal, Divide, Equals, Comma, Clear,
+    // 仮想キー(物理キーを持たず keymap だけで使う。C++ key_parser.cc の VIRTUAL_* 相当)。
+    VirtualLeft, VirtualRight, VirtualEnter, VirtualUp, VirtualDown,
+    UndefinedKey,
+}
+
+// キーマップ照合に使う正規化済み修飾キー(左右は基本キーに畳む)。
+public enum ModifierKey { Ctrl, Shift, Alt, Caps }
+
+// C++ commands::KeyEvent::InputStyle(input_style)。key_string の扱いを指定する。
+public enum InputStyle
+{
+    FollowMode = 0,  // 現在の入力モードに従う(既定)。
+    AsIs = 1,        // key_string を transliteration せずそのまま使う。
+    DirectInput = 2, // precomposition では key_string を即時確定出力。preedit では AS_IS と同じ。
+}
+
+// C++ commands::KeyEvent の中核(KeyCode=単一文字 / SpecialKey / Modifiers)。
+public sealed class KeyEvent
+{
+    public int? KeyCode { get; set; }
+    public SpecialKey? Special { get; set; }
+    public HashSet<ModifierKey> Modifiers { get; } = new();
+
+    // クライアントが宣言する IME 有効状態(commands.proto KeyEvent.activated)。
+    // null=未指定。false の印字キーは IME off 扱いでアプリへ素通しさせる。
+    public bool? Activated { get; set; }
+
+    // key_string の扱い(commands.proto KeyEvent.input_style)。既定は FollowMode。
+    // DIRECT_INPUT は precomposition で key_string を即時確定する(ソフトキーボード等の直接入力)。
+    public InputStyle InputStyle { get; set; } = InputStyle.FollowMode;
+
+    // 照合用の正規化シグネチャ(parse 結果と実イベントで一致させる)。
+    public string Signature()
+    {
+        var sb = new StringBuilder();
+        if (Modifiers.Contains(ModifierKey.Ctrl)) sb.Append("Ctrl+");
+        if (Modifiers.Contains(ModifierKey.Alt)) sb.Append("Alt+");
+        if (Modifiers.Contains(ModifierKey.Shift)) sb.Append("Shift+");
+        if (Modifiers.Contains(ModifierKey.Caps)) sb.Append("Caps+");
+        if (Special.HasValue)
+        {
+            sb.Append("special:").Append(Special.Value);
+        }
+        else if (KeyCode.HasValue)
+        {
+            sb.Append("code:").Append(KeyCode.Value);
+        }
+        return sb.ToString();
+    }
+}

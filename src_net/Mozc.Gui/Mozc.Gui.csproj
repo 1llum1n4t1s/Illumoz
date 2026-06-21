@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/gui 相当の ViewModel 層(Avalonia MVVM)。CommunityToolkit.Mvvm の
+       source generator(AOT 安全)を使用。XAML View/App は別途(実機表示確認が要るため段階的)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Gui</RootNamespace>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+</Project>

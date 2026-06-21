@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    既存 C++ の src/protocol/*.proto (proto2) を C# にコード生成する。
+    proto2 の required / group(candidate_window:Candidate, commands:Segment) が
+    Grpc.Tools(protoc) で C# 生成できるかを検証する最初の de-risk ターゲット。
+    binary シリアライズのみ使用（JsonFormatter / Any / TypeRegistry は使わない＝AOT 安全）。
+  -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Mozc.Protocol</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.28.3" />
+    <PackageReference Include="Grpc.Tools" Version="2.68.1" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      import は "protocol/xxx.proto" 形式なので ProtoRoot は src ディレクトリ。
+      gRPC サービスは無いので GrpcServices=None（メッセージのみ生成）。
+    -->
+    <Protobuf Include="..\..\src\protocol\*.proto"
+              ProtoRoot="..\..\src"
+              GrpcServices="None"
+              CompileOutputs="true" />
+    <!-- IPC パス情報(.ipc ファイルの中身)。package mozc.ipc -->
+    <Protobuf Include="..\..\src\ipc\ipc.proto"
+              ProtoRoot="..\..\src"
+              GrpcServices="None"
+              CompileOutputs="true" />
+    <!-- mozc.data パックのメタデータ。package mozc (DataSetMetadata) -->
+    <Protobuf Include="..\..\src\data_manager\dataset.proto"
+              ProtoRoot="..\..\src"
+              GrpcServices="None"
+              CompileOutputs="true" />
+  </ItemGroup>
+
+</Project>

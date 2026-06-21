@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src の Bazel genrule 群を代替。src/data のソースから mozc.data を C# で生成する
+       (C7: Bazel 全廃の中核)。CLI(Program)としても MSBuild Task からも呼べる。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Mozc.DataGen</RootNamespace>
+    <!-- NativeAOT 自己完結配布(プラン C7)。publish 時のみ native 化し、build/test や
+         GenerateMozcData.targets の dll 実行(通常ビルド出力)には影響しない。 -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/session 相当。キーイベント解釈・キーマップ・セッション状態(段階移植)。 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Session</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mozc.Base\Mozc.Base.csproj" />
+    <ProjectReference Include="..\Mozc.Converter\Mozc.Converter.csproj" />
+    <ProjectReference Include="..\Mozc.Composer\Mozc.Composer.csproj" />
+    <ProjectReference Include="..\Mozc.Engine\Mozc.Engine.csproj" />
+    <ProjectReference Include="..\Mozc.Rewriter\Mozc.Rewriter.csproj" />
+    <ProjectReference Include="..\Mozc.Prediction\Mozc.Prediction.csproj" />
+  </ItemGroup>
+
+</Project>

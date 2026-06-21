@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C++ src/base 相当の基盤ユーティリティ(パス解決/定数/encoding/ロック等)を C# 化 -->
+  <PropertyGroup>
+    <RootNamespace>Mozc.Base</RootNamespace>
+  </PropertyGroup>
+
+</Project>
